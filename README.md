@@ -1,7 +1,6 @@
 ## 📑 Functional Specification & Design Blueprint: dd_parser
 
-This document serves as the permanent structural and behavioral record for the Local Entity Classifier & Geo-Mapper (dd_parser) unit. It defines the core responsibilities, architectural boundaries, explicit business goals, and the precise AI tuning methodology this engine utilizes.
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+This document serves as the permanent structural and behavioral record for the Local Entity Classifier & Geo-Mapper (dd_parser) unit. It defines the core responsibilities, architectural boundaries, explicit business goals, and the precise AI tuning methodology this engine utilizes.This document serves as the permanent structural and behavioral record for the Local Entity Classifier & Geo-Mapper (dd_parser) unit. It defines the core responsibilities, architectural boundaries, explicit business goals, and the precise AI tuning methodology this engine utilizes.
 
 ## 🎯 1. Primary Objectives
 
