@@ -10,3 +10,4 @@ dd_cleaner_results/
 documents/
 *.csv
 parser_run.log
+.vscode/
