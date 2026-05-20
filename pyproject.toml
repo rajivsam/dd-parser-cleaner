@@ -1,0 +1,25 @@
+[project]
+name = "dd-parser-cleaner"   # This renames the overall workspace project
+version = "0.1.0"
+description = "A private, local LLM-powered data dictionary parser and entity mapper with automated cleaning."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.2.0",
+    "pydantic>=2.6.0",
+    "pypdf>=4.1.0",
+    "ollama>=0.2.0",
+    "pyyaml>=6.0.1",
+]
+
+[project.scripts]
+classify-entities = "dd_parser.cli:main"  # Reverted back to your original folder string
+clean-dataset     = "dd_cleaner.cli:main"   # Remains completely stable
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# ─── ADD THIS BLOC TO RESOLVE THE WHEEL SELECTION BUG ───
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_parser", "src/dd_cleaner"]

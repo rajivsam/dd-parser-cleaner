@@ -1,0 +1,13 @@
+{
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/src"
+  ],
+  "python.analysis.packageIndexDepths": [
+    {
+      "name": "dd_parser",
+      "depth": 5
+    }
+  ],
+  "python.analysis.importFormat": "absolute",
+  "python.analysis.typeCheckingMode": "basic"
+}
