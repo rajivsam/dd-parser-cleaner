@@ -1,25 +1,40 @@
+import os
+import sys
 import argparse
 import logging
+from dd_parser.core import LocalEntityClassifier
 
 def main():
-    # Setup initial clean console output streaming
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    logger = logging.getLogger("dd_parser_cli")
 
-    parser = argparse.ArgumentParser(description="Run the private local LLM Data Dictionary Parser.")
-    parser.add_argument("--working-dir", required=True, help="Path to raw source files.")
-    parser.add_argument("--config", required=True, help="Path to config.yaml file.")
+    parser = argparse.ArgumentParser(
+        description="Unified Project State: Private LLM Data Dictionary Parser CLI Engine."
+    )
+    parser.add_argument(
+        "--workspace", 
+        default=".", 
+        help="Path to the active directory workspace (default: current directory)"
+    )
+    parser.add_argument(
+        "--config", 
+        default="config.yaml", 
+        help="Path to the runtime parameter configuration file (default: config.yaml)"
+    )
+    
     args = parser.parse_args()
 
-    # Import inside main to let logging configure cleanly first
-    from dd_parser.core import LocalEntityClassifier
-
-    classifier = LocalEntityClassifier()
-    classifier.set_working_config(working_dir=args.working_dir, config_path=args.config)
-    classifier.process()
+    try:
+        classifier = LocalEntityClassifier()
+        classifier.set_working_config(args.workspace, args.config)
+        
+        logger.info("Executing Data Dictionary Parser pipeline inference sequence...")
+        classifier.process_pipeline()
+        logger.info("Parser pipeline successfully concluded. View logs in output tracking dir.")
+        
+    except Exception as e:
+        logger.error(f"Fatal Parser Pipeline Execution Failure: {str(e)}", exc_info=True)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

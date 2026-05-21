@@ -10,6 +10,7 @@ dependencies = [
     "pypdf>=4.1.0",
     "ollama>=0.2.0",
     "pyyaml>=6.0.1",
+    "tabulate>=0.10.0",
 ]
 
 [project.scripts]
@@ -20,6 +21,8 @@ clean-dataset     = "dd_cleaner.cli:main"   # Remains completely stable
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-# ─── ADD THIS BLOC TO RESOLVE THE WHEEL SELECTION BUG ───
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_parser", "src/dd_cleaner"]
+include = [
+    "src/path_coordinator.py"
+]

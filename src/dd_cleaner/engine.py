@@ -1,160 +1,170 @@
 import os
-import logging
 import yaml
+import logging
 import pandas as pd
-from typing import Dict, Any
+from typing import Dict, Any, List
+from path_coordinator import PlatformPathResolver
 
 logger = logging.getLogger("dd_cleaner")
 
-class DataCleanerEngine:
+class DatasetCleaner:
     def __init__(self):
         self.working_dir: str = ""
         self.config: Dict[Any, Any] = {}
+        self.geo_metadata: pd.DataFrame = pd.DataFrame()
+        self.paths: PlatformPathResolver = None
 
     def set_working_config(self, working_dir: str, config_path: str):
-        """Loads the shared config and binds the root working directory context."""
         abs_config_path = os.path.abspath(config_path)
         if not os.path.exists(abs_config_path):
             raise FileNotFoundError(f"Configuration file not found at: {abs_config_path}")
+        
         with open(abs_config_path, 'r') as f:
             self.config = yaml.safe_load(f)
+            
         if not os.path.isdir(working_dir):
             raise FileNotFoundError(f"Target data directory not found: {os.path.abspath(working_dir)}")
         self.working_dir = os.path.abspath(working_dir)
-        logger.info("Cleaner Context Initialized.")
-
-    def verify_and_load_blueprint(self) -> pd.DataFrame:
-        """Handshakes with the dd_parser output subdirectory to grab the metadata map."""
-        parser_dir = self.config.get('dd_parser_output_dir', 'dd_analysis_results')
-        blueprint_name = self.config.get('output_filename', 'sba_analysis_results.csv')
-        blueprint_path = os.path.isabs(parser_dir) and os.path.join(parser_dir, blueprint_name) or os.path.abspath(os.path.join(self.working_dir, parser_dir, blueprint_name))
         
-        if not os.path.exists(blueprint_path):
-            raise FileNotFoundError(f"Missing parsing matrix blueprint file at: {blueprint_path}")
-            
-        with open(blueprint_path, 'r', encoding='utf-8') as f:
-            first_line = f.readline()
-            if not first_line.startswith("# DD-PARSER-SIGNATURE"):
-                raise ValueError(f"Rejected: File at {blueprint_path} does not originate from dd-parser pipeline!")
-                
-        return pd.read_csv(blueprint_path, comment='#')
-
-    def generate_cleaning_markdown_summary(self, data_df: pd.DataFrame, base_project_dir: str):
-        """Compiles clean data type breakdowns and null metrics to the documents/ workspace."""
-        doc_dir_name = self.config.get('documents_dir', 'documents')
-        abs_doc_dir = os.path.abspath(os.path.join(base_project_dir, doc_dir_name))
-        os.makedirs(abs_doc_dir, exist_ok=True)
+        # Instantiate the centralized Platform Abstraction Routing Engine
+        self.paths = PlatformPathResolver(working_dir=self.working_dir, config=self.config)
         
-        report_path = os.path.join(abs_doc_dir, "data_cleaning_summary.md")
-        type_summary = data_df.dtypes.value_counts()
-        null_counts = data_df.isnull().sum()
-        total_rows = len(data_df)
+        # Initialize output directories via abstraction resolver targets
+        abs_out_dir = self.paths.data_cleaner_dir
         
-        with open(report_path, 'w', encoding='utf-8') as f:
-            f.write("# 🧼 KMDS Data Helper: Data Cleaning Summary Report\n\n")
-            f.write("## 📊 Converted Data Types Summary\n")
-            for dtype_name, count in type_summary.items():
-                f.write(f"| {dtype_name} | {count} |\n")
-            f.write("\n## 🗃️ Missing Value Counts\n")
-            for col in data_df.columns:
-                f.write(f"| `{col}` | {null_counts[col]} | {(total_rows - null_counts[col])/total_rows*100:.2f}% |\n")
-                
-        logger.info(f"Generated clean dataset validation profile saved to: {report_path}")
+        # Initialize Logger Routing
+        log_file_path = os.path.join(abs_out_dir, "cleaner_run.log")
+        file_handler = logging.FileHandler(log_file_path, encoding='utf-8')
+        file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
+        logger.addHandler(file_handler)
+        
+        logger.info("Cleaner Context initialized successfully with Platform Abstraction.")
 
-    def execute_numeric_imputer(self, series: pd.Series) -> pd.Series:
+    def validate_pipeline_handshake(self) -> str:
         """
-        Isolated strategy vector for missing continuous numerical data items.
-        Swap out this inner logic to upgrade from median to kNN/Iterative models later.
+        Validates pipeline integrity via the separated sidecar signature tracking file.
+        Uses the path coordinator to safely isolate structural checking targets.
         """
-        fill_value = series.median()
-        return series.fillna(fill_value)
-
-    def execute_poc_feature_prep(self, df: pd.DataFrame, blueprint_df: pd.DataFrame) -> pd.DataFrame:
-        """Applies basic missing value strategies and builds address strings for geocoding."""
-        prep_df = df.copy()
-        raw_cols_lower = {col.lower(): col for col in prep_df.columns}
+        abs_metadata_path = self.paths.data_dictionary_csv_path
+        abs_signature_path = f"{abs_metadata_path}.signature"
         
-        # 1. Extract and compile Geo attributes on a per-entity basis
-        geo_blueprint = blueprint_df[blueprint_df['is_geographical'] == True]
-        entity_geo_groups = geo_blueprint.groupby('provisional_entity')
-        
-        for entity_name, group in entity_geo_groups:
-            geo_cols = []
-            for _, row in group.iterrows():
-                attr_lower = row['attribute_name'].lower()
-                if attr_lower in raw_cols_lower:
-                    geo_cols.append(raw_cols_lower[attr_lower])
+        if not os.path.exists(abs_metadata_path):
+            raise FileNotFoundError(f"Pipeline Handshake Failed: Data dictionary metadata not found at {abs_metadata_path}")
+        if not os.path.exists(abs_signature_path):
+            raise FileNotFoundError(f"Pipeline Handshake Failed: Guard signature file missing at {abs_signature_path}")
             
-            if geo_cols:
-                logger.info(f" -> Consolidating geo attributes for entity: '{entity_name}'")
-                prep_df[f"{entity_name.lower()}_geo_search_string"] = prep_df[geo_cols].fillna("").astype(str).agg(", ".join, axis=1)
+        with open(abs_signature_path, 'r', encoding='utf-8') as f:
+            sig_line = f.readline().strip()
+            
+        if not sig_line.startswith("# DD-PARSER-SIGNATURE: PROCESSED-BY-"):
+            raise ValueError(f"Pipeline Handshake Rejected: Malformed control signature found: '{sig_line}'")
+            
+        logger.info(f"Pipeline handshake verified via sidecar context: {sig_line}")
+        return abs_metadata_path
+
+    def scrub_city_field(self, series: pd.Series) -> pd.Series:
+        """Standardizes geographic city names into Title Case layout format safely handling nulls."""
+        def clean_city(val: Any) -> Any:
+            if pd.isna(val) or str(val).strip().lower() in ['nan', 'none', '']:
+                return None
+            return str(val).strip().title()
+        return series.apply(clean_city)
+
+    def scrub_state_field(self, series: pd.Series) -> pd.Series:
+        """Standardizes geographic state abbreviations into uppercase strings safely handling nulls."""
+        def clean_state(val: Any) -> Any:
+            if pd.isna(val) or str(val).strip().lower() in ['nan', 'none', '']:
+                return None
+            return str(val).strip().upper()
+        return series.apply(clean_state)
+
+    def scrub_zip_field(self, series: pd.Series) -> pd.Series:
+        """Enforces a strict 5-digit string constraint by zero-padding short sequences."""
+        def pad_zip(val: Any) -> Any:
+            if pd.isna(val) or str(val).strip().lower() in ['nan', 'none', '']:
+                return None
+            
+            # Extract string portion before any floating point decimal point safely
+            raw_str = str(val).split('.')
+            clean_str = raw_str[0].strip()
+            
+            if not clean_str:
+                return None
+                
+            return clean_str.zfill(5)[:5]
+        return series.apply(pad_zip)
+
+    def process_cleaning_pipeline(self):
+        logger.info("Data scrubbing pipeline execution sequence engaged.")
         
-        # 2. Variable Strategy Loop driven by Schema Typing definitions
-        for _, row in blueprint_df.iterrows():
-            attr_lower = row['attribute_name'].lower()
-            if attr_lower not in raw_cols_lower:
+        # 1. Execute and verify the pipeline handshake
+        metadata_csv_path = self.validate_pipeline_handshake()
+        self.geo_metadata = pd.read_csv(metadata_csv_path)
+        
+        # 2. Ingest the case-preserved raw dataset matrix via resolver path
+        abs_raw_path = self.paths.raw_data_input_path
+        if not os.path.exists(abs_raw_path):
+            raise FileNotFoundError(f"Raw file targeted for scrubbing absent at: {abs_raw_path}")
+            
+        df_data = pd.read_csv(abs_raw_path)
+        logger.info(f"Ingested raw dataset containing {len(df_data)} rows and {len(df_data.columns)} columns.")
+        
+        # 3. Separate geographic fields matching our metadata dictionary rule map
+        geo_fields_df = self.geo_metadata[self.geo_metadata['is_geographical'] == True]
+        
+        # 4. Transform elements based on actual field identity rules
+        for _, row in geo_fields_df.iterrows():
+            target_col = row['attribute_name']
+            
+            # Defensive check matching case-preserved naming structures
+            if target_col not in df_data.columns:
+                logger.warning(f"Configured column target '{target_col}' missing from raw payload headers. Skipping.")
                 continue
-            col_name = raw_cols_lower[attr_lower]
-            t_type = row['provisional_python_type']
-            
-            # Numeric Strategy: Route directly through decoupled method
-            if t_type in ['int', 'float']:
-                if prep_df[col_name].isnull().any():
-                    prep_df[col_name] = self.execute_numeric_imputer(prep_df[col_name])
-                    
-            # Categorical Strategy: Explicitly flag missing indices
-            elif t_type == 'str':
-                prep_df[col_name] = prep_df[col_name].replace(["nan", "None", ""], None).fillna("MISSING")
                 
-        return prep_df
-
-    def clean_dataset(self):
-        blueprint_df = self.verify_and_load_blueprint()
-        raw_file = self.config.get('raw_dataset_file', 'sba_loans_raw.csv')
-        base_project_dir = os.path.abspath(os.path.join(self.working_dir, ".."))
-        raw_path = os.path.isabs(raw_file) and raw_file or os.path.abspath(os.path.join(base_project_dir, "data", raw_file))
-        
-        data_df = pd.read_csv(raw_path)
-        raw_columns_lower = {col.lower(): col for col in data_df.columns}
-        
-        # [STAGE 1] Perform baseline type conversions
-        for _, row in blueprint_df.iterrows():
-            blueprint_attr = row['attribute_name']
-            target_type = row['provisional_python_type']
-            attr_lower = blueprint_attr.lower()
-            if attr_lower not in raw_columns_lower: continue
-            col_name = raw_columns_lower[attr_lower]
+            logger.info(f"Executing geographic scrub routine on attribute column: {target_col}")
             
-            try:
-                if target_type == 'bool':
-                    if data_df[col_name].dtype == object:
-                        data_df[col_name] = data_df[col_name].astype(str).str.upper().str.strip().isin(['TRUE', '1', 'Y', 'YES', 'T'])
-                    else:
-                        data_df[col_name] = data_df[col_name].fillna(False).astype(bool)
-                elif target_type == 'int':
-                    data_df[col_name] = pd.to_numeric(data_df[col_name], errors='coerce')
-                elif target_type == 'float':
-                    data_df[col_name] = pd.to_numeric(data_df[col_name], errors='coerce')
-                elif target_type in ['datetime.date', 'datetime.datetime']:
-                    data_df[col_name] = pd.to_datetime(data_df[col_name], errors='coerce')
-                else:
-                    data_df[col_name] = data_df[col_name].astype(str).str.strip()
-            except Exception: pass
+            target_col_lower = target_col.lower()
+            if 'zip' in target_col_lower:
+                df_data[target_col] = self.scrub_zip_field(df_data[target_col])
+            elif 'city' in target_col_lower:
+                df_data[target_col] = self.scrub_city_field(df_data[target_col])
+            elif 'state' in target_col_lower:
+                df_data[target_col] = self.scrub_state_field(df_data[target_col])
+            else:
+                df_data[target_col] = df_data[target_col].astype(str).str.strip()
 
-        # [STAGE 2] Write standard output and generate report
-        cleaner_dir = self.config.get('dd_cleaner_output_dir', 'dd_cleaner_results')
+        # 5. Export clean database arrays into resolved cleaner directory
         clean_filename = self.config.get('clean_output_filename', 'sba_loans_clean.csv')
-        abs_dest_dir = os.path.isabs(cleaner_dir) and cleaner_dir or os.path.abspath(os.path.join(base_project_dir, "data", cleaner_dir))
-        os.makedirs(abs_dest_dir, exist_ok=True)
+        abs_clean_path = os.path.join(self.paths.data_cleaner_dir, clean_filename)
         
-        data_df.to_csv(os.path.join(abs_dest_dir, clean_filename), index=False)
-        self.generate_cleaning_markdown_summary(data_df, base_project_dir)
+        df_data.to_csv(abs_clean_path, index=False)
+        logger.info(f"Cleaned dataset written successfully to workflow path: {abs_clean_path}")
         
-        # [STAGE 3] Run PoC feature prep AFTER generating the report
-        logger.info("Executing PoC Missing Value Strategies and Geo-string preparation...")
-        poc_ready_df = self.execute_poc_feature_prep(data_df, blueprint_df)
+        # 6. Generate execution summary metric file reports
+        self.generate_cleaning_summary(df_data, geo_fields_df)
+
+    def generate_cleaning_summary(self, df_clean: pd.DataFrame, geo_metadata: pd.DataFrame):
+        abs_doc_dir = self.paths.documents_dir
+        md_path = os.path.join(abs_doc_dir, "data_cleaning_summary.md")
         
-        # Save the finalized feature-selection dataset
-        poc_output_path = os.path.join(abs_dest_dir, "feature_selection_ready.csv")
-        poc_ready_df.to_csv(poc_output_path, index=False)
-        logger.info(f"🎉 Hand-off Complete! Modeling matrix saved to: {poc_output_path}")
+        geo_columns_cleaned = geo_metadata['attribute_name'].tolist()
+        columns_block = "\n".join([f"- `{col}`" for col in geo_columns_cleaned])
+        
+        md_content = f"""# Data Cleaning Transformation Summary
+
+## 📈 Execution Scope Metrics
+- **Raw Processing Payload Length**: {len(df_clean)} records
+- **Geographic Scrubbing Sweeps Executed**: {len(geo_columns_cleaned)} columns cleaned
+
+## 🛠️ Cleansed Geographic Attribute Inventory
+{columns_block}
+
+## 📋 Sample Clean Output View
+"""
+        # Formats layout to markdown table explicitly using active data targets
+        md_content += df_clean[geo_columns_cleaned].head(5).to_markdown(index=False)
+        
+        with open(md_path, 'w', encoding='utf-8') as f:
+            f.write(md_content)
+            
+        logger.info(f"Analytics file metadata reporting snapshot dumped into target workspace: {md_path}")
