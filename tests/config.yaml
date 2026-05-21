@@ -1,0 +1,11 @@
+batch_size: 10
+clean_output_filename: sba_loans_clean.csv
+csv_target_column_index: 0
+dd_cleaner_output_dir: dd_cleaner_results
+dd_parser_output_dir: dd_analysis_results
+documents_dir: documents
+model_name: llama3.2
+output_filename: sba_analysis_results.csv
+raw_dataset_file: sba_loans_raw.csv
+system_prompt: You are a precise data engineering assistant. Respond strictly in JSON.
+temperature: 0.0

@@ -3,9 +3,9 @@
 ## 📌 Active Project State Summary
 
 * **Workspace Title**: `dd-parser-cleaner`
-* **Active Platform Integration**: Fully aligned with the `kmds-data-helper` ecosystem. File routing path boundaries are dynamically managed via a centralized abstraction class rather than conversational token memory.
-* **Pipeline Handshake Status**: Fully functional. `dd_cleaner` validates an isolated verification check sidecar asset file (`.signature`) alongside standard tabular data stream readers (`pandas.read_csv`), avoiding row structural metadata contamination.
-* **Execution Safety Status**: Enforces case-preserving attribute inventory tracking straight from raw payload schemas. Corrects floating-point string conversions (`"95112.0"` → `"95112"`) and pads truncated sequences to exactly 5 digits.
+* **Active Platform Integration**: Enforces a centralized path coordinator model (`PlatformPathResolver`) to manage all directory boundaries dynamically across core engines and test suites.
+* **Testing Framework**: Fully migrated from loose script clients to a formalized, repeatable `pytest` layout. The active testing workspace context is safely isolated under the `./tests` directory wrapper.
+* **Pipeline Handshake Status**: Fully functional. The data dictionary parser preserves 100% of user-provided structural column casings and outputs clean CSV tables alongside detached `.signature` checking files to avoid tabular stream corruption.
 
 ---
 
@@ -13,34 +13,39 @@
 
 ```text
 /home/rajiv/programming/dd_parser_cleaner/   # Workspace Directory
-├── pyproject.toml                           # Hatchling distribution config with inclusive filters
-├── config.yaml                              # Global operational setting variable declarations
-├── test_client.py                           # Abstraction-aligned parser verification suite
-├── test_cleaner_client.py                   # Abstraction-aligned cleaner verification suite
+├── pyproject.toml                           # Hatchling wheel configuration with inclusive filters
+├── config.yaml                              # Global parameter setting file
 └── src/
-    ├── path_coordinator.py                  # PlatformPathResolver Dynamic Path Routing Abstraction
-    ├── dd_parser/                           # LLM Inference and Suffix Heuristic Sweeper
+    ├── path_coordinator.py                  # Standalone PlatformPathResolver Abstraction
+    ├── dd_parser/                           # Parser Inference and Suffix Sweep Heuristics
     │   ├── __init__.py
     │   ├── cli.py
-    │   ├── core.py                          # Case-Preserving Parser Matrix & Metadata Generator
-    │   └── models.py                        # Pydantic Structural Constraints Verification
-    └── dd_cleaner/                          # Element-Wise Geographic Transformation Engine
+    │   ├── core.py                          # Case-Preserving Parser Engine
+    │   └── models.py                        # Pydantic Serialization Contracts
+    └── dd_cleaner/                          # Safe Element-Wise Transformation Engine
         ├── __init__.py
         ├── cli.py
-        └── engine.py                        # Safe Ingestion Scrubbing and Markdown Status Reporter
+        └── engine.py                        # Safe Geographic Cleaning Engine
+└── tests/                                   # Isolated Testing Domain
+    ├── conftest.py                          # Session-scoped pytest configuration fixture
+    ├── test_parser.py                       # Automated Parser Validation Suite
+    ├── test_cleaner.py                      # Automated Cleaner Validation Suite
+    ├── data/                                # Local real-world structural benchmark tables
+    ├── data_dictionary/                     # Test run parser dictionary directory target
+    └── documents/                           # Test run markdown analytical summary outputs
 ```
 
 ---
 
 ## 🚀 Validated Integration Metrics
 
-* **Parser Suite (`test_client.py`)**: `GREEN`. Confirms total schema column asset inventory extraction while maintaining mixed-casing conventions.
-* **Cleaner Suite (`test_cleaner_client.py`)**: `GREEN`. Validates element-wise text scrubbing (`.apply()`) for missing data values, zero-padding execution rules (`"02108"`), and explicit test type-casting overrides (`dtype={"cdc_zip": str}`).
+* **`tests/test_parser.py`**: `PASSED`. Confirms mixed-case column index discovery (`BorrCity`, `cdc_zip`, `ThirdPartyLender_City`) and accurate non-geographic mapping for `GrossApproval`.
+* **`tests/test_cleaner.py`**: `PASSED`. Validates title-casing on urban strings, strict 5-digit zip code padding preservation via string typing, and accurate text cleaning for missing variables.
 
 ---
 
 ## 🔍 Pending Objectives for Next Session
 
-1. **Hallucination Evaluation & Stress Testing**: Ingest larger, real-world data files to stress-test the LLM inference prompt layer. Verify if Ollama correctly preserves casing when processing complex prefixes or custom fields, and ensure fallback heuristic rules cleanly override unmapped structures.
-2. **Missing Value Imputation Core Heuristics**: Design numeric and categorical field handling routines based on the typed parameters isolated inside `provisional_python_type`.
-3. **Downstream Package Prototyping**: Port the centralized path resolution model across remaining kmds-packages, referencing `file_routing_mechanism.md` within the `featurization` pipeline module layer.
+1. **Real-World Open-Source Evaluation Data**: Ingest and evaluate the system against authentic open-source datasets (e.g., from Kaggle or UCI Irvine repositories) once local network terminal proxy or firewall rules are set up to support direct dataset file downloads.
+2. **Missing Value Custom Imputation Core Heuristics**: Expand `src/dd_cleaner/engine.py` to deploy specific numeric, string, or boolean fallback data imputation routines driven by the `provisional_python_type` metadata properties.
+3. **Featurization Package Alignment**: Port the centralized `PlatformPathResolver` architectural layout model across your remaining kmds packages, integrating it directly with your incoming `file_routing_mechanism.md` specifications.
