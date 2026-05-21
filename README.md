@@ -1,104 +1,45 @@
-## 📑 Functional Specification & Design Blueprint: dd_parser
+# dd-parser-cleaner
 
-This document serves as the permanent structural and behavioral record for the Local Entity Classifier & Geo-Mapper (dd_parser) unit. It defines the core responsibilities, architectural boundaries, explicit business goals, and the precise AI tuning methodology this engine utilizes.This document serves as the permanent structural and behavioral record for the Local Entity Classifier & Geo-Mapper (dd_parser) unit. It defines the core responsibilities, architectural boundaries, explicit business goals, and the precise AI tuning methodology this engine utilizes.
+A private, local LLM-powered data dictionary parser, entity mapper, and case-preserving data transformation pipeline. This package crawls raw dataset structures, classifies attributes through local inference, and executes deterministic data cleaning routines while protecting case variations and file formats.
 
-## 🎯 1. Primary Objectives
+## 🚀 Quick Start
 
-The dd_parser exists to ingest raw, unrefined data dictionary metadata and output a structured schema matrix. It fulfills two independent down-stream tracks:
+### 1. Installation
 
-## Objective A: Cognitive Reduction & Graph Model Priming
+This repository uses `uv` for environment management and dependency tracking.
 
-* Context Simplification: Accelerate domain understanding for the data analyst or data scientist by abstracting noisy column names into semantic business classifications.
-* Graph Mapping Blueprint: Directly inform graph-model creation. The output properties establish a predictable framework for nodes and relationships:
-* provisional_entity $\rightarrow$ Map directly to Graph Nodes / Vertices (e.g., Borrower, Bank, Loan).
-  * related_entity $\rightarrow$ Map directly to Graph Edges / Relationships (e.g., an address attribute binding back to its parent entity node).
+```bash
+# Clone the repository and sync the local virtual environment
+cd dd_parser_cleaner
+uv sync
 
-## Objective B: Automated Pipeline Configuration Input
+# Install package command entry points in editable mode
+pip install -e .
+```
 
-* Downstream Orchestration: Act as a machine-readable configuration file for a completely separate data-cleaning pipeline.
-* Targeted Sanitization:
-* Wherever is_geographical is flagged as TRUE, it signals the downstream module to route those specific fields to geographic standardization engines (e.g., address parsing or zip code alignment).
-  * The provisional_python_type provides the downstream process with deterministic casting targets (e.g., running data type conversions for dates or strict booleans).
+### 2. Run the Pipeline CLI
 
----
+```bash
+# Step 1: Ingest layout and classify data dictionary entities
+classify-entities --workspace . --config config.yaml
 
-## 📐 2. Architectural Design Principles
+# Step 2: Validate signatures and execute geographic scrubbing routines
+clean-dataset --workspace . --config config.yaml
+```
 
-┌───────────────────────────────────────┐
-│        1. dd_parser (Inference)       │
-│ - Reads Raw Data Dictionary Formats   │
-│ - Local LLM Semantic Extraction       │
-│ - Structural Guardrails / Logging     │
-└───────────────────┬───────────────────┘
-│
-▼ [Generates: classified_schema.csv]
-┌───────────────────────────────────────┐
-│      2. data_cleaner (Execution)      │◄── (Completely Independent Package)
-│ - Ingests Raw Data (sba_loans.csv)    │
-│ - Reads classified_schema.csv Config  │
-│ - Executes Type Casting & Geo-Scrub   │
-└───────────────────────────────────────┘
+### 3. Run Automated Tests (`pytest`)
 
-1. Single Responsibility Rule: This unit is strictly an Inference, Labeling, and Extraction Engine. It is decoupled from the actual dataset. It reads metadata blueprints and never modifies raw data files directly.
-2. Complete Environmental Independence: The pipeline explicitly decouples execution parameters (config.yaml) from the underlying operational file paths (working_dir).
+All integration tests run inside an isolated folder context to ensure production directories are never contaminated.
+
+```bash
+uv run pytest -v tests/
+```
 
 ---
 
-## 🧠 3. AI Tuning Approach & Architecture
+## 📑 Core Documentation Index
 
-Engineering high-utility metadata from local LLMs requires moving beyond simple prompts. This package implements a production-grade, two-tier strategy aligned with enterprise AI maturity standards.
+For deep-dive architectural specifications, path coordinator details, and pipeline handshake rules, please consult the full documentation suite:
 
-## The Enterprise AI Tuning Hierarchy
-
-▲ Production: Hybrid Agent Loops + Deterministic Filters (Where we are)
-│ Validation: Few-Shot In-Context Prompt Engineering
-│ Optimization: Vector RAG / Taxonomy Injectors
-▼ Core Base: Fine-Tuning / Domain Adaptation (Ollama Models)
-
-## The Two-Tiered Runtime Pipeline
-
-┌────────────────────────────────────────────────────────┐
-│ Tier 1: Few-Shot In-Context Prompting (The Guide)      │
-│ - "Prime" the LLM with flawless examples.              │
-│ - Shapes intuitive pattern matching and intuition.     │
-└───────────────────────────┬────────────────────────────┘
-│ (High-quality generation)
-▼
-┌────────────────────────────────────────────────────────┐
-│ Tier 2: Post-Processing Cleaner (The Guardrail)       │
-│ - Deterministic code (heuristics/regex).               │
-│ - Catches any remaining edge-case slip-ups.           │
-└───────────────────────────┬────────────────────────────┘
-│ (Flawless result)
-▼
-[Production-Ready Clean Metadata]
-
-* Tier 1: Probabilistic In-Context Learning: Employs an open local model (llama3.2) driven by explicit, structural golden-standard input/output examples within the instruction block. This primes the model's pattern matching to minimize structural variations and prefix hallucinations.
-* Tier 2: Deterministic Safety Guards: Ingests the model's structured payload and passes it through an isolated code layer containing precise string, regex, and business prefix heuristics (post_process_cleaner). This eliminates leaked edge cases, enforces type restrictions, and ensures strict data safety.
-
----
-
-## 📋 4. Schema Contract Definitions
-
-The output schema generated by this engine is strictly bound to the following Pydantic contract model:
-
-
-| Field Name              | Data Type     | Constraint Rule / Description                                                           |
-| ------------------------- | --------------- | ----------------------------------------------------------------------------------------- |
-| attribute_name          | str           | The exact technical column header found in the raw dataset.                             |
-| provisional_entity      | str           | The core business entity semantic node the attribute belongs to.                        |
-| is_geographical         | bool          | Flag designating if the property denotes a physical or administrative location.         |
-| related_entity          | Optional[str] | The parent entity destination an edge maps to if a location binding exists.             |
-| provisional_python_type | Literal       | Enforced strict typing pool: [str, int, float, datetime.date, datetime.datetime, bool]. |
-
----
-
-## 🛠️ 5. Workspace Verification Manifest
-
-The configuration layout utilizes the following structured system settings to orchestrate its execution environment:
-
-* Configurable Ingestion Routing: Operates across multiple target file extensions seamlessly (.csv, .pdf, .md).
-* Custom File Outputs: Supports a fully configurable output directory (output_dir) and explicit file naming masks (output_filename) inside the config.yaml matrix.
-* Dual-Stream Session Logging: Drops a verbose parser_run.log tracking exact micro-batch file performance timings directly alongside the target file exports for transparency.
-
----
+* 👉 **[USER_GUIDE.md](USER_GUIDE.md)**: Exhaustive manual detailing hardened engineering constraints, file-routing abstraction schemas, data transformation algorithms, and structural testing profiles.
+* 👉 **`gemini/stash.md`**: Active unified project session stashes tracking historical migration logs and live execution snapshots.
