@@ -2,32 +2,33 @@ import os
 import pandas as pd
 import yaml
 import pytest
+from pathlib import Path
 from dd_parser.core import LocalEntityClassifier
-from path_coordinator import PlatformPathResolver
+from path_coordinator import PathCoordinator
 
 def test_parser_pipeline_execution(managed_test_config):
     """
     Validates end-to-end entity mapping logic within the isolated tests directory.
-    Asserts case preservation and signature tracking separation.
+    Asserts case preservation and signature tracking separation using a centralized path coordinator.
     """
-    # Initialize engine targeting our custom execution parameters
-    classifier = LocalEntityClassifier()
-    classifier.set_working_config(working_dir="./tests", config_path=managed_test_config)
+    # 🎯 FIX: Instantiate the single authoritative path coordinator tracking boundary directly
+    coordinator = PathCoordinator(config_path=managed_test_config, working_dir="./tests")
+    
+    # 🎯 FIX: Inject the coordinator instance into the required engine constructor
+    classifier = LocalEntityClassifier(path_coordinator=coordinator)
     
     print("\n🚀 Executing entity classification sweeps on benchmark assets...")
     classifier.process_pipeline()
     
-    # Extract resolved path properties directly from the active, configured engine instance
-    resolver = classifier.paths
-    
-    csv_out = resolver.data_dictionary_csv_path
-    sig_out = f"{csv_out}.signature"
-    md_out = os.path.join(resolver.documents_dir, "dd_parsing_summary.md")
+    # 🧼 FIX: Resolve artifact tracking properties via modern Path-based operations from coordinator
+    csv_out = Path(coordinator.data_dictionary_csv_path)
+    sig_out = csv_out.with_suffix(".signature")
+    md_out = Path(coordinator.documents_dir) / "dd_parsing_summary.md"
     
     # Platform compliance checks
-    assert os.path.exists(csv_out), f"❌ Metadata matrix missing at: {csv_out}"
-    assert os.path.exists(sig_out), f"❌ Sidecar control signature asset missing at: {sig_out}"
-    assert os.path.exists(md_out), f"❌ Report analytics summary layout missing at: {md_out}"
+    assert csv_out.exists(), f"❌ Metadata matrix missing at: {csv_out}"
+    assert sig_out.exists(), f"❌ Sidecar control signature asset missing at: {sig_out}"
+    assert md_out.exists(), f"❌ Report analytics summary layout missing at: {md_out}"
     
     # Structural integrity: pandas must parse it smoothly without header contamination
     df_meta = pd.read_csv(csv_out)

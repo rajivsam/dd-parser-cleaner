@@ -1,41 +1,41 @@
 import os
 import pandas as pd
 from pathlib import Path
-from path_coordinator import PlatformPathResolver
+from path_coordinator import PathCoordinator
 
 class DatasetCleaner:
     """
     Symmetric operational table cleaner applying vectorized pandas 
     title-casing and zero-padding transformations based on path coordinator blueprints.
     """
-    def __init__(self):
-        self.paths = None
+    def __init__(self, path_coordinator: PathCoordinator):
+        # 🎯 FIX: Force injection of the routing orchestration layer contract
+        if path_coordinator is None:
+            raise TypeError("DatasetCleaner requires a valid PathCoordinator instance.")
+
+        self.paths = path_coordinator
         self.config = {}
         self.cleaner_config = {}
 
-    def set_working_config(self, working_dir: str, config_path: str) -> None:
-        """
-        Production calling interface initialization pattern. Establishes path manager
-        state context completely decoupled from raw source file logic.
-        """
-        self.paths = PlatformPathResolver(config_path=config_path)
-        self.paths.base_dir = Path(working_dir).resolve()
-        
-        # Clear lazy config caches to reflect new sandbox environment properties
-        self.paths._loaded_config = None
-        
-        # Keep internal config tracking pointers synchronized
+        # Hydrate configuration dictionaries immediately from the mandatory coordinator
+        self._hydrate_internal_configurations()
+
+    def _hydrate_internal_configurations(self) -> None:
+        """Helper to cleanly extract active framework configuration boundaries."""
         self.config = self.paths.config
         self.cleaner_config = self.config.get("cleaner", self.config)
+
+    def set_working_config(self, working_dir: str, config_path: str) -> None:
+        """Resets the internal environment configuration boundaries with explicit parameters."""
+        # 🧼 FIX: Re-instantiate the layout parameters using the class blueprint definition
+        self.paths = self.paths.__class__(config_path=config_path, working_dir=working_dir)
+        self._hydrate_internal_configurations()
 
     def process_cleaning_pipeline(self) -> pd.DataFrame:
         """
         Executes end-to-end data cleaning pipelines exactly as requested 
         by line 34 of your automated test suite tracker.
         """
-        if not self.paths:
-            raise ValueError("Cleaner configuration must be loaded via set_working_config.")
-
         # 1. Fetch unified target file path from the resolver contract
         input_path = self.paths.raw_dataset_path
         if not input_path.exists():

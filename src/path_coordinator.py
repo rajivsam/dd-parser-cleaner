@@ -1,14 +1,20 @@
 import os
 import yaml
 from pathlib import Path
+from typing import Optional, Union
 
 class PathCoordinator:
     """
     Centralised path routing infrastructure contract.
     Ensures zero file paths are hardcoded across application and client boundaries.
     """
-    def __init__(self, config_path: str = "config.yaml"):
-        self.base_dir = Path(__file__).resolve().parent.parent
+    def __init__(self, config_path: str = "config.yaml", working_dir: Optional[Union[str, Path]] = None):
+        # 🎯 FIX: Explicitly set base_dir to working_dir if provided, fallback to default parent resolution
+        if working_dir is not None:
+            self.base_dir = Path(working_dir).resolve()
+        else:
+            self.base_dir = Path(__file__).resolve().parent.parent
+            
         self._config_name = config_path
         self._loaded_config = None
 
@@ -52,7 +58,6 @@ class PathCoordinator:
         Targets: {$working_dir}/data_dictionary/{dd_parser_output_dir}
         """
         out_dir_name = self._parser_config.get("dd_parser_output_dir", "dd_analysis_results")
-        # 🧼 FIX: Append the parser results folder directly inside the data_dictionary subdirectory
         out_dir = self.base_dir / "data_dictionary" / out_dir_name
         out_dir.mkdir(parents=True, exist_ok=True)
         return out_dir
@@ -89,7 +94,3 @@ class PathCoordinator:
         """OUTPUT FILE: Endpoint contract where cleaned table datasets are stored."""
         filename = self._cleaner_config.get("clean_output_filename", "sba_loans_clean.csv")
         return str(self.cleaner_output_directory / filename)
-
-
-# Clean interface mapping for platform components
-PlatformPathResolver = PathCoordinator

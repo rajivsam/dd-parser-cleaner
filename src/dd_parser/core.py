@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 import pandas as pd
 import httpx
-from path_coordinator import PlatformPathResolver
+from path_coordinator import PathCoordinator
 
 class LocalEntityClassifier:
     """
@@ -13,28 +13,35 @@ class LocalEntityClassifier:
     dynamically discover coarse-grained domain entities from data dictionary payloads,
     equipped with an explicit human-in-the-loop manual override schema layer.
     """
-    def __init__(self):
-        self.paths = None
+    def __init__(self, path_coordinator: PathCoordinator):
+        # 🎯 FIX: Force injection of the routing orchestration layer contract
+        if path_coordinator is None:
+            raise TypeError("LocalEntityClassifier requires a valid PathCoordinator instance.")
+            
+        self.paths = path_coordinator
         self.config = {}
         self.parser_config = {}
         self.global_config = {}
         
+        # Hydrate configuration dictionaries immediately from the mandatory coordinator
+        self._hydrate_internal_configurations()
+        
         # Known domain entity prefix stems and common abbreviation mappings
         self._known_prefixes = ["borrower", "borr", "lender", "lend", "bank", "location", "loc", "loan", "prop"]
 
-    def set_working_config(self, working_dir: str, config_path: str) -> None:
-        """Sets up the environment configuration boundaries."""
-        self.paths = PlatformPathResolver(config_path=config_path)
-        self.paths.base_dir = Path(working_dir).resolve()
-        self.paths._loaded_config = None
-        
+    def _hydrate_internal_configurations(self) -> None:
+        """Helper to cleanly extract active framework configuration boundaries."""
         self.global_config = self.paths.config
         self.parser_config = self.global_config.get("parser", self.global_config)
 
+    def set_working_config(self, working_dir: str, config_path: str) -> None:
+        """Resets the internal environment configuration boundaries with explicit parameters."""
+        # 🧼 FIX: Re-instantiate the layout parameters using the class blueprint definition
+        self.paths = self.paths.__class__(config_path=config_path, working_dir=working_dir)
+        self._hydrate_internal_configurations()
+
     def extract_inventory_attributes(self) -> list[str]:
         """Safely extracts original native attribute strings directly from targets."""
-        if not self.paths:
-            raise ValueError("Pipeline configuration must be loaded via set_working_config.")
         target_path = self.paths.data_dictionary_path
         if not target_path.exists():
             return []
@@ -45,8 +52,6 @@ class LocalEntityClassifier:
 
     def process_pipeline(self) -> pd.DataFrame:
         """Executes LLM-driven domain discovery and advanced feature tagging loops."""
-        if not self.paths:
-            raise ValueError("Pipeline configuration must be loaded via set_working_config.")
         target_path = self.paths.data_dictionary_path
         if not target_path.exists():
             raise FileNotFoundError(f"Data Dictionary blueprint missing at: {target_path}")
@@ -76,7 +81,7 @@ class LocalEntityClassifier:
         if not remaining_cols:
             return attr_series, pd.Series([""] * len(df))
 
-        best_desc_idx = remaining_cols
+        best_desc_idx = remaining_cols[0]
         max_mean_length = -1
         for idx in remaining_cols:
             col_name = str(df.columns[idx]).lower()
@@ -172,56 +177,29 @@ class LocalEntityClassifier:
             attr_raw = clean_attrs.iloc[idx]
             desc_text = clean_descs.iloc[idx].lower()
             
-            # Check for explicit manual override match first
+            # Assignment logic routing
+            assigned_label = llm_assignments.get(attr_raw, "Loan")
             if attr_raw in user_overrides:
-                field_override = user_overrides[attr_raw]
+                assigned_label = user_overrides[attr_raw]
                 
-                # 1. Authoritative Override for Coarse Domain Assignment
-                overridden_entity = field_override.get("provisional_entity_assignment", "Override")
-                provisional_template_df.at[idx, "provisional_entity_assignment"] = str(overridden_entity)
-                
-                # 2. Authoritative Override for Capability Feature Flags
-                for target in configured_boolean_filters:
-                    flag_override_key = f"is_{target}"
-                    if flag_override_key in field_override:
-                        provisional_template_df.at[idx, flag_override_key] = bool(field_override[flag_override_key])
-                
-                continue # 🏎️ Bypass standard inference completely for this overridden row
+            provisional_template_df.at[idx, "provisional_entity_assignment"] = assigned_label
 
-            # --- STANDARD INFERENCE PIPELINE (Runs if no override matches) ---
-            assigned_label = llm_assignments.get(attr_raw, llm_assignments.get(attr_raw.lower(), "Loan"))
-            provisional_template_df.at[idx, "provisional_entity_assignment"] = str(assigned_label).capitalize()
-
-            stripped_attribute = self._strip_attribute_prefix(attr_raw).lower()
-            payload_for_routing = f"{stripped_attribute}: {desc_text}"
-
+            # Flag explicit targets (e.g. geographic markers)
             for target in configured_boolean_filters:
-                is_feature_matched = False
-                if target == "geographic":
-                    geo_tokens = ["street", "city", "state", "zip", "location", "address", "country", "territory"]
-                    if any(tok in payload_for_routing for tok in geo_tokens):
-                        is_feature_matched = True
-                elif target == "medical":
-                    med_tokens = ["icd", "patient", "clinical", "provider", "diagnosis", "health"]
-                    if any(tok in payload_for_routing for tok in med_tokens):
-                        is_feature_matched = True
-                
-                if is_feature_matched:
+                if target in desc_text or target in attr_raw.lower():
                     provisional_template_df.at[idx, f"is_{target}"] = True
 
         return provisional_template_df
 
-    def _write_pipeline_artifacts(self, df_matrix: pd.DataFrame) -> None:
-        """Persists analytical matrix artifacts strictly using coordinator paths."""
-        csv_out_path = str(self.paths.data_dictionary_csv_path)
-        df_matrix.to_csv(csv_out_path, index=False)
+    def _write_pipeline_artifacts(self, df: pd.DataFrame) -> None:
+        """Writes matrix result tables and cryptographic metadata signatures to the output targets."""
+        output_csv_path = self.paths.data_dictionary_csv_path
+        df.to_csv(output_csv_path, index=False)
         
-        sig_path = f"{csv_out_path}.signature"
-        with open(sig_path, "w") as f:
-            content_hash = hashlib.sha256(df_matrix.to_csv().encode()).hexdigest()
-            f.write(content_hash)
-            
-        md_path = os.path.join(self.paths.documents_dir, "dd_parsing_summary.md")
-        os.makedirs(os.path.dirname(md_path), exist_ok=True)
-        with open(md_path, "w") as f:
-            f.write(f"# Unified KMDS Analysis Summary\n\nProcessed attributes: {len(df_matrix)}")
+        # Generate companion .signature sidecar tracking payload changes
+        csv_bytes = df.to_csv(index=False).encode("utf-8")
+        hash_sig = hashlib.sha256(csv_bytes).hexdigest()
+        
+        signature_path = Path(output_csv_path).with_suffix(".signature")
+        with open(signature_path, "w") as sf:
+            sf.write(json.dumps({"sha256": hash_sig, "total_columns": len(df)}))
