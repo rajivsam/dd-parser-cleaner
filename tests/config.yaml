@@ -1,11 +1,20 @@
 batch_size: 10
-clean_output_filename: sba_loans_clean.csv
-csv_target_column_index: 0
-dd_cleaner_output_dir: dd_cleaner_results
-dd_parser_output_dir: dd_analysis_results
+cleaner:
+  clean_output_filename: sba_loans_clean.csv
+  dd_cleaner_output_dir: dd_cleaner_results
+  raw_dataset_file: sba_loans_raw.csv
 documents_dir: documents
 model_name: llama3.2
-output_filename: sba_analysis_results.csv
-raw_dataset_file: sba_loans_raw.csv
+parser:
+  csv_target_column_index: 0
+  data_dictionary_file: sba_dd.csv
+  dd_parser_output_dir: dd_analysis_results
+  entity_tagging:
+  - geographic
+  output_filename: sba_analysis_results.csv
+  overrides:
+    LocationID:
+      is_geographic: false
+      provisional_entity_assignment: Lender
 system_prompt: You are a precise data engineering assistant. Respond strictly in JSON.
 temperature: 0.0

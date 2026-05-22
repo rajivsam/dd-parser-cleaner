@@ -7,7 +7,5 @@ __pycache__/
 dist/
 dd_analysis_results/
 dd_cleaner_results/
-documents/
-*.csv
 parser_run.log
 .vscode/
