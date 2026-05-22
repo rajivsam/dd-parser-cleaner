@@ -9,3 +9,4 @@ dd_analysis_results/
 dd_cleaner_results/
 parser_run.log
 .vscode/
+tests/data/*.csv
