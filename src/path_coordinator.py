@@ -46,6 +46,11 @@ class PathCoordinator:
 
     # --- PARSER MODULE ENDPOINTS ---
     @property
+    def data_dictionary_attribute_col_name(self) -> Optional[str]:
+        """The target text string column header identifying primary attribute names."""
+        return self._parser_config.get("data_dictionary_attribute_col_name", None)
+
+    @property
     def data_dictionary_path(self) -> Path:
         """INPUT: Resolves raw metadata configuration blueprints."""
         filename = self._parser_config.get("data_dictionary_file", "sba_dd.csv")

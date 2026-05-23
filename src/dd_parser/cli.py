@@ -1,8 +1,11 @@
-import os
-import sys
+"""Command Line Interface entry point for the metadata parser framework."""
+
 import argparse
 import logging
-from dd_parser.core import LocalEntityClassifier
+import sys
+from dd_parser.orchestrator import PipelineOrchestrator
+from path_coordinator import PathCoordinator
+
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -25,16 +28,21 @@ def main():
     args = parser.parse_args()
 
     try:
-        classifier = LocalEntityClassifier()
-        classifier.set_working_config(args.workspace, args.config)
+        logger.info("Initializing Path Coordinator and Orchestration layers...")
+        # 🎯 FIX: Explicitly instantiate the routing orchestration contract using CLI arguments
+        coordinator = PathCoordinator(config_path=args.config, working_dir=args.workspace)
+        
+        # 🎯 FIX: Inject the coordinator instance into the required modular entry point
+        orchestrator = PipelineOrchestrator(path_coordinator=coordinator)
         
         logger.info("Executing Data Dictionary Parser pipeline inference sequence...")
-        classifier.process_pipeline()
+        orchestrator.process_pipeline()
         logger.info("Parser pipeline successfully concluded. View logs in output tracking dir.")
         
     except Exception as e:
         logger.error(f"Fatal Parser Pipeline Execution Failure: {str(e)}", exc_info=True)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

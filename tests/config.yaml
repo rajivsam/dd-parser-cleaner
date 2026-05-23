@@ -7,6 +7,7 @@ documents_dir: documents
 model_name: llama3.2
 parser:
   csv_target_column_index: 0
+  data_dictionary_attribute_col_name: Field Name
   data_dictionary_file: sba_dd.csv
   dd_parser_output_dir: dd_analysis_results
   entity_tagging:

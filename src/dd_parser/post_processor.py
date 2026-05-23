@@ -10,17 +10,12 @@ from path_coordinator import PathCoordinator
 
 
 class MetadataPostProcessor:
-    """Structures extracted entity values and manages hard disk storage rules."""
+    """Structures extracted entity values and manages hard disk storage rules without hardcoded keywords."""
 
     def __init__(self, path_coordinator: PathCoordinator, parser_config: Dict[str, Any]) -> None:
-        """Initializes the processor and populates known structural prefixes."""
+        """Initializes the processor layers."""
         self.update_config(path_coordinator, parser_config)
         self._known_prefixes = ["borrower", "borr", "lender", "lend", "bank", "location", "loc", "loan", "prop"]
-        
-        # 🎯 CONCEPT MAP: Refined keywords for distinct boundary validation passes
-        self._semantic_concept_keywords = {
-            "geographic": ["city", "zip", "state", "street", "address", "county", "location", "geo", "postal"]
-        }
 
     def update_config(self, path_coordinator: PathCoordinator, parser_config: Dict[str, Any]) -> None:
         """Refreshes operational configurations and targets dynamically."""
@@ -61,10 +56,7 @@ class MetadataPostProcessor:
         return attr_series, desc_series
 
     def synchronize_with_raw_headers(self, df_dict: pd.DataFrame, raw_headers: List[str]) -> pd.DataFrame:
-        """Replaces data dictionary attributes with authoritative case-sensitive raw headers.
-
-        Appends missing dataset columns with default placeholders.
-        """
+        """Replaces data dictionary attributes with authoritative case-sensitive raw headers."""
         raw_headers_lower = [h.lower() for h in raw_headers]
         
         target_col_name = self.paths.data_dictionary_attribute_col_name
@@ -103,23 +95,8 @@ class MetadataPostProcessor:
 
         return pd.DataFrame(updated_rows)
 
-    def strip_attribute_prefix(self, attr_name: str) -> str:
-        """Strips known operational prefix strings from tokens to capture raw roots."""
-        attr_clean = str(attr_name).strip()
-        attr_lower = attr_clean.lower()
-        sorted_prefixes = sorted(self._known_prefixes, key=len, reverse=True)
-        
-        for prefix in sorted_prefixes:
-            if attr_lower.startswith(prefix):
-                prefix_len = len(prefix)
-                stripped = attr_clean[prefix_len:]
-                stripped = re.sub(r'^[^a-zA-Z0-9]+', '', stripped)
-                if stripped:
-                    return stripped
-        return attr_clean
-
     def execute(
-        self, df: pd.DataFrame, attributes: pd.Series, descriptions: pd.Series, llm_assignments: Dict[str, str]
+        self, df: pd.DataFrame, attributes: pd.Series, descriptions: pd.Series, llm_assignments: Dict[str, Dict[str, Any]]
     ) -> pd.DataFrame:
         """Assembles data matrix, resolves configuration overrides, and saves output data blocks."""
         provisional_df = df.copy()
@@ -127,21 +104,21 @@ class MetadataPostProcessor:
         provisional_df["attribute_name"] = attributes
         provisional_df["provisional_entity_assignment"] = "unassigned"
         
-        clean_attrs = attributes.fillna("").astype(str).str.strip()
-        clean_descs = descriptions.fillna("").astype(str).str.strip()
+        # 🎯 ZERO-HARDCODING FIX: Extract targets strictly from configuration with empty list fallback
+        raw_tags = self.parser_config.get("entity_tagging") or []
+        explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
         
-        explicit_targets = [t.strip().lower() for t in self.parser_config.get("entity_tagging", ["geographic"])]
         for target in explicit_targets:
             provisional_df[f"is_{target}"] = False
 
         user_overrides = self.parser_config.get("overrides", {})
 
         for idx in range(len(provisional_df)):
-            attr_raw = clean_attrs.iloc[idx]
-            attr_lower = attr_raw.lower()
-            desc_text = clean_descs.iloc[idx].lower()
+            attr_raw = str(attributes.iloc[idx])
             
-            assigned_label = llm_assignments.get(attr_raw, "Loan")
+            # Extract dynamic response structures directly from semantic payload node
+            field_metadata = llm_assignments.get(attr_raw, {})
+            assigned_label = field_metadata.get("entity_assignment", "Loan")
             
             lookup_key = attr_raw
             if lookup_key not in user_overrides:
@@ -150,6 +127,7 @@ class MetadataPostProcessor:
                         lookup_key = k
                         break
 
+            # Handle configuration overrides
             if lookup_key in user_overrides:
                 override_node = user_overrides[lookup_key]
                 if isinstance(override_node, dict):
@@ -159,35 +137,21 @@ class MetadataPostProcessor:
                 
             provisional_df.at[idx, "provisional_entity_assignment"] = assigned_label
 
-            # Apply synonym-based heuristic validation sweeps using strict word boundaries
+            # Populate target column configurations straight out of LLM properties or manual overrides
             for target in explicit_targets:
                 override_flag = False
                 if lookup_key in user_overrides and isinstance(user_overrides[lookup_key], dict):
                     override_flag = user_overrides[lookup_key].get(f"is_{target}", False)
                 
-                # Check target inclusion safely
-                target_in_desc = re.search(r'\b' + re.escape(target) + r'\b', desc_text) is not None
-                target_in_attr = target in attr_lower
+                # Extract boolean assessment directly assigned by LLM discovery logic pass
+                llm_flag_assessment = field_metadata.get(f"is_{target}", False)
                 
-                # 🎯 FIX: Verify sub-keywords matching using clean whole-word bounds for descriptions, 
-                # but allow sliding matches on the condensed column names (like 'borrzip')
-                sub_keywords = self._semantic_concept_keywords.get(target, [])
-                has_semantic_match = False
-                for kw in sub_keywords:
-                    # Match inside field names (sliding token string containment)
-                    if kw in attr_lower:
-                        has_semantic_match = True
-                        break
-                    # Match inside definitions (isolated whole-word matches only to block 'char-geo-ff')
-                    if re.search(r'\b' + re.escape(kw) + r'\b', desc_text) is not None:
-                        has_semantic_match = True
-                        break
-                
-                if override_flag or target_in_desc or target_in_attr or has_semantic_match:
+                if override_flag or llm_flag_assessment:
                     provisional_df.at[idx, f"is_{target}"] = True
 
         self._write_pipeline_artifacts(provisional_df)
         return provisional_df
+
 
     def _write_pipeline_artifacts(self, df: pd.DataFrame) -> None:
         """Writes matrix result tables and cryptographic metadata signatures to the output targets."""
