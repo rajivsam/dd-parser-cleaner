@@ -21,7 +21,7 @@ class MetadataPostProcessor:
     def update_config(self, path_coordinator: PathCoordinator, parser_config: Dict[str, Any]) -> None:
         """Refreshes operational configurations and targets dynamically."""
         self.paths = path_coordinator
-        self.parser_config = parser_config
+        self.parser_config = parser_config if parser_config is not None else {}
 
     def infer_schema_columns(self, df: pd.DataFrame) -> Tuple[pd.Series, pd.Series]:
         """Extracts structural parts from messy input columns dynamically using header names or indices."""
@@ -132,13 +132,17 @@ class MetadataPostProcessor:
         for target in explicit_targets:
             provisional_df[f"is_{target}"] = False
 
-        user_overrides = self.parser_config.get("overrides", {})
+        # 🧠 DEFENSIVE PATCH: Safely fallback to an empty dict if key is missing or explicitly null
+        user_overrides = self.parser_config.get("overrides")
+        if not isinstance(user_overrides, dict):
+            user_overrides = {}
+            
         discovered_entities: Set[str] = set()
 
         for idx in range(len(provisional_df)):
             attr_raw = str(attributes.iloc[idx])
             
-            field_metadata = llm_assignments.get(attr_raw, {})
+            field_metadata = llm_assignments.get(attr_raw, {}) if llm_assignments else {}
             assigned_label = field_metadata.get("entity_assignment", "Loan")
             
             lookup_key = attr_raw
@@ -180,13 +184,3 @@ class MetadataPostProcessor:
         output_csv_path = self.paths.data_dictionary_csv_path
         
         df.to_csv(output_csv_path, index=False)
-        csv_bytes = df.to_csv(index=False).encode("utf-8")
-        hash_sig = hashlib.sha256(csv_bytes).hexdigest()
-        
-        sidecar_path = Path(output_csv_path).with_suffix(".signature")
-        with open(sidecar_path, "w") as sf:
-            sf.write(json.dumps({
-                "sha256": hash_sig, 
-                "total_columns": len(df),
-                "dynamic_prefixes": self.known_prefixes  # Appended to control sidecar for cleaner use
-            }))

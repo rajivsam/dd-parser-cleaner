@@ -1,21 +1,19 @@
 batch_size: 10
 cleaner:
-  clean_output_filename: sba_loans_clean.csv
+  clean_output_filename: insurance_clean.csv
   dd_cleaner_output_dir: dd_cleaner_results
-  raw_dataset_file: sba_loans_raw.csv
+  raw_dataset_file: insurance.csv
 documents_dir: documents
 model_name: llama3.2
 parser:
   csv_target_column_index: 0
   data_dictionary_attribute_col_name: Field Name
-  data_dictionary_file: sba_dd.csv
+  data_dictionary_file: insurance_dd.csv
   dd_parser_output_dir: dd_analysis_results
   entity_tagging:
   - geographic
-  output_filename: sba_analysis_results.csv
+  output_filename: insurance_analysis_results.csv
   overrides:
-    LocationID:
-      is_geographic: false
-      provisional_entity_assignment: Lender
+
 system_prompt: You are a precise data engineering assistant. Respond strictly in JSON.
 temperature: 0.0

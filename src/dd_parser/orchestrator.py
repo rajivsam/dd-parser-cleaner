@@ -1,5 +1,6 @@
 """Pipeline orchestration engine for the metadata classification framework."""
 
+import sys
 import pandas as pd
 from typing import List
 from path_coordinator import PathCoordinator
@@ -24,6 +25,9 @@ class PipelineOrchestrator:
         self.llm_classifier = LLMEntityClassifier(self.global_config, self.parser_config)
         self.post_processor = MetadataPostProcessor(self.paths, self.parser_config)
 
+        # 🧠 DEPENDENCY CHECKPOINT: Validate background processing infrastructure availability
+        self._verify_infrastructure_availability()
+
         # Insert at the end of PipelineOrchestrator.__init__
         print("\n=== [DIAGNOSTIC] CONFIGURATION TAG EVALUATION ===")
         raw_tags = self.parser_config.get("entity_tagging") or []
@@ -34,6 +38,15 @@ class PipelineOrchestrator:
         print(f"3. Active structural overrides found: {list(overrides.keys())}")
         print("=================================================\n")
 
+    def _verify_infrastructure_availability(self) -> None:
+        """Verifies that the core inference model client infrastructure is reachable before execution."""
+        if not hasattr(self.llm_classifier, "is_ready") or not self.llm_classifier.is_ready():
+            print("\n" + "="*75, file=sys.stderr)
+            print("❌ CRITICAL INFRASTRUCTURE ERROR: Background inference model (Ollama) is offline.", file=sys.stderr)
+            print("💡 Please start your local service engine instance and re-run this tool.", file=sys.stderr)
+            print("="*75 + "\n", file=sys.stderr)
+            sys.exit(1)
+
     def set_working_config(self, working_dir: str, config_path: str) -> None:
         """Resets the internal environment boundaries with runtime parameters."""
         self.paths = self.paths.__class__(config_path=config_path, working_dir=working_dir)
@@ -43,6 +56,9 @@ class PipelineOrchestrator:
         # Refresh configurations across downstream dependencies
         self.llm_classifier.update_config(self.global_config, self.parser_config)
         self.post_processor.update_config(self.paths, self.parser_config)
+        
+        # Re-verify infrastructure capabilities following environmental layout adjustments
+        self._verify_infrastructure_availability()
 
     def extract_inventory_attributes(self) -> List[str]:
         """Safely extracts native attribute strings from the configured source."""
@@ -79,8 +95,15 @@ class PipelineOrchestrator:
         # Extract normalized, synchronized attributes and description values
         attr_series, desc_series = self.post_processor.infer_schema_columns(df_dict)
         
-        # Component 2: LLM processes the correct raw strings and dynamic target criteria
-        llm_assignments = self.llm_classifier.discover_entities(attr_series, desc_series, explicit_targets)
+        # 🧠 PHASE 1 RUNTIME ENGAGEMENT: Bootstrap domain identification directly from data file arrays
+        discovered_hints = self.llm_classifier.discover_macro_domain(
+            attr_series.tolist(), desc_series.tolist()
+        )
+        
+        # 🧠 PHASE 2 STREAMING EXECUTION: Pass dynamically extracted definitions down the pipe
+        llm_assignments = self.llm_classifier.discover_entities(
+            attr_series, desc_series, explicit_targets, generated_hints=discovered_hints
+        )
         
         # Component 3: Saves exact layout attributes without subsequent corruption
         parsed_matrix = self.post_processor.execute(df_dict, attr_series, desc_series, llm_assignments)
