@@ -1,202 +1,50 @@
-"""Applies overrides, dynamic tags, and serializes cryptographic metadata matrix tables."""
+"""Command Line Interface entry point for the dataset cleaning and profiling framework."""
 
-import re
-import json
-import hashlib
-import pandas as pd
-from pathlib import Path
-from typing import Dict, Any, Tuple, List
+import argparse
+import logging
+import sys
+from dd_cleaner.orchestrator import CleanerPipelineOrchestrator
 from path_coordinator import PathCoordinator
 
 
-class MetadataPostProcessor:
-    """Structures extracted entity values and manages hard disk storage rules."""
+def main():
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    logger = logging.getLogger("dd_cleaner_cli")
 
-    def __init__(self, path_coordinator: PathCoordinator, parser_config: Dict[str, Any]) -> None:
-        """Initializes the processor and populates known structural prefixes."""
-        self.update_config(path_coordinator, parser_config)
-        self._known_prefixes = ["borrower", "borr", "lender", "lend", "bank", "location", "loc", "loan", "prop"]
+    parser = argparse.ArgumentParser(
+        description="Unified Project State: Downstream Cleaner, Profiler, & Normalization CLI Engine."
+    )
+    parser.add_argument(
+        "--workspace", 
+        default=".", 
+        help="Path to the active directory workspace (default: current directory)"
+    )
+    parser.add_argument(
+        "--config", 
+        default="config.yaml", 
+        help="Path to the runtime parameter configuration file (default: config.yaml)"
+    )
+    
+    args = parser.parse_args()
+
+    try:
+        logger.info("Initializing Path Coordinator and Cleaner Orchestration layers...")
+        # 🎯 CONSTRUCTOR DEPENDENCY INJECTION: Instantiate the authoritative routing contract
+        coordinator = PathCoordinator(config_path=args.config, working_dir=args.workspace)
         
-        # 🎯 CONCEPT MAP: Refined keywords for distinct boundary validation passes
-        self._semantic_concept_keywords = {
-            "geographic": ["city", "zip", "state", "street", "address", "county", "location", "geo", "postal"]
-        }
-
-    def update_config(self, path_coordinator: PathCoordinator, parser_config: Dict[str, Any]) -> None:
-        """Refreshes operational configurations and targets dynamically."""
-        self.paths = path_coordinator
-        self.parser_config = parser_config
-
-    def infer_schema_columns(self, df: pd.DataFrame) -> Tuple[pd.Series, pd.Series]:
-        """Extracts structural parts from messy input columns dynamically using header names or indices."""
-        target_col_name = self.paths.data_dictionary_attribute_col_name
-        attr_idx = 0
-
-        if target_col_name and target_col_name in df.columns:
-            attr_idx = df.columns.get_loc(target_col_name)
-        else:
-            attr_idx = self.parser_config.get("csv_target_column_index", 0)
-            if attr_idx >= len(df.columns):
-                attr_idx = 0
-
-        attr_series = df.iloc[:, attr_idx].astype(str).str.strip()
-
-        remaining_cols = [i for i in range(len(df.columns)) if i != attr_idx]
-        if not remaining_cols:
-            return attr_series, pd.Series([""] * len(df))
-
-        best_desc_idx = remaining_cols
-        max_mean_length = -1
-        for idx in remaining_cols:
-            col_name = str(df.columns[idx]).lower()
-            if any(kw in col_name for kw in ['definition', 'desc', 'meaning', 'explanation']):
-                best_desc_idx = idx
-                break
-            mean_len = df.iloc[:, idx].astype(str).str.len().mean()
-            if mean_len > max_mean_length:
-                max_mean_length = mean_len
-                best_desc_idx = idx
-
-        desc_series = df.iloc[:, best_desc_idx].astype(str).str.strip()
-        return attr_series, desc_series
-
-    def synchronize_with_raw_headers(self, df_dict: pd.DataFrame, raw_headers: List[str]) -> pd.DataFrame:
-        """Replaces data dictionary attributes with authoritative case-sensitive raw headers.
-
-        Appends missing dataset columns with default placeholders.
-        """
-        raw_headers_lower = [h.lower() for h in raw_headers]
+        # 🎯 MODULAR ENTRY POINT: Inject the coordinator tracking boundary cleanly
+        orchestrator = CleanerPipelineOrchestrator(path_coordinator=coordinator)
         
-        target_col_name = self.paths.data_dictionary_attribute_col_name
-        if not target_col_name or target_col_name not in df_dict.columns:
-            attr_idx = self.parser_config.get("csv_target_column_index", 0)
-            if attr_idx >= len(df_dict.columns):
-                attr_idx = 0
-            target_col_name = df_dict.columns[attr_idx]
-
-        _, desc_series = self.infer_schema_columns(df_dict)
-        desc_col_name = desc_series.name if desc_series.name in df_dict.columns else "Definition"
-
-        matched_raw_headers = set()
-        updated_rows = []
-
-        for _, row in df_dict.iterrows():
-            row_dict = row.to_dict()
-            dict_attr_val = str(row_dict[target_col_name]).strip()
-            
-            try:
-                match_idx = raw_headers_lower.index(dict_attr_val.lower())
-                authoritative_val = raw_headers[match_idx]
-                row_dict[target_col_name] = authoritative_val
-                matched_raw_headers.add(authoritative_val)
-            except ValueError:
-                pass
-                
-            updated_rows.append(row_dict)
-
-        for raw_h in raw_headers:
-            if raw_h not in matched_raw_headers:
-                new_row = {col: "" for col in df_dict.columns}
-                new_row[target_col_name] = raw_h
-                new_row[desc_col_name] = "No description available."
-                updated_rows.append(new_row)
-
-        return pd.DataFrame(updated_rows)
-
-    def strip_attribute_prefix(self, attr_name: str) -> str:
-        """Strips known operational prefix strings from tokens to capture raw roots."""
-        attr_clean = str(attr_name).strip()
-        attr_lower = attr_clean.lower()
-        sorted_prefixes = sorted(self._known_prefixes, key=len, reverse=True)
+        logger.info("Executing Data Profiling and Missingness Analysis sequence...")
+        logger.info("Executing Vectorized Scrubbing and Case Normalization pipeline transforms...")
+        orchestrator.process_cleaning_pipeline()
         
-        for prefix in sorted_prefixes:
-            if attr_lower.startswith(prefix):
-                prefix_len = len(prefix)
-                stripped = attr_clean[prefix_len:]
-                stripped = re.sub(r'^[^a-zA-Z0-9]+', '', stripped)
-                if stripped:
-                    return stripped
-        return attr_clean
-
-    def execute(
-        self, df: pd.DataFrame, attributes: pd.Series, descriptions: pd.Series, llm_assignments: Dict[str, str]
-    ) -> pd.DataFrame:
-        """Assembles data matrix, resolves configuration overrides, and saves output data blocks."""
-        provisional_df = df.copy()
+        logger.info("Cleaner pipeline successfully concluded. View cleaned data and markdown profiles in output targets.")
         
-        provisional_df["attribute_name"] = attributes
-        provisional_df["provisional_entity_assignment"] = "unassigned"
-        
-        clean_attrs = attributes.fillna("").astype(str).str.strip()
-        clean_descs = descriptions.fillna("").astype(str).str.strip()
-        
-        explicit_targets = [t.strip().lower() for t in self.parser_config.get("entity_tagging", ["geographic"])]
-        for target in explicit_targets:
-            provisional_df[f"is_{target}"] = False
+    except Exception as e:
+        logger.error(f"Fatal Cleaner Pipeline Execution Failure: {str(e)}", exc_info=True)
+        sys.exit(1)
 
-        user_overrides = self.parser_config.get("overrides", {})
 
-        for idx in range(len(provisional_df)):
-            attr_raw = clean_attrs.iloc[idx]
-            attr_lower = attr_raw.lower()
-            desc_text = clean_descs.iloc[idx].lower()
-            
-            assigned_label = llm_assignments.get(attr_raw, "Loan")
-            
-            lookup_key = attr_raw
-            if lookup_key not in user_overrides:
-                for k in user_overrides:
-                    if k.lower() == attr_raw.lower():
-                        lookup_key = k
-                        break
-
-            if lookup_key in user_overrides:
-                override_node = user_overrides[lookup_key]
-                if isinstance(override_node, dict):
-                    assigned_label = override_node.get("provisional_entity_assignment", assigned_label)
-                else:
-                    assigned_label = override_node
-                
-            provisional_df.at[idx, "provisional_entity_assignment"] = assigned_label
-
-            # Apply synonym-based heuristic validation sweeps using strict word boundaries
-            for target in explicit_targets:
-                override_flag = False
-                if lookup_key in user_overrides and isinstance(user_overrides[lookup_key], dict):
-                    override_flag = user_overrides[lookup_key].get(f"is_{target}", False)
-                
-                # Check target inclusion safely
-                target_in_desc = re.search(r'\b' + re.escape(target) + r'\b', desc_text) is not None
-                target_in_attr = target in attr_lower
-                
-                # 🎯 FIX: Verify sub-keywords matching using clean whole-word bounds for descriptions, 
-                # but allow sliding matches on the condensed column names (like 'borrzip')
-                sub_keywords = self._semantic_concept_keywords.get(target, [])
-                has_semantic_match = False
-                for kw in sub_keywords:
-                    # Match inside field names (sliding token string containment)
-                    if kw in attr_lower:
-                        has_semantic_match = True
-                        break
-                    # Match inside definitions (isolated whole-word matches only to block 'char-geo-ff')
-                    if re.search(r'\b' + re.escape(kw) + r'\b', desc_text) is not None:
-                        has_semantic_match = True
-                        break
-                
-                if override_flag or target_in_desc or target_in_attr or has_semantic_match:
-                    provisional_df.at[idx, f"is_{target}"] = True
-
-        self._write_pipeline_artifacts(provisional_df)
-        return provisional_df
-
-    def _write_pipeline_artifacts(self, df: pd.DataFrame) -> None:
-        """Writes matrix result tables and cryptographic metadata signatures to the output targets."""
-        output_csv_path = self.paths.data_dictionary_csv_path
-        
-        df.to_csv(output_csv_path, index=False)
-        csv_bytes = df.to_csv(index=False).encode("utf-8")
-        hash_sig = hashlib.sha256(csv_bytes).hexdigest()
-        
-        sidecar_path = Path(output_csv_path).with_suffix(".signature")
-        with open(sidecar_path, "w") as sf:
-            sf.write(json.dumps({"sha256": hash_sig, "total_columns": len(df)}))
+if __name__ == "__main__":
+    main()

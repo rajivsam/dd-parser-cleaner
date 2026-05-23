@@ -5,7 +5,7 @@ import json
 import hashlib
 import pandas as pd
 from pathlib import Path
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Set
 from path_coordinator import PathCoordinator
 
 
@@ -15,7 +15,8 @@ class MetadataPostProcessor:
     def __init__(self, path_coordinator: PathCoordinator, parser_config: Dict[str, Any]) -> None:
         """Initializes the processor layers."""
         self.update_config(path_coordinator, parser_config)
-        self._known_prefixes = ["borrower", "borr", "lender", "lend", "bank", "location", "loc", "loan", "prop"]
+        # 🧠 ZERO-HARDCODING: Initialized empty. Hydrated dynamically at runtime.
+        self.known_prefixes: List[str] = []
 
     def update_config(self, path_coordinator: PathCoordinator, parser_config: Dict[str, Any]) -> None:
         """Refreshes operational configurations and targets dynamically."""
@@ -95,6 +96,27 @@ class MetadataPostProcessor:
 
         return pd.DataFrame(updated_rows)
 
+    def _derive_prefix_stems(self, entities: Set[str]) -> List[str]:
+        """Algorithmatically computes common structural token sub-stems from active entities."""
+        stems = set()
+        for entity in entities:
+            clean_ent = str(entity).strip().lower()
+            if not clean_ent or clean_ent == "unassigned":
+                continue
+                
+            # 1. Capture full word token
+            stems.add(clean_ent)
+            
+            # 2. Capture canonical 4-character truncation rule (e.g., 'borrower' -> 'borr')
+            if len(clean_ent) >= 4:
+                stems.add(clean_ent[:4])
+                
+            # 3. Capture canonical 3-character truncation rule (e.g., 'lender' -> 'len', 'location' -> 'loc')
+            if len(clean_ent) >= 3:
+                stems.add(clean_ent[:3])
+                
+        return sorted(list(stems), key=len, reverse=True)
+
     def execute(
         self, df: pd.DataFrame, attributes: pd.Series, descriptions: pd.Series, llm_assignments: Dict[str, Dict[str, Any]]
     ) -> pd.DataFrame:
@@ -104,7 +126,6 @@ class MetadataPostProcessor:
         provisional_df["attribute_name"] = attributes
         provisional_df["provisional_entity_assignment"] = "unassigned"
         
-        # 🎯 ZERO-HARDCODING FIX: Extract targets strictly from configuration with empty list fallback
         raw_tags = self.parser_config.get("entity_tagging") or []
         explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
         
@@ -112,11 +133,11 @@ class MetadataPostProcessor:
             provisional_df[f"is_{target}"] = False
 
         user_overrides = self.parser_config.get("overrides", {})
+        discovered_entities: Set[str] = set()
 
         for idx in range(len(provisional_df)):
             attr_raw = str(attributes.iloc[idx])
             
-            # Extract dynamic response structures directly from semantic payload node
             field_metadata = llm_assignments.get(attr_raw, {})
             assigned_label = field_metadata.get("entity_assignment", "Loan")
             
@@ -127,7 +148,6 @@ class MetadataPostProcessor:
                         lookup_key = k
                         break
 
-            # Handle configuration overrides
             if lookup_key in user_overrides:
                 override_node = user_overrides[lookup_key]
                 if isinstance(override_node, dict):
@@ -136,22 +156,24 @@ class MetadataPostProcessor:
                     assigned_label = override_node
                 
             provisional_df.at[idx, "provisional_entity_assignment"] = assigned_label
+            discovered_entities.add(assigned_label)
 
-            # Populate target column configurations straight out of LLM properties or manual overrides
             for target in explicit_targets:
                 override_flag = False
                 if lookup_key in user_overrides and isinstance(user_overrides[lookup_key], dict):
                     override_flag = user_overrides[lookup_key].get(f"is_{target}", False)
                 
-                # Extract boolean assessment directly assigned by LLM discovery logic pass
                 llm_flag_assessment = field_metadata.get(f"is_{target}", False)
                 
                 if override_flag or llm_flag_assessment:
                     provisional_df.at[idx, f"is_{target}"] = True
 
+        # 🧠 METADATA RECONCILIATION: Extract structural prefixes out of active tags
+        self.known_prefixes = self._derive_prefix_stems(discovered_entities)
+        print(f"📊 Dynamically extracted operational prefix stems: {self.known_prefixes}")
+
         self._write_pipeline_artifacts(provisional_df)
         return provisional_df
-
 
     def _write_pipeline_artifacts(self, df: pd.DataFrame) -> None:
         """Writes matrix result tables and cryptographic metadata signatures to the output targets."""
@@ -163,4 +185,8 @@ class MetadataPostProcessor:
         
         sidecar_path = Path(output_csv_path).with_suffix(".signature")
         with open(sidecar_path, "w") as sf:
-            sf.write(json.dumps({"sha256": hash_sig, "total_columns": len(df)}))
+            sf.write(json.dumps({
+                "sha256": hash_sig, 
+                "total_columns": len(df),
+                "dynamic_prefixes": self.known_prefixes  # Appended to control sidecar for cleaner use
+            }))

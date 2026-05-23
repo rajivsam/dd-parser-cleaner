@@ -90,7 +90,7 @@ class PathCoordinator:
     def cleaner_output_directory(self) -> Path:
         """OUTPUT DIR: Target directory location for clean table metrics."""
         out_dir_name = self._cleaner_config.get("dd_cleaner_output_dir", "dd_cleaner_results")
-        out_dir = self.base_dir / out_dir_name
+        out_dir = self.base_dir / "data" / out_dir_name
         out_dir.mkdir(parents=True, exist_ok=True)
         return out_dir
 
@@ -99,3 +99,18 @@ class PathCoordinator:
         """OUTPUT FILE: Endpoint contract where cleaned table datasets are stored."""
         filename = self._cleaner_config.get("clean_output_filename", "sba_loans_clean.csv")
         return str(self.cleaner_output_directory / filename)
+    
+    @property
+    def profiling_report_path(self) -> Path:
+        """
+        Authoritative routing endpoint for the markdown data quality profiling report.
+        Maps dynamically to: {$working_dir}/documents/{$profiling_output_dir}/{$profiling_report_filename}
+        """
+        cleaner_cfg = self.config.get("cleaner", {})
+        output_dir = cleaner_cfg.get("profiling_output_dir", "dd_cleaner_results")
+        filename = cleaner_cfg.get("profiling_report_filename", "sba_data_profile.md")
+        
+        # Consistent with standard cleaner output storage rules
+        target_dir = Path(self.base_dir) / "documents" / output_dir
+        return target_dir / filename
+

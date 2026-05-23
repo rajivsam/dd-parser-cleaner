@@ -3,6 +3,9 @@ cleaner:
   clean_output_filename: sba_loans_clean.csv
   dd_cleaner_output_dir: dd_cleaner_results
   raw_dataset_file: sba_loans_raw.csv
+  # 📊 DATA PROFILING COMPLIANCE SPECIFICATIONS:
+  profiling_output_dir: dd_cleaner_results
+  profiling_report_filename: sba_data_profile.md
 documents_dir: documents
 model_name: llama3.2
 parser:

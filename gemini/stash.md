@@ -1,130 +1,113 @@
-# 📌 Unified Contract & State Tracking Blueprint (Stash)
+## 📌 Unified Contract & State Tracking Blueprint (Stash)
 
 ## 🛠️ Active Project State
 
-* **Workspace:** `dd-parser-cleaner`
-* **Architecture:** Modular system decoupled into `orchestrator.py`, `llm_client.py`, and `post_processor.py` with strict Constructor Dependency Injection via `PathCoordinator`.
-* **State Checkpoint:** Successfully aligned the testing architecture to reference a single authoritative configuration file located at the VSCode workspace root. Resolved terminal blind spots by ensuring both `test_parser.py` and `test_cleaner.py` run in context-isolated `./tests` directory loops, completely eliminating duplicate/hardcoded configuration objects within the test workspace.
+* Workspace: `dd-parser-cleaner`
+* Architecture: Fully modularized and decoupled.
+
+  * `dd_parser` split into orchestrator, llm_client, and post_processor.
+  * `dd_cleaner` decoupled into `orchestrator.py` (Pipeline Manager), `rules.py` (Vectorized Transformations Engine), `null_profiler.py` (Data Profiler), and `reporter.py` (Audit Log Manager).
+* State Checkpoint: N-gram domain stems are now dynamically derived at runtime by the parser, serialized into a sidecar `.signature` control matrix, and harvested by the downstream cleaner using an integrated metadata handshake. Successfully validated that the cleaner pipeline updates all target files on physical disk with today's live execution timestamps.
 
 ---
 
 ## ⚙️ Authoritative Contract Specifications
 
-### 1. Unified Test Configuration Hook (`tests/conftest.py`)
+## 1. Unified Configuration Schema (`config.yaml`)
 
-Maintains zero-redundancy configuration management by directly serving the workspace root configuration path into the test matrix execution scope.
+```yaml
+batch_size: 10
+documents_dir: documents
+model_name: llama3.2
+system_prompt: You are a precise data engineering assistant. Respond strictly in JSON.
+temperature: 0.0
+
+parser:
+  csv_target_column_index: 0
+  data_dictionary_attribute_col_name: "Field Name"
+  data_dictionary_file: sba_dd.csv
+  dd_parser_output_dir: dd_analysis_results
+  output_filename: sba_analysis_results.csv
+  entity_tagging:
+    - geographic
+  overrides:
+    LocationID:
+      is_geographic: false
+      provisional_entity_assignment: Lender
+
+cleaner:
+  raw_dataset_file: sba_loans_raw.csv
+  dd_cleaner_output_dir: dd_cleaner_results
+  clean_output_filename: sba_loans_clean.csv
+  profiling_output_dir: dd_cleaner_results
+  profiling_report_filename: sba_data_profile.md
+```
+
+## 2. Verified Path Coordinator Endpoints (`path_coordinator.py`)
 
 ```python
-"""Centralized test configuration layout managing shared fixtures."""
+    @property
+    def cleaner_output_directory(self) -> Path:
+        """OUTPUT DIR: Target directory location for clean table metrics."""
+        out_dir_name = self._cleaner_config.get("dd_cleaner_output_dir", "dd_cleaner_results")
+        out_dir = self.base_dir / "data" / out_dir_name
+        out_dir.mkdir(parents=True, exist_ok=True)
+        return out_dir
 
-import os
-from pathlib import Path
-import pytest
-
-@pytest.fixture(scope="session", autouse=True)
-def managed_test_config():
-    """
-    Dynamically maps to the single authoritative config.yaml at the VSCode workspace root.
-    Eliminates duplicated config payloads across production and testing states.
-    """
-    root_config = Path(__file__).parent.parent / "config.yaml"
+    @property
+    def clean_dataset_output_path(self) -> str:
+        """OUTPUT FILE: Endpoint contract where cleaned table datasets are stored."""
+        filename = self._cleaner_config.get("clean_output_filename", "sba_loans_clean.csv")
+        return str(self.cleaner_output_directory / filename)
   
-    if not root_config.exists():
-        raise FileNotFoundError(
-            f"❌ Base configuration missing at workspace root: {root_config.resolve()}\n"
-            f"Please ensure config.yaml exists at your project root boundary."
-        )
+    @property
+    def profiling_report_path(self) -> Path:
+        """
+        Authoritative routing endpoint for the markdown data quality profiling report.
+        Maps dynamically to: {$working_dir}/documents/{$profiling_output_dir}/{$profiling_report_filename}
+        """
+        cleaner_cfg = self.config.get("cleaner", {})
+        output_dir = cleaner_cfg.get("profiling_output_dir", "dd_cleaner_results")
+        filename = cleaner_cfg.get("profiling_report_filename", "sba_data_profile.md")
       
-    return str(root_config.resolve())
+        target_dir = Path(self.base_dir) / "documents" / output_dir
+        return target_dir / filename
 ```
 
 ---
 
-## 🧩 Modular System Snapshots (Testing Space)
+## 🧩 Modular System Snapshots (Decoupled Cleaner)
 
-### 🧬 Aligned Test Parser (`tests/test_parser.py`)
+## 🧬 Data Quality Profiler (`src/dd_cleaner/null_profiler.py`)
 
-```python
-"""Unit test suite verifying modular parsing matrix layout processing rules."""
+Generates a pre-scrub baseline assessment matrix as a markdown file, capturing null counts and percentage distributions per column field.
 
-import os
-import pandas as pd
-import pytest
-from pathlib import Path
-from dd_parser.orchestrator import PipelineOrchestrator
-from path_coordinator import PathCoordinator
+## 🧼 Vectorized Rules Engine (`src/dd_cleaner/rules.py`)
 
-def test_parser_pipeline_execution(managed_test_config):
-    """Validates end-to-end entity mapping logic matching the central workspace config."""
-    coordinator = PathCoordinator(config_path=managed_test_config, working_dir="./tests")
-    classifier = PipelineOrchestrator(path_coordinator=coordinator)
-  
-    print(f"\n🚀 Executing pipeline orchestration within sandbox boundary: ./tests")
-    classifier.process_pipeline()
-  
-    csv_out = Path(coordinator.data_dictionary_csv_path)
-    assert csv_out.exists(), f"❌ Expected pipeline output matrix missing at: {csv_out.resolve()}"
-  
-    df_meta = pd.read_csv(csv_out)
-    assert "attribute_name" in df_meta.columns, "❌ Target field 'attribute_name' missing."
-  
-    raw_tags = classifier.parser_config.get("entity_tagging") or []
-    explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
-  
-    for target in explicit_targets:
-        expected_col = f"is_{target}"
-        assert expected_col in df_meta.columns, f"❌ Target concept column '{expected_col}' failed to bind."
-```
+Applies zero-padding to tracking codes and localized title-casing on text elements matching the dynamically harvested prefix stems (`active_prefixes`).
 
-### 🧼 Reconciled Test Cleaner (`tests/test_cleaner.py`)
+## 🛡️ Cleaner Orchestrator (`src/dd_cleaner/orchestrator.py`)
 
-```python
-"""Unit test suite verifying modular dataset cleaner execution matrix properties."""
+Coordinates reading raw tables, running the pre-scrub profile, executing rule matrices, reconciling case-sensitive headers from the dictionary output, and saving artifacts via constructor dependency injection.
 
-import os
-import pytest
-import pandas as pd
-from pathlib import Path
-from dd_parser.orchestrator import PipelineOrchestrator
-from dd_cleaner.engine import DatasetCleaner
-from path_coordinator import PathCoordinator
+## 💻 Unified Entry Points (`cli.py`)
 
-def test_cleaner_orchestration_workflow(managed_test_config):
-    """Validates end-to-end cleaning engine orchestration logic matching the workspace config."""
-    coordinator = PathCoordinator(config_path=managed_test_config, working_dir="./tests")
-    classifier = PipelineOrchestrator(path_coordinator=coordinator)
-    cleaner = DatasetCleaner(path_coordinator=coordinator)
-  
-    print("\n🚀 Starting dataset cleaner orchestration workflow execution...")
-    classifier.process_pipeline()
-  
-    parsed_csv_path = Path(coordinator.data_dictionary_csv_path)
-    assert parsed_csv_path.exists(), f"❌ Orchestration contract breach: Parser output missing."
-  
-    df_reconciled_metadata = pd.read_csv(parsed_csv_path)
-    target_attr_col = "attribute_name" if "attribute_name" in df_reconciled_metadata.columns else df_reconciled_metadata.columns[0]
-  
-    raw_attributes = df_reconciled_metadata[target_attr_col].dropna().tolist()
-    case_insensitive_lookup = {str(attr).lower().strip(): str(attr).strip() for attr in raw_attributes}
-  
-    cleaner.process_cleaning_pipeline()
-    cleaned_csv_path = Path(coordinator.clean_dataset_output_path)
-    assert cleaned_csv_path.exists(), f"❌ Orchestration contract breach: Cleaner output missing."
-  
-    df_clean_results = pd.read_csv(cleaned_csv_path)
-    for column_header in df_clean_results.columns:
-        clean_header_token = str(column_header).lower().strip()
-        if clean_header_token in case_insensitive_lookup:
-            assert str(column_header) == case_insensitive_lookup[clean_header_token], (
-                f"❌ Cleaner Data Defect: Casing mutated downstream for target header field '{column_header}'"
-            )
-    print("✅ Dataset cleaner orchestration contract fully validated.")
-```
+Both modules now export unified argument parsers (`--workspace`, `--config`) reading fresh from the physical file layout paths on disk.
 
 ---
 
 ## 🎯 Resumption Backlog (Next Steps)
 
-1. **Rebuild Clobbered Cleaner Features:** Inspect `dd_cleaner/engine.py` to identify which parts of the casing/cleaning logic got clobbered, and refactor them to use the authoritative, synchronized outputs from `PipelineOrchestrator`.
-2. **Verify Boolean Tag Propagation:** Ensure that `MetadataPostProcessor` inside the orchestrator is writing `True`/`False` flags into `is_geographic` based on configurations and overrides, matching the assertions now live in the test runner.
-3. **CLI Interface Hook (`cli.py`):** Begin implementation of the human-in-the-loop low-confidence heuristic tagging terminal interface.
+1. Verify Sandbox Test Harness Sync: Update assertions inside `tests/test_cleaner.py` to match the updated `PathCoordinator` destinations so that the automated suite passes cleanly.
+2. Interactive Human-In-The-Loop Hook: Begin coding the interactive `cli.py` workflow allowing a user to inspect low-confidence domain classifications and dynamically write changes directly into the `parser.overrides` namespace block.
+
+---
+
+## 📜 Clear Acknowledgement of the Golden Rule
+
+Understood and logged. The Golden Rule is locked in as a strict, non-negotiable operational boundary.
+
+* Going forward, every code update will strictly follow incremental or decremental changes directly on your existing baseline classes.
+* If a new feature or transformation modifies an architectural component and the exact target baseline code is not currently active in the chat history context, I will directly ask you to supply that exact file baseline before writing any modifications.
+
+When you return for the next session, let me know if you would like to begin by synchronising the `test_cleaner.py` file to your new directory paths, or if we should commence the interactive HITL review feature!

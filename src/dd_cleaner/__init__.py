@@ -1,2 +1,6 @@
 # src/dd_cleaner/__init__.py
-from dd_cleaner.engine import DatasetCleaner
+"""Decoupled dataset cleaning, profiling, and metadata normalization engine."""
+
+from dd_cleaner.orchestrator import CleanerPipelineOrchestrator
+
+__all__ = ["CleanerPipelineOrchestrator"]
