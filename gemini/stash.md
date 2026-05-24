@@ -4,6 +4,7 @@
 
 * **Domain Agnosticism**: This project is strictly domain-agnostic and must adapt to any input domain dynamically. The agent should NEVER hardcode domain-specific items or hardcode anything in the code.
 * **Communication Style**: Provide brief, direct answers by default. Avoid lengthy redundant explanations unless explicitly requested by the user.
+* **Config Management**: The agent must never modify `config.yaml` directly. If a configuration update is required (e.g., adding `tag_heuristics`), the agent must request the user to update the file and provide the intended YAML snippet.
 
 ## 🛠️ Active Project State
 

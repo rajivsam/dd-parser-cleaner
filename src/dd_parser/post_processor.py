@@ -17,6 +17,7 @@ class MetadataPostProcessor:
         """Initializes the processor layers."""
         self.logger = logging.getLogger(__name__)
         self.update_config(path_coordinator, parser_config)
+        self.all_keywords: Dict[str, Set[str]] = {}
         # 🧠 ZERO-HARDCODING: Initialized empty. Hydrated dynamically at runtime.
         self.known_prefixes: List[str] = []
 
@@ -161,13 +162,18 @@ class MetadataPostProcessor:
 
         # 3. PHASE 2: Hardened Heuristic Sweep (Automated inference enhancement)
         heuristics = discovered_heuristics or {}
+        config_heuristics = self.parser_config.get("tag_heuristics") or {}
+        
+        # 🧠 ZERO-HARDCODING REGISTRY: Accumulate all keywords from discovery and config
+        # This ensures logical type inference (like temporal) works even without explicit ML tags.
+        self.all_keywords = {t: set(kws) for t, kws in heuristics.items()}
+        for t, kws in config_heuristics.items():
+            if t not in self.all_keywords:
+                self.all_keywords[t] = set()
+            self.all_keywords[t].update(kws)
+
         for target in explicit_targets:
-            keywords = set(heuristics.get(target, []))
-
-            # 🛡️ HARDENED SUFFIX HEURISTICS: Add baseline safety keywords for geographic tags
-            if target == "geographic":
-                keywords.update({'street', 'city', 'state', 'zip', 'county', 'district', 'lat', 'long', 'address', 'location'})
-
+            keywords = self.all_keywords.get(target, set())
             if keywords:
                 provisional_df = self._apply_name_heuristics(
                     provisional_df, target, keywords, self.known_prefixes
@@ -273,6 +279,33 @@ class MetadataPostProcessor:
             t_name = "bool"
             l_name = "categorical"
         else:
+            # 🕵️ TEMPORAL PROBE: Detect datetime objects from string patterns or values
+            is_temporal = False
+            attr_name = str(series.name).lower() if series.name else ""
+            
+            # 🧠 ZERO-HARDCODING: Use keywords found during discovery/config for logical typing
+            temporal_keywords = self.all_keywords.get("temporal", set())
+            
+            if any(re.search(rf"\b{kw}\b", attr_name) or attr_name.endswith(kw) for kw in temporal_keywords):
+                is_temporal = True
+            
+            # 2. Check Value sample if name check is inconclusive
+            if not is_temporal and (dtype == "object" or pd.api.types.is_string_dtype(dtype)):
+                sample = series.dropna().head(10).astype(str)
+                if not sample.empty:
+                    import warnings
+                    with warnings.catch_warnings():
+                        # Suppress the UserWarning: "Could not infer format, so each element will be parsed individually..."
+                        warnings.simplefilter("ignore", UserWarning)
+                        try:
+                            pd.to_datetime(sample, errors='raise')
+                            is_temporal = True
+                        except (ValueError, TypeError, OverflowError):
+                            pass
+            
+            if is_temporal:
+                return "datetime", "datetime"
+
             t_name = "str"
             # Heuristic: Categorical vs Text based on cardinality ratio
             unique_ratio = series.nunique() / len(series) if len(series) > 0 else 1

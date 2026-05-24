@@ -3,6 +3,7 @@
 ## 🤖 Agent Operational Directives
 * **Domain Agnosticism**: Strict requirement. Zero hardcoded domain-specific items.
 * **Communication Style**: Brief, direct answers by default. Explanations provided only on request.
+* **Config Management**: The agent must never modify `config.yaml` directly. If a configuration update is required (e.g., adding `tag_heuristics`), the agent must request the user to update the file and provide the intended YAML snippet.
 
 ## 🛠️ Active Project State (Last Updated: May 2024)
 

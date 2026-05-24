@@ -17,18 +17,7 @@ parser:
   parser_provisional_assingnment_filename: sba_parser_provisional_assingnment.md
   entity_tagging:
   - geographic
-  tag_heuristics:
-    geographic:
-    - street
-    - city
-    - state
-    - zip
-    - county
-    - district
-    - lat
-    - long
-    - address
-    - location
+
   output_filename: sba_analysis_results.csv
   overrides:
     LocationID:

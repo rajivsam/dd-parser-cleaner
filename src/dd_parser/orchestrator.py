@@ -91,13 +91,17 @@ class PipelineOrchestrator:
         # 🎯 ZERO-HARDCODING FIX: Extract the tag list strictly from your config space with empty list fallback
         raw_tags = self.parser_config.get("entity_tagging") or []
         explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
+        
+        # 🧠 INTERNAL DISCOVERY: Always include 'temporal' in the discovery pass 
+        # to support logical type inference even if it's not a requested ML tag.
+        discovery_targets = list(set(explicit_targets + ["temporal"]))
 
         # Extract normalized, synchronized attributes and description values
         attr_series, desc_series = self.post_processor.infer_schema_columns(df_dict)
         
         # 🧠 PHASE 1 RUNTIME ENGAGEMENT: Bootstrap domain identification directly from data file arrays
         discovery_results = self.llm_classifier.discover_macro_domain(
-            attr_series.tolist(), desc_series.tolist(), explicit_targets
+            attr_series.tolist(), desc_series.tolist(), discovery_targets
         )
         
         discovered_hints = discovery_results.get("logical_entities", ["unassigned"])
