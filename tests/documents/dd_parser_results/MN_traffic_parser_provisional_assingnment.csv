@@ -1,0 +1,10 @@
+attribute_name,provisional_entity_assignment,Native Type
+holiday,RegionalHolidays,float
+temp,WeatherObservations,float
+rain_1h,WeatherObservations,float
+snow_1h,WeatherObservations,float
+clouds_all,WeatherObservations,int
+weather_main,WeatherObservations,str
+weather_description,WeatherObservations,str
+date_time,WeatherObservations,str
+traffic_volume,TrafficData,int

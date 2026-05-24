@@ -2,7 +2,10 @@ batch_size: 10
 cleaner:
   clean_output_filename: sba_loans_clean.csv
   dd_cleaner_output_dir: dd_cleaner_results
+  profiling_report_filename: sba_loans_profiling_report.md
   raw_dataset_file: sba_loans_raw.csv
+  quarantine_dir: quarantine
+  quarantine_filename: MN_traffic_quarantine.csv
 documents_dir: documents
 model_name: llama3.2
 parser:
@@ -10,6 +13,8 @@ parser:
   data_dictionary_attribute_col_name: Field Name
   data_dictionary_file: sba_dd.csv
   dd_parser_output_dir: dd_analysis_results
+  parser_provisional_assingnment_dir: dd_parser_results
+  parser_provisional_assingnment_filename: sba_parser_provisional_assingnment.md
   entity_tagging:
   - geographic
   output_filename: sba_analysis_results.csv

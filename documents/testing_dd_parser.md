@@ -9,10 +9,7 @@ The test architecture for `dd-parser-cleaner` relies on a fully isolated, automa
 To ensure complete test isolation, the test suite programmatically simulates a KMDS Framework Workspace within the `tests/` subdirectory.
 
 * Directory Isolation: The test runner maintains a sandboxed layout mimicking your production architecture. It establishes required subdirectories like `tests/data_dictionary/` (for schemas) and `tests/data/` (for operational tables) so code modules never contaminate active production files.
-* Authoritative Config Recreation: The system utilizes a root-level `tests/conftest.py` initialization script equipped with a `session`-scoped, `autouse` fixture. Every time the test runner is fired up, `conftest.py` completely tears down and recreates a fresh `tests/config.yaml` file on disk [🛠️].
-
-> [!CAUTION]
-> Configuration Synchronization Lock: Because `conftest.py` programmatically rebuilds the test-scoped configuration, any structural changes made to the core production `config.yaml` layout must be manually synchronized with the `config_payload` dictionary inside `tests/conftest.py`. If they go out of sync, the `PathCoordinator` will fail to read your settings during test runs.
+* Authoritative Config Mapping: The system utilizes a root-level `tests/conftest.py` script. The `managed_test_config` fixture dynamically resolves and uses the single authoritative `config.yaml` at the project root, ensuring tests always reflect the latest production configuration. It also initializes standardized logging to ensure `INFO` level diagnostics appear in the terminal during test runs.
 
 ---
 
@@ -34,7 +31,7 @@ If you are modifying a single module and want to run focused, isolated validatio
 
 * Validate the Parser Track: Checks case preservation, dynamic LLM entity categorization, prefix-stripping, and signature sidecar generation:
   ```bash
-  uv run pytest tests/test_parser.py
+  uv run pytest -s tests/test_parser.py
   ```
 * Validate the Cleaner Track: Checks end-to-end operational table data scrubbing, vectorized title-casing, zero-padding, and column case lookup restorations:
   ```bash

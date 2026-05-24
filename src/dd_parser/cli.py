@@ -1,4 +1,4 @@
-"""Command Line Interface entry point for the metadata parser framework."""
+"""Command Line Interface entry point for the dataset cleaning and profiling framework."""
 
 import argparse
 import logging
@@ -8,11 +8,15 @@ from path_coordinator import PathCoordinator
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, 
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        force=True
+    )
     logger = logging.getLogger("dd_parser_cli")
 
     parser = argparse.ArgumentParser(
-        description="Unified Project State: Private LLM Data Dictionary Parser CLI Engine."
+        description="Unified Project State: LLM-Powered Data Dictionary Parser & Entity Classifier."
     )
     parser.add_argument(
         "--workspace", 
@@ -28,16 +32,17 @@ def main():
     args = parser.parse_args()
 
     try:
-        logger.info("Initializing Path Coordinator and Orchestration layers...")
-        # 🎯 FIX: Explicitly instantiate the routing orchestration contract using CLI arguments
+        logger.info("Initializing Path Coordinator and Parser Orchestration layers...")
+        # 🎯 CONSTRUCTOR DEPENDENCY INJECTION: Instantiate the authoritative routing contract
         coordinator = PathCoordinator(config_path=args.config, working_dir=args.workspace)
         
-        # 🎯 FIX: Inject the coordinator instance into the required modular entry point
+        # 🎯 MODULAR ENTRY POINT: Inject the coordinator tracking boundary cleanly
         orchestrator = PipelineOrchestrator(path_coordinator=coordinator)
         
-        logger.info("Executing Data Dictionary Parser pipeline inference sequence...")
+        logger.info("Starting metadata extraction and entity classification pipeline...")
         orchestrator.process_pipeline()
-        logger.info("Parser pipeline successfully concluded. View logs in output tracking dir.")
+        
+        logger.info("Parser pipeline successfully concluded. View results in documents/dd_analysis_results.")
         
     except Exception as e:
         logger.error(f"Fatal Parser Pipeline Execution Failure: {str(e)}", exc_info=True)

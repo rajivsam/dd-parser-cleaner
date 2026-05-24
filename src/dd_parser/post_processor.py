@@ -3,6 +3,7 @@
 import re
 import json
 import hashlib
+import logging
 import pandas as pd
 from pathlib import Path
 from typing import Dict, Any, Tuple, List, Set
@@ -14,6 +15,7 @@ class MetadataPostProcessor:
 
     def __init__(self, path_coordinator: PathCoordinator, parser_config: Dict[str, Any]) -> None:
         """Initializes the processor layers."""
+        self.logger = logging.getLogger(__name__)
         self.update_config(path_coordinator, parser_config)
         # 🧠 ZERO-HARDCODING: Initialized empty. Hydrated dynamically at runtime.
         self.known_prefixes: List[str] = []
@@ -96,91 +98,257 @@ class MetadataPostProcessor:
 
         return pd.DataFrame(updated_rows)
 
-    def _derive_prefix_stems(self, entities: Set[str]) -> List[str]:
-        """Algorithmatically computes common structural token sub-stems from active entities."""
+    def _derive_prefix_stems(self, assigned_attributes: List[str]) -> List[str]:
+        """Algorithmatically computes common structural token sub-stems from assigned attribute names."""
         stems = set()
-        for entity in entities:
-            clean_ent = str(entity).strip().lower()
-            if not clean_ent or clean_ent == "unassigned":
+        for attr in assigned_attributes:
+            clean_attr = str(attr).strip().lower()
+            if not clean_attr or len(clean_attr) < 3:
                 continue
                 
-            # 1. Capture full word token
-            stems.add(clean_ent)
+            # Heuristic: Capture the first 3 or 4 characters as potential organizational prefixes
+            # e.g., 'borrstreet' -> 'borr', 'bankcity' -> 'bank'
+            stems.add(clean_attr[:3])
+            if len(clean_attr) >= 4:
+                stems.add(clean_attr[:4])
             
-            # 2. Capture canonical 4-character truncation rule (e.g., 'borrower' -> 'borr')
-            if len(clean_ent) >= 4:
-                stems.add(clean_ent[:4])
-                
-            # 3. Capture canonical 3-character truncation rule (e.g., 'lender' -> 'len', 'location' -> 'loc')
-            if len(clean_ent) >= 3:
-                stems.add(clean_ent[:3])
-                
+            # If the attribute name is a single word token, add it too
+            if '_' not in clean_attr and '-' not in clean_attr:
+                stems.add(clean_attr)
+
         return sorted(list(stems), key=len, reverse=True)
 
     def execute(
-        self, df: pd.DataFrame, attributes: pd.Series, descriptions: pd.Series, llm_assignments: Dict[str, Dict[str, Any]]
+        self, 
+        df: pd.DataFrame, 
+        attributes: pd.Series, 
+        descriptions: pd.Series, 
+        llm_assignments: Dict[str, Dict[str, Any]],
+        discovered_heuristics: Dict[str, List[str]] = None
     ) -> pd.DataFrame:
         """Assembles data matrix, resolves configuration overrides, and saves output data blocks."""
         provisional_df = df.copy()
-        
+
+        # 1. Initialize Columns
         provisional_df["attribute_name"] = attributes
         provisional_df["provisional_entity_assignment"] = "unassigned"
-        
+
         raw_tags = self.parser_config.get("entity_tagging") or []
         explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
-        
+
         for target in explicit_targets:
             provisional_df[f"is_{target}"] = False
 
-        # 🧠 DEFENSIVE PATCH: Safely fallback to an empty dict if key is missing or explicitly null
-        user_overrides = self.parser_config.get("overrides")
-        if not isinstance(user_overrides, dict):
-            user_overrides = {}
-            
-        discovered_entities: Set[str] = set()
+        llm_assignments = llm_assignments or {}
 
+        # 2. PHASE 1: Apply LLM Assignments
         for idx in range(len(provisional_df)):
             attr_raw = str(attributes.iloc[idx])
-            
-            field_metadata = llm_assignments.get(attr_raw, {}) if llm_assignments else {}
-            assigned_label = field_metadata.get("entity_assignment", "Loan")
-            
-            lookup_key = attr_raw
-            if lookup_key not in user_overrides:
-                for k in user_overrides:
-                    if k.lower() == attr_raw.lower():
-                        lookup_key = k
-                        break
+            field_metadata = llm_assignments.get(attr_raw, {})
 
-            if lookup_key in user_overrides:
-                override_node = user_overrides[lookup_key]
-                if isinstance(override_node, dict):
-                    assigned_label = override_node.get("provisional_entity_assignment", assigned_label)
-                else:
-                    assigned_label = override_node
-                
+            # Apply LLM Category
+            assigned_label = field_metadata.get("entity_assignment", "unassigned")
             provisional_df.at[idx, "provisional_entity_assignment"] = assigned_label
-            discovered_entities.add(assigned_label)
 
+            # Apply LLM Boolean Flags
             for target in explicit_targets:
-                override_flag = False
-                if lookup_key in user_overrides and isinstance(user_overrides[lookup_key], dict):
-                    override_flag = user_overrides[lookup_key].get(f"is_{target}", False)
-                
-                llm_flag_assessment = field_metadata.get(f"is_{target}", False)
-                
-                if override_flag or llm_flag_assessment:
-                    provisional_df.at[idx, f"is_{target}"] = True
+                provisional_df.at[idx, f"is_{target}"] = field_metadata.get(f"is_{target}", False)
 
-        # 🧠 METADATA RECONCILIATION: Extract structural prefixes out of active tags
-        self.known_prefixes = self._derive_prefix_stems(discovered_entities)
-        print(f"📊 Dynamically extracted operational prefix stems: {self.known_prefixes}")
+        # 🧠 METADATA RECONCILIATION: Derive prefixes directly from attributes that were assigned to entities
+        assigned_attrs = [a for a, m in llm_assignments.items() if m.get("entity_assignment") != "unassigned"]
+        self.known_prefixes = self._derive_prefix_stems(assigned_attrs)
+        self.logger.info(f"📊 Dynamically extracted operational prefix stems: {self.known_prefixes}")
+
+        # 3. PHASE 2: Hardened Heuristic Sweep (Automated inference enhancement)
+        heuristics = discovered_heuristics or {}
+        for target in explicit_targets:
+            keywords = set(heuristics.get(target, []))
+
+            # 🛡️ HARDENED SUFFIX HEURISTICS: Add baseline safety keywords for geographic tags
+            if target == "geographic":
+                keywords.update({'street', 'city', 'state', 'zip', 'county', 'district', 'lat', 'long', 'address', 'location'})
+
+            if keywords:
+                provisional_df = self._apply_name_heuristics(
+                    provisional_df, target, keywords, self.known_prefixes
+                )
+
+        # 4. PHASE 3: Authoritative Overrides (The absolute final word)
+        user_overrides = self.parser_config.get("overrides")
+        if isinstance(user_overrides, dict):
+            for idx in range(len(provisional_df)):
+                attr_raw = str(attributes.iloc[idx])
+                lookup_key = None
+
+                # Case-insensitive match for override keys
+                if attr_raw in user_overrides:
+                    lookup_key = attr_raw
+                else:
+                    for k in user_overrides:
+                        if k.lower() == attr_raw.lower():
+                            lookup_key = k
+                            break
+
+                if lookup_key:
+                    override_node = user_overrides[lookup_key]
+                    if isinstance(override_node, dict):
+                        # Assign Category Override (Strict case-insensitive match)
+                        for k, v in override_node.items():
+                            if k.lower() == "provisional_entity_assignment":
+                                provisional_df.at[idx, "provisional_entity_assignment"] = v
+                                break
+                        
+                        # Assign Boolean Flag Overrides (Absolute enforcement, Case-insensitive match)
+                        for target in explicit_targets:
+                            flag_key = f"is_{target}".lower()
+                            for k, v in override_node.items():
+                                if k.lower() == flag_key:
+                                    provisional_df.at[idx, f"is_{target}"] = (str(v).lower() == 'true') if isinstance(v, str) else bool(v)
+                                    break
+                    else:
+                        provisional_df.at[idx, "provisional_entity_assignment"] = str(override_node)
 
         self._write_pipeline_artifacts(provisional_df)
+        self._write_provisional_report(provisional_df)
         return provisional_df
+
+    def _apply_name_heuristics(self, df: pd.DataFrame, target: str, keywords: Set[str], prefixes: List[str]) -> pd.DataFrame:
+        """Applies name-based suffix heuristics using dynamic prefix-stripping logic."""
+        col_name = f"is_{target}"
+        keywords_lower = {str(k).lower().strip() for k in keywords}
+        if col_name not in df.columns:
+            return df
+            
+        for idx in range(len(df)):
+            if df.at[idx, col_name]:
+                continue
+                
+            attr_clean = str(df.at[idx, "attribute_name"]).lower().strip()
+            
+            # Pass 1: Direct keyword or standard suffix match
+            if any(attr_clean.endswith(kw) or attr_clean == kw for kw in keywords_lower):
+                df.at[idx, col_name] = True
+                continue
+            
+            # Pass 2: Prefix-stripped match using dynamic entity prefixes (e.g., borrstreet -> street)
+            for prefix in prefixes:
+                p_lower = prefix.lower()
+                if attr_clean.startswith(p_lower):
+                    stripped = attr_clean[len(p_lower):].lstrip('_').lstrip('-')
+                    if any(stripped == kw or stripped.startswith(kw) for kw in keywords_lower):
+                        df.at[idx, col_name] = True
+                        break
+        return df
 
     def _write_pipeline_artifacts(self, df: pd.DataFrame) -> None:
         """Writes matrix result tables and cryptographic metadata signatures to the output targets."""
-        output_csv_path = self.paths.data_dictionary_csv_path
+        output_csv_path = Path(self.paths.data_dictionary_csv_path)
         
+        # 1. Save the primary metadata matrix
         df.to_csv(output_csv_path, index=False)
+
+        # 2. Generate the cryptographic signature for the matrix (enforced by test_cleaner orchestration)
+        sha256_hash = hashlib.sha256()
+        with open(output_csv_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        
+        sig_path = output_csv_path.with_suffix(".signature")
+        with open(sig_path, "w") as f:
+            f.write(sha256_hash.hexdigest())
+            
+        self.logger.info(f"🔑 Metadata signature generated at: {sig_path}")
+    
+    def convert_to_DS_type(self, series: pd.Series) -> Tuple[str, str]:
+        """Infers the native Python type and logical category for a given data series."""
+        dtype = series.dtype
+        
+        if pd.api.types.is_numeric_dtype(dtype):
+            t_name = "int" if pd.api.types.is_integer_dtype(dtype) else "float"
+            l_name = "numeric"
+        elif pd.api.types.is_datetime64_any_dtype(dtype):
+            t_name = "datetime"
+            l_name = "datetime"
+        elif pd.api.types.is_bool_dtype(dtype):
+            t_name = "bool"
+            l_name = "categorical"
+        else:
+            t_name = "str"
+            # Heuristic: Categorical vs Text based on cardinality ratio
+            unique_ratio = series.nunique() / len(series) if len(series) > 0 else 1
+            l_name = "categorical" if unique_ratio < 0.4 else "text"
+            
+        return t_name, l_name
+
+
+    def _write_provisional_report(self, df: pd.DataFrame) -> None:
+        """Generates a markdown and CSV report summarizing entity assignments and types."""
+        # 🧠 DYNAMIC PATH RESOLUTION: Fetch the report path from the coordinator
+        report_path = getattr(self.paths, "parser_provisional_report_path", None)
+        
+        if not report_path:
+            self.logger.warning("⚠️ Report generation skipped: Please check config.yaml to verify that 'parser_provisional_assingnment_dir' and 'parser_provisional_assingnment_filename' are populated.")
+            return
+
+        if "attribute_name" not in df.columns:
+            return
+
+        report_path = Path(report_path)
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # 🔍 NATIVE TYPE DETECTION: Infer types from the raw dataset if available
+        type_map = {}
+        logical_map = {}
+        raw_path = self.paths.raw_dataset_path
+        if raw_path.exists():
+            try:
+                # Read a small sample to determine types reliably
+                sample_df = pd.read_csv(raw_path, sep=None, engine='python', nrows=50)
+                for col in sample_df.columns:
+                    # Abstracted type and category inference
+                    t_name, l_name = self.convert_to_DS_type(sample_df[col])
+                    type_map[col.lower()] = t_name
+                    logical_map[col.lower()] = l_name
+            except Exception as e:
+                self.logger.warning(f"⚠️ Could not infer native types from raw dataset: {e}")
+
+        # Extract the relevant columns for the summary report
+        raw_tags = self.parser_config.get("entity_tagging") or []
+        explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
+        tag_cols = [f"is_{target}" for target in explicit_targets]
+        
+        report_df = df[["attribute_name", "provisional_entity_assignment"] + tag_cols].copy()
+
+        report_df["Logical Category"] = report_df["attribute_name"].apply(
+            lambda x: logical_map.get(str(x).lower(), "text")
+        )
+
+        # 💾 CSV GENERATION: Save a clean CSV copy before MD presentation formatting
+        csv_report_path = report_path.with_suffix(".csv")
+        report_df.to_csv(csv_report_path, index=False)
+        self.logger.info(f"📊 Provisional assignment CSV generated at: {csv_report_path}")
+
+        # 🎨 PRESENTATION: Apply backticks for a consistent fixed-width font look
+        md_display_df = report_df.copy()
+        md_display_df["attribute_name"] = md_display_df["attribute_name"].apply(lambda x: f"`{x}`")
+        md_display_df["provisional_entity_assignment"] = md_display_df["provisional_entity_assignment"].apply(lambda x: f"`{x}`")
+        md_display_df["Logical Category"] = md_display_df["Logical Category"].apply(lambda x: f"`{x}`")
+
+        for col in tag_cols:
+            md_display_df[col] = md_display_df[col].apply(lambda x: f"`{x}`")
+
+        # Construct headers dynamically: Consolidating to "Logical Type" per preference
+        md_headers = ["Attribute", "Provisional Entity Assignment"] + [f"Flag: {t.title()}" for t in explicit_targets] + ["Logical Type"]
+        md_display_df.columns = md_headers
+
+        summary_stats = df["provisional_entity_assignment"].value_counts()
+
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(f"# 📑 Data Dictionary: Provisional Entity Assignment Report\n")
+            f.write(f"**Source Blueprint:** `{self.paths.data_dictionary_path.name}`\n\n### 📊 Classification Summary\n")
+            for entity, count in summary_stats.items():
+                f.write(f"- **{entity}**: {count} fields\n")
+            f.write(f"\n---\n\n### 📋 Detailed Assignments\n")
+            f.write(md_display_df.to_markdown(index=False, tablefmt="github"))
+            f.write("\n\n---\n*Report generated via automated dd-parser post-processing.*")
+        self.logger.info(f"📝 Provisional entity assignment report generated at: {report_path}")

@@ -1,6 +1,7 @@
 """Pipeline orchestration engine for the metadata classification framework."""
 
 import sys
+import logging
 import pandas as pd
 from typing import List
 from path_coordinator import PathCoordinator
@@ -17,10 +18,22 @@ class PipelineOrchestrator:
         if path_coordinator is None:
             raise TypeError("PipelineOrchestrator requires a valid PathCoordinator instance.")
             
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
+
         self.paths = path_coordinator
         self.global_config = self.paths.config
         self.parser_config = self.global_config.get("parser", self.global_config)
         
+        # 📊 DIAGNOSTIC: Evaluate configuration state immediately after hydration
+        self.logger.info("=== [DIAGNOSTIC] CONFIGURATION TAG EVALUATION ===")
+        raw_tags = self.parser_config.get("entity_tagging") or []
+        self.logger.info(f"1. Raw 'entity_tagging' from YAML: {raw_tags}")
+        explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
+        self.logger.info(f"2. Sanitized target concepts to tag: {explicit_targets}")
+        overrides = self.parser_config.get("overrides") or {}
+        self.logger.info(f"3. Active structural overrides found: {list(overrides.keys())}")
+
         # Inject modular specialized sub-components safely via relative module references
         self.llm_classifier = LLMEntityClassifier(self.global_config, self.parser_config)
         self.post_processor = MetadataPostProcessor(self.paths, self.parser_config)
@@ -28,23 +41,10 @@ class PipelineOrchestrator:
         # 🧠 DEPENDENCY CHECKPOINT: Validate background processing infrastructure availability
         self._verify_infrastructure_availability()
 
-        # Insert at the end of PipelineOrchestrator.__init__
-        print("\n=== [DIAGNOSTIC] CONFIGURATION TAG EVALUATION ===")
-        raw_tags = self.parser_config.get("entity_tagging") or []
-        print(f"1. Raw 'entity_tagging' from YAML: {raw_tags} (Type: {type(raw_tags)})")
-        explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
-        print(f"2. Sanitized target concepts to tag: {explicit_targets}")
-        overrides = self.parser_config.get("overrides") or {}
-        print(f"3. Active structural overrides found: {list(overrides.keys())}")
-        print("=================================================\n")
-
     def _verify_infrastructure_availability(self) -> None:
         """Verifies that the core inference model client infrastructure is reachable before execution."""
         if not hasattr(self.llm_classifier, "is_ready") or not self.llm_classifier.is_ready():
-            print("\n" + "="*75, file=sys.stderr)
-            print("❌ CRITICAL INFRASTRUCTURE ERROR: Background inference model (Ollama) is offline.", file=sys.stderr)
-            print("💡 Please start your local service engine instance and re-run this tool.", file=sys.stderr)
-            print("="*75 + "\n", file=sys.stderr)
+            self.logger.critical("❌ Background inference model (Ollama) is offline. Please start your local service engine instance and re-run this tool.")
             sys.exit(1)
 
     def set_working_config(self, working_dir: str, config_path: str) -> None:
@@ -96,15 +96,20 @@ class PipelineOrchestrator:
         attr_series, desc_series = self.post_processor.infer_schema_columns(df_dict)
         
         # 🧠 PHASE 1 RUNTIME ENGAGEMENT: Bootstrap domain identification directly from data file arrays
-        discovered_hints = self.llm_classifier.discover_macro_domain(
-            attr_series.tolist(), desc_series.tolist()
+        discovery_results = self.llm_classifier.discover_macro_domain(
+            attr_series.tolist(), desc_series.tolist(), explicit_targets
         )
         
+        discovered_hints = discovery_results.get("logical_entities", ["unassigned"])
+        discovered_heuristics = discovery_results.get("tag_keywords", {})
+
         # 🧠 PHASE 2 STREAMING EXECUTION: Pass dynamically extracted definitions down the pipe
         llm_assignments = self.llm_classifier.discover_entities(
             attr_series, desc_series, explicit_targets, generated_hints=discovered_hints
         )
         
         # Component 3: Saves exact layout attributes without subsequent corruption
-        parsed_matrix = self.post_processor.execute(df_dict, attr_series, desc_series, llm_assignments)
+        parsed_matrix = self.post_processor.execute(
+            df_dict, attr_series, desc_series, llm_assignments, discovered_heuristics
+        )
         return parsed_matrix

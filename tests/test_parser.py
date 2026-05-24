@@ -27,8 +27,14 @@ def test_parser_pipeline_execution(managed_test_config):
     csv_out = Path(coordinator.data_dictionary_csv_path)
     assert csv_out.exists(), f"❌ Expected pipeline output matrix missing at: {csv_out.resolve()}"
     
-    print(f"✅ Verified updated sandbox output file generated at: {csv_out}")
-    print(f"🕒 Output File Last Modified Timestamp: {os.path.getmtime(csv_out)}")
+    report_out = coordinator.parser_provisional_report_path
+    assert report_out.exists(), f"❌ Expected provisional report missing at: {report_out.resolve()}"
+
+    print(f"✅ Verified updated sandbox output matrix (CSV) generated at: {csv_out}")
+    print(f"📝 Verified provisional assignment report (Markdown) generated at: {report_out}")
+    
+    print(f"🕒 Data Matrix Last Modified: {os.path.getmtime(csv_out)}")
+    print(f"🕒 Report File Last Modified: {os.path.getmtime(report_out)}")
     
     # 4. Enforce schema compliance on the generated metadata output matrix
     df_meta = pd.read_csv(csv_out)

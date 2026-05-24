@@ -1,4 +1,5 @@
 import os
+import logging
 from pathlib import Path
 import pytest
 import yaml
@@ -9,6 +10,13 @@ def managed_test_config():
     Dynamically maps to the single authoritative config.yaml at the VSCode workspace root.
     Eliminates duplicated config payloads across production and testing states.
     """
+    # 🛠️ LOGGING INITIALIZATION: Ensure logs appear during test runs
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        force=True
+    )
+    
     # Look for config.yaml relative to this file's position (walking up to workspace root)
     root_config = Path(__file__).parent.parent / "config.yaml"
     

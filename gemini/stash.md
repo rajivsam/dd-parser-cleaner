@@ -1,11 +1,18 @@
 ## 📌 Unified Contract & State Tracking Blueprint (Stash)
 
+## 🤖 Agent Operational Directives
+
+* **Domain Agnosticism**: This project is strictly domain-agnostic and must adapt to any input domain dynamically. The agent should NEVER hardcode domain-specific items or hardcode anything in the code.
+* **Communication Style**: Provide brief, direct answers by default. Avoid lengthy redundant explanations unless explicitly requested by the user.
+
 ## 🛠️ Active Project State
 
 * Workspace: `dd-parser-cleaner`
 * Architecture: Fully modularized, decoupled, and completely domain-agnostic with zero-hardcoded guesswork loops.
 * State Checkpoint: Replaced the batch processing approach with an Atomic Row-by-Row Execution Strategy to solve token context crowding and eliminate truncated or skipped classification payloads. The parser now implements a dynamic two-phase pipeline execution routine:
 
+  1. **Standardized Logging**: Replaced all `print` statements with the `logging` module across all core components for consistent terminal feedback and error tracking.
+  2. **Automated Markdown Reporting**: The post-processor now generates a human-readable `Provisional Entity Assignment Report` in Markdown format, providing a classification summary and detailed attribute mapping.
   1. Phase 1 (Macro Domain Discovery): Samples the raw source fields at runtime using structured prompting rules to discover distinct logical core entity arrays (e.g., separating demographics from risk profiles and metrics) without manual configuration mapping.
   2. Phase 2 (Micro Atomic Assignment): Feeds each data dictionary row independently into Llama 3.2 using the Phase 1 architectural categories as classification instructions.
 * Infrastructure Health: Integrated a strict background dependency connection probe inside `PipelineOrchestrator.__init__` and `set_working_config`. If the local Ollama backend is missing or offline, the tool logs a clean structural diagnostic payload and terminates immediately via `sys.exit(1)`.
@@ -29,6 +36,8 @@ parser:
   data_dictionary_file: sba_dd.csv
   dd_parser_output_dir: dd_analysis_results
   output_filename: sba_analysis_results.csv
+  parser_provisional_assingnment_dir: dd_parser_results
+  parser_provisional_assingnment_filename: sba_parser_provisional_assingnment.md
   entity_tagging:
     - geographic
   overrides: {}
@@ -301,6 +310,10 @@ classPipelineOrchestrator:
         # Component 3: Saves exact layout attributes without subsequent corruption
         parsed_matrix = self.post_processor.execute(df_dict, attr_series, desc_series, llm_assignments)
         return parsed_matrix
+
+    def _verify_infrastructure_availability(self) -> None:
+        if not self.llm_classifier.is_ready():
+            self.logger.critical("❌ Background inference model (Ollama) is offline.")
 ```
 
 ---

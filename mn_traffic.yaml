@@ -1,22 +1,19 @@
 batch_size: 10
 cleaner:
-  clean_output_filename: insurance_clean.csv
+  clean_output_filename: MN_traffic_clean.csv
   dd_cleaner_output_dir: dd_cleaner_results
-  profiling_report_filename: insurance_profiling_report.md
-  raw_dataset_file: insurance.csv
+  raw_dataset_file: MN_traffic.csv
+  profiling_report_filename: MN_traffic_profiling_report.md
 documents_dir: documents
 model_name: llama3.2
 parser:
   csv_target_column_index: 0
   data_dictionary_attribute_col_name: Field Name
-  data_dictionary_file: insurance_dd.csv
+  data_dictionary_file: MN_traffic_dd.csv
   dd_parser_output_dir: dd_analysis_results
+  output_filename: MN_traffic_analysis_results.csv
   parser_provisional_assingnment_dir: dd_parser_results
-  parser_provisional_assingnment_filename: insurance_parser_provisional_assingnment.md
-  entity_tagging:
-  - geographic
-  output_filename: insurance_analysis_results.csv
+  parser_provisional_assingnment_filename: MN_traffic_parser_provisional_assingnment.md
   overrides:
-
 system_prompt: You are a precise data engineering assistant. Respond strictly in JSON.
 temperature: 0.0

@@ -42,6 +42,8 @@ This sub-block isolates configuration metadata mapping parameters, target featur
 * `data_dictionary_file`: Defines the source metadata file (e.g., `sba_dd.csv`) containing attribute names and descriptive definitions.
 * `csv_target_column_index`: Explicit index pinning where primary column/attribute strings live to handle headless spreadsheets or fragmented PDF scraper matrices cleanly.
 * `dd_parser_output_dir` & `output_filename`: Destination configurations telling the path coordinator to nest computed provisional template files directly inside the `data_dictionary/` namespace directory footprint.
+* `parser_provisional_assingnment_dir`: Target directory within `documents/` for the human-readable Markdown report.
+* `parser_provisional_assingnment_filename`: The filename for the Markdown entity assignment summary.
 * `entity_tagging`: A dynamic registry list of capability feature flags. The parser loops over this checklist to append corresponding downstream feature-routing boolean columns (e.g., `is_geographic`).
 * `overrides`: An absolute authoritative escape hatch. Hardcoding specific attributes here forces the engine to bypass LLM inference and heuristic rules entirely for those keys, instantly stamping your specified entity mappings and capability values into the output matrix.
 
@@ -76,6 +78,8 @@ parser:
   csv_target_column_index: 0
   dd_parser_output_dir: dd_analysis_results
   output_filename: sba_analysis_results.csv
+  parser_provisional_assingnment_dir: dd_parser_results
+  parser_provisional_assingnment_filename: sba_parser_provisional_assingnment.md
   
   # Capability feature pipeline registration list
   entity_tagging:

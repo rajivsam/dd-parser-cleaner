@@ -1,0 +1,8 @@
+attribute_name,provisional_entity_assignment,Native Type
+age,BeneficiaryDemographics,int
+sex,BeneficiaryDemographics,str
+bmi,HealthStatusAssessment,float
+children,BeneficiaryDemographics,int
+smoker,BeneficiaryDemographics,str
+region,ResidentialArea,str
+charges,MedicalCosts,float

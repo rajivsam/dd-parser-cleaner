@@ -45,7 +45,7 @@ By abstracting these pipeline routing constraints into a single component, the p
 ```
 
 * Zero User Guesswork: Developers, client scripts, and testing harnesses do not need to track folder nesting patterns or manage complex path strings. They simply pass the target configuration profile once.
-* Decoupled Engine Logic: The parser and cleaner modules focus entirely on transformation logic (such as vector space scoring, prefix stripping, and zero-padding). They request their files directly from the coordinator via clean, read-only properties (like `self.paths.data_dictionary_csv_path` or `self.paths.raw_dataset_path`).
+* Decoupled Engine Logic: The parser and cleaner modules focus entirely on transformation logic. They request their files directly from the coordinator via clean properties (like `self.paths.data_dictionary_csv_path`, `self.paths.raw_dataset_path`, or the new `self.paths.parser_provisional_report_path`).
 * Seamless Environment Shifting: Switching the runtime context from production execution to an isolated testing sandbox (`working_dir="./tests"`) requires zero application code modifications. The coordinator automatically dynamically recalibrates all internal absolute path roots.
 
 ---
