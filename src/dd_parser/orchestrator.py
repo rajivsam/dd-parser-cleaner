@@ -79,12 +79,18 @@ class PipelineOrchestrator:
             
         df_dict = pd.read_csv(target_path, sep=None, engine='python', skipinitialspace=True)
 
-        # Synchronize schema names BEFORE column series extraction
+        # 📊 GROUNDED INFERENCE: Synchronize schema and generate data profile
+        grounding_profile = {}
         raw_dataset_path = self.paths.raw_dataset_path
         if raw_dataset_path.exists():
-            df_raw_schema = pd.read_csv(raw_dataset_path, sep=None, engine='python', nrows=0)
-            raw_headers = list(df_raw_schema.columns)
+            self.logger.info(f"📊 Generating grounding profile from sample of: {raw_dataset_path.name}")
+            # Read a 500-row sample to generate cardinality and distribution metrics
+            df_raw_sample = pd.read_csv(raw_dataset_path, sep=None, engine='python', nrows=500)
+            raw_headers = list(df_raw_sample.columns)
             
+            # Task 4.1: Request the LLM client to generate the metadata bundle
+            grounding_profile = self.llm_classifier.generate_grounding_profile(df_raw_sample)
+
             # Re-index data dictionary instantly so columns reflect raw file lowercase properties
             df_dict = self.post_processor.synchronize_with_raw_headers(df_dict, raw_headers)
 
@@ -109,11 +115,13 @@ class PipelineOrchestrator:
 
         # 🧠 PHASE 2 STREAMING EXECUTION: Pass dynamically extracted definitions down the pipe
         llm_assignments = self.llm_classifier.discover_entities(
-            attr_series, desc_series, explicit_targets, generated_hints=discovered_hints
+            attr_series, desc_series, explicit_targets, 
+            generated_hints=discovered_hints, grounding_profile=grounding_profile
         )
         
         # Component 3: Saves exact layout attributes without subsequent corruption
         parsed_matrix = self.post_processor.execute(
-            df_dict, attr_series, desc_series, llm_assignments, discovered_heuristics
+            df_dict, attr_series, desc_series, llm_assignments, 
+            discovered_heuristics=discovered_heuristics, grounding_profile=grounding_profile
         )
         return parsed_matrix

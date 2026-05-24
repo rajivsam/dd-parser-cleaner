@@ -53,6 +53,7 @@ This sub-block controls settings for operational data scrubbing transformations 
 
 * `raw_dataset_file`: Points to the heavy, unformatted production payload target table (e.g., `sba_loans_raw.csv`) residing inside your local workspace `data/` folder directory.
 * `clean_output_filename` & `dd_cleaner_output_dir`: Controls the name and folder path destination where clean datasets are written after passing through vectorized padding and title-casing transformations.
+* `quarantine_directory` & `quarantine_filename`: Defines the destination for records containing mixed data types that were isolated during the cleaning pass.
 
 ---
 
@@ -102,6 +103,8 @@ cleaner:
   raw_dataset_file: sba_loans_raw.csv
   clean_output_filename: sba_loans_clean.csv
   dd_cleaner_output_dir: dd_cleaner_results
+  quarantine_directory: quarantine
+  quarantine_filename: isolated_records.csv
 ```
 
 ---

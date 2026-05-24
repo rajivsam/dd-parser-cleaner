@@ -38,7 +38,8 @@ The parser evaluates a data dictionary via three sequential execution layers:
 ## 🧠 Pass 2: Coarse Domain Entity Graph Classification
 
 * What it does: Contextualizes variables holistically into high-level business entity buckets (e.g., `Borrower`, `Lender`, `Loan`) by running the extracted text payloads against local zero-shot semantic models.
-* Outcome: Populates the `provisional_entity_assignment` label column. This allows developers to construct provisional graph database topologies from raw files immediately.
+* **Grounded Inference**: Each atomic LLM prompt now includes a "Physical Data Profile" (cardinality, null ratios, and samples) generated from the raw data. This grounds the LLM in physical reality to prevent semantic hallucinations.
+* Outcome: Populates the `provisional_entity_assignment` label column with high-confidence mappings.
 
 ## 🧼 Pass 3: Prefix-Stripping Feature Capability Routing
 

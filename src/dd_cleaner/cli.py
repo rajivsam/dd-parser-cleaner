@@ -8,7 +8,11 @@ from path_coordinator import PathCoordinator
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, 
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        force=True
+    )
     logger = logging.getLogger("dd_cleaner_cli")
 
     parser = argparse.ArgumentParser(
@@ -35,8 +39,7 @@ def main():
         # 🎯 MODULAR ENTRY POINT: Inject the coordinator tracking boundary cleanly
         orchestrator = CleanerPipelineOrchestrator(path_coordinator=coordinator)
         
-        logger.info("Executing Data Profiling and Missingness Analysis sequence...")
-        logger.info("Executing Vectorized Scrubbing and Case Normalization pipeline transforms...")
+        logger.info("Starting data profiling and cleaning pipeline...")
         orchestrator.process_cleaning_pipeline()
         
         logger.info("Cleaner pipeline successfully concluded. View cleaned data and markdown profiles in output targets.")

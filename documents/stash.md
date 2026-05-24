@@ -21,10 +21,17 @@
 * **Heuristic Sweep**: Applies name-based heuristics using LLM-discovered keywords and hardened safety defaults (e.g., `street`, `city`). Performs prefix-stripping (e.g., `borrstreet` -> `street`) to validate tags.
 * **Authoritative Overrides**: Absolute final step. Case-insensitive matching for both attribute keys and internal property flags (e.g., `is_geographic`). Overrides explicitly overwrite previous LLM or heuristic values.
 
+### 4. Cleaner Logic & Data Integrity
+* **Mixed Value Quarantine**: Before cleaning, the system uses `pd.api.types.infer_dtype` to identify columns with inconsistent types. Outlier records (deviating from the dominant type) are unioned and moved to a coordinated quarantine CSV, then dropped from the pipeline to prevent type corruption.
+* **Lightweight Profiling**: Generates a JSON metadata bundle (types, cardinality, null ratio, samples) used for both LLM grounding and post-process validation.
+
 ### 4. Reporting Architecture
 * **Unified Type Inference**: `convert_to_DS_type()` abstracts native Python types and Logical Categories (numeric, text, datetime, categorical).
 * **Dual Output**: Generates both a professional Markdown report (with backticks for fixed-width display) and a raw CSV replica in the `dd_parser_results` directory.
 * **Signature Security**: Generates a `.signature` SHA-256 sidecar for the output matrix to ensure pipeline integrity without corrupting CSV headers.
+* **Grounded Inference Design**: 
+    * **Contextual Sidecar**: Integration point for `fg-data-profiling` to feed physical data reality (cardinality, sample values, inferred types) into the LLM context.
+    * **Validation Loop**: The `MetadataPostProcessor` will use profile data to flag logical mismatches (e.g., LLM identifies "City" but profiler sees `float64`).
 
 ---
 
@@ -34,10 +41,14 @@
 parser:
   entity_tagging:
     - geographic
+  # Grounding: Physical data distribution injected into Phase 2 prompts
   overrides:
     LocationID:
       is_geographic: false
       provisional_entity_assignment: Lender
+cleaner:
+  quarantine_directory: quarantine
+  quarantine_filename: isolated_records.csv
 ```
 
 ---
@@ -69,9 +80,12 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
 ---
 
 ## 🎯 Resumption Backlog
-1. **Scale Testing**: Run the pipeline against a synthetic 5,000-row schema to verify LLM latency and memory usage.
-2. **HITL UI**: Build a lightweight terminal interface to allow the user to approve/edit classifications before the final matrix is signed.
-3. **Timeseries Integration**: Test the dynamic multi-category decomposition on the new traffic/weather datasets.
+
+1. **Grounded Inference Implementation**: 
+    * **Task 4.1**: Enhance `null_profiler.py` or integrate `fg-data-profiling` to generate a lightweight JSON metadata bundle (cardinality, top 5 samples, inferred physical type).
+    * **Task 4.2**: Update `orchestrator.py` to left-join this profile bundle with the Data Dictionary before LLM dispatch.
+    * **Task 4.3**: Augment `LLMEntityClassifier` prompts to include the "Profile Sidecar" for improved zero-shot accuracy.
+    * **Task 4.4**: Harden `post_processor.py` to use profile stats as an authoritative safety check against semantic hallucination.
 
 ---
 *This stash ensures that the "Golden Rule" is maintained: any future updates must build upon the logic summarized here.*

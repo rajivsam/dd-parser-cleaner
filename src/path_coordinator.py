@@ -148,3 +148,16 @@ class PathCoordinator:
         dir_name = self._get_required_val(self._parser_config, "parser_provisional_assingnment_dir", "parser")
         file_name = self._get_required_val(self._parser_config, "parser_provisional_assingnment_filename", "parser")
         return Path(self.documents_dir) / dir_name / file_name
+
+    @property
+    def quarantine_path(self) -> Path:
+        """
+        Authoritative routing for isolated mixed-value records.
+        Targets: {$base_dir}/data/{$quarantine_directory}/{$quarantine_filename}
+        """
+        dir_name = self._get_required_val(self._cleaner_config, "quarantine_directory", "cleaner")
+        file_name = self._get_required_val(self._cleaner_config, "quarantine_filename", "cleaner")
+        
+        target_dir = self.base_dir / "data" / dir_name
+        target_dir.mkdir(parents=True, exist_ok=True)
+        return target_dir / file_name

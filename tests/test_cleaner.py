@@ -5,7 +5,6 @@ import pytest
 import yaml
 import pandas as pd
 from pathlib import Path
-from dd_parser.orchestrator import PipelineOrchestrator
 # 🧬 ALIGNED ROUTING FIX: Import the newly decoupled modular pipeline orchestrator
 from dd_cleaner.orchestrator import CleanerPipelineOrchestrator
 from path_coordinator import PathCoordinator
@@ -21,23 +20,15 @@ def test_cleaner_orchestration_workflow(managed_test_config):
     coordinator = PathCoordinator(config_path=managed_test_config, working_dir="./tests")
     
     # 2. Initialize decoupled system modules via Constructor Dependency Injection
-    classifier = PipelineOrchestrator(path_coordinator=coordinator)
     cleaner = CleanerPipelineOrchestrator(path_coordinator=coordinator)
     
     print("\n🚀 Starting decoupled dataset cleaner orchestration workflow execution...")
     
-    # --- PHASE 1: Parse Data Dictionary Payload ---
-    print("📋 Triggering local Llama metadata parser matrix generation...")
-    classifier.process_pipeline()
-    
-    # Verify parsing stage output file structures inside the sandbox
+    # --- PHASE 1: Verify & Load Parser Artifacts ---
     parsed_csv_path = Path(coordinator.data_dictionary_csv_path)
-    sidecar_sig_path = parsed_csv_path.with_suffix(".signature")
-    
-    assert parsed_csv_path.exists(), f"❌ Orchestration contract breach: Parser output missing at {parsed_csv_path}"
-    assert sidecar_sig_path.exists(), f"❌ Orchestration contract breach: Cryptographic signature asset missing at {sidecar_sig_path}"
     
     # 3. COMPLIANCE CHECK: Look directly at the generated/reconciled output matrix file layout
+    assert parsed_csv_path.exists(), f"❌ Prerequisite Missing: Cleaner requires parser output at {parsed_csv_path}"
     df_reconciled_metadata = pd.read_csv(parsed_csv_path)
     
     # Isolate parsed target attribute name column string safely matching post-processor conventions

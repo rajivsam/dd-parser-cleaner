@@ -33,6 +33,22 @@ class CleanerPipelineOrchestrator:
         print(f"📊 Generating raw dataset metrics report at: {self.paths.profiling_report_path}")
         profiler.generate_null_quality_report(df_raw)
 
+        # 🛡️ MIXED VALUE QUARANTINE: Identify and isolate inconsistent records
+        # This check occurs before transformations to prevent data type corruption
+        temp_engine = CleaningRulesEngine(active_prefixes=[])
+        quarantine_indices = temp_engine.identify_mixed_value_indices(df_raw)
+        
+        if quarantine_indices:
+            df_quarantine = df_raw.loc[quarantine_indices]
+            quarantine_path = self.paths.quarantine_path
+            print(f"⚠️ Mixed values detected! Quarantining {len(df_quarantine)} records to: {quarantine_path}")
+            df_quarantine.to_csv(quarantine_path, index=False)
+            
+            # Remove quarantined records from the primary cleaning pipeline
+            df_raw = df_raw.drop(index=quarantine_indices).reset_index(drop=True)
+        else:
+            print("✅ No mixed value records identified for quarantine.")
+
         dict_path = Path(self.paths.data_dictionary_csv_path)
         casing_map = {}
         active_prefixes: List[str] = []

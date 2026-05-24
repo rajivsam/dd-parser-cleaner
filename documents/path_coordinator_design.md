@@ -16,6 +16,8 @@ A data engineering workspace requires predictable, clean boundaries. The coordin
 
 The `dd-parser-cleaner` engine is built to function within a strict, sequential data science pipeline, where the output of one processing stage becomes the authoritative input for the next stage.
 
+* **The Decoupling**: Tests for the Cleaner module are decoupled from the Parser. The cleaner expects the `PathCoordinator` to point to pre-existing metadata artifacts (CSV and `.signature`), allowing for independent validation of cleaning rules.
+* **The Quarantine**: A dedicated routing endpoint handles the isolation of "mixed-value" records, ensuring that structurally invalid data is moved to `data/quarantine/` before it can contaminate the clean dataset.
 * The Flow: The `LocalEntityClassifier` parses a raw metadata file and exports a verified schema mapping matrix to a specific location. The downstream `DatasetCleaner` then immediately reads that exact matrix to restore casing rules on massive raw data tables.
 * The Rule: To prevent data gaps or manual file-shuffling, the entry and exit points of every pipeline stage must be strictly defined, predictable, and automated.
 

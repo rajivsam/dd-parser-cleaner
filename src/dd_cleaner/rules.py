@@ -1,7 +1,7 @@
 """Executes vectorized transformation and data scrubbing business rules."""
 
 import pandas as pd
-from typing import List
+from typing import List, Set
 
 
 class CleaningRulesEngine:
@@ -10,6 +10,26 @@ class CleaningRulesEngine:
     def __init__(self, active_prefixes: List[str]) -> None:
         """Initializes the engine with dynamic domain entity prefixes."""
         self.active_prefixes = active_prefixes
+
+    def identify_mixed_value_indices(self, df: pd.DataFrame) -> List[int]:
+        """Identifies row indices containing values that deviate from the dominant type in their column."""
+        quarantine_indices: Set[int] = set()
+        
+        for col in df.columns:
+            # Isolate non-null values to determine the statistical dominant type
+            non_null_series = df[col].dropna()
+            if non_null_series.empty:
+                continue
+                
+            # 🕵️ PANDAS INFERENCE: Leverage built-in type detection
+            inferred = pd.api.types.infer_dtype(non_null_series)
+            if "mixed" in inferred:
+                dominant_type = non_null_series.map(type).value_counts().idxmax()
+                # Collect indices where the value is present but its type is an outlier
+                mixed_mask = df[col].apply(lambda x: x is not None and not pd.isna(x) and type(x) != dominant_type)
+                quarantine_indices.update(df.index[mixed_mask].tolist())
+                
+        return sorted(list(quarantine_indices))
 
     def execute_transformations(self, df: pd.DataFrame) -> pd.DataFrame:
         """Applies zero-padding and vectorized title-casing to data cells defensively."""

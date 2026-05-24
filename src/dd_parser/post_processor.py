@@ -125,7 +125,8 @@ class MetadataPostProcessor:
         attributes: pd.Series, 
         descriptions: pd.Series, 
         llm_assignments: Dict[str, Dict[str, Any]],
-        discovered_heuristics: Dict[str, List[str]] = None
+        discovered_heuristics: Dict[str, List[str]] = None,
+        grounding_profile: Dict[str, Any] = None
     ) -> pd.DataFrame:
         """Assembles data matrix, resolves configuration overrides, and saves output data blocks."""
         provisional_df = df.copy()
@@ -214,8 +215,11 @@ class MetadataPostProcessor:
                     else:
                         provisional_df.at[idx, "provisional_entity_assignment"] = str(override_node)
 
+        # 🛡️ GROUNDING VALIDATION: Flag obvious mismatches between LLM and Physical reality
+        self._validate_grounding_consistency(provisional_df, grounding_profile)
+
         self._write_pipeline_artifacts(provisional_df)
-        self._write_provisional_report(provisional_df)
+        self._write_provisional_report(provisional_df, grounding_profile)
         return provisional_df
 
     def _apply_name_heuristics(self, df: pd.DataFrame, target: str, keywords: Set[str], prefixes: List[str]) -> pd.DataFrame:
@@ -245,6 +249,23 @@ class MetadataPostProcessor:
                         df.at[idx, col_name] = True
                         break
         return df
+
+    def _validate_grounding_consistency(self, df: pd.DataFrame, profile: Dict[str, Any]) -> None:
+        """Checks for semantic hallucinations (e.g., tagging an empty or numeric column as 'geographic')."""
+        if not profile:
+            return
+
+        for idx, row in df.iterrows():
+            attr = str(row["attribute_name"]).lower()
+            stats = profile.get(attr, {})
+            
+            # Example Check: Geographic tag on a field with 0 cardinality or non-string type
+            if row.get("is_geographic") and stats:
+                is_numeric = "int" in stats.get("physical_type", "") or "float" in stats.get("physical_type", "")
+                if is_numeric and stats.get("cardinality", 0) > 100:
+                    self.logger.warning(
+                        f"⚠️ Potential Hallucination: '{row['attribute_name']}' tagged as GEOGRAPHIC but contains high-cardinality numeric data."
+                    )
 
     def _write_pipeline_artifacts(self, df: pd.DataFrame) -> None:
         """Writes matrix result tables and cryptographic metadata signatures to the output targets."""
@@ -314,7 +335,7 @@ class MetadataPostProcessor:
         return t_name, l_name
 
 
-    def _write_provisional_report(self, df: pd.DataFrame) -> None:
+    def _write_provisional_report(self, df: pd.DataFrame, grounding_profile: Dict[str, Any] = None) -> None:
         """Generates a markdown and CSV report summarizing entity assignments and types."""
         # 🧠 DYNAMIC PATH RESOLUTION: Fetch the report path from the coordinator
         report_path = getattr(self.paths, "parser_provisional_report_path", None)
@@ -331,19 +352,10 @@ class MetadataPostProcessor:
 
         # 🔍 NATIVE TYPE DETECTION: Infer types from the raw dataset if available
         type_map = {}
-        logical_map = {}
-        raw_path = self.paths.raw_dataset_path
-        if raw_path.exists():
-            try:
-                # Read a small sample to determine types reliably
-                sample_df = pd.read_csv(raw_path, sep=None, engine='python', nrows=50)
-                for col in sample_df.columns:
-                    # Abstracted type and category inference
-                    t_name, l_name = self.convert_to_DS_type(sample_df[col])
-                    type_map[col.lower()] = t_name
-                    logical_map[col.lower()] = l_name
-            except Exception as e:
-                self.logger.warning(f"⚠️ Could not infer native types from raw dataset: {e}")
+        if grounding_profile:
+            for attr, stats in grounding_profile.items():
+                # Convert physical types to our logical DS types for the report
+                type_map[attr] = stats.get("physical_type", "unknown")
 
         # Extract the relevant columns for the summary report
         raw_tags = self.parser_config.get("entity_tagging") or []
@@ -352,9 +364,7 @@ class MetadataPostProcessor:
         
         report_df = df[["attribute_name", "provisional_entity_assignment"] + tag_cols].copy()
 
-        report_df["Logical Category"] = report_df["attribute_name"].apply(
-            lambda x: logical_map.get(str(x).lower(), "text")
-        )
+        report_df["Physical Type"] = report_df["attribute_name"].apply(lambda x: type_map.get(str(x).lower(), "unknown"))
 
         # 💾 CSV GENERATION: Save a clean CSV copy before MD presentation formatting
         csv_report_path = report_path.with_suffix(".csv")
@@ -365,13 +375,13 @@ class MetadataPostProcessor:
         md_display_df = report_df.copy()
         md_display_df["attribute_name"] = md_display_df["attribute_name"].apply(lambda x: f"`{x}`")
         md_display_df["provisional_entity_assignment"] = md_display_df["provisional_entity_assignment"].apply(lambda x: f"`{x}`")
-        md_display_df["Logical Category"] = md_display_df["Logical Category"].apply(lambda x: f"`{x}`")
+        md_display_df["Physical Type"] = md_display_df["Physical Type"].apply(lambda x: f"`{x}`")
 
         for col in tag_cols:
             md_display_df[col] = md_display_df[col].apply(lambda x: f"`{x}`")
 
-        # Construct headers dynamically: Consolidating to "Logical Type" per preference
-        md_headers = ["Attribute", "Provisional Entity Assignment"] + [f"Flag: {t.title()}" for t in explicit_targets] + ["Logical Type"]
+        # Construct headers dynamically
+        md_headers = ["Attribute", "Provisional Entity Assignment"] + [f"Flag: {t.title()}" for t in explicit_targets] + ["Physical Type"]
         md_display_df.columns = md_headers
 
         summary_stats = df["provisional_entity_assignment"].value_counts()

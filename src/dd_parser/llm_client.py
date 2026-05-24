@@ -30,6 +30,24 @@ class LLMEntityClassifier:
         except Exception:
             return False
 
+    def generate_grounding_profile(self, df_sample: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
+        """Generates a physical metadata profile (cardinality, types, samples) to ground LLM inference."""
+        profile = {}
+        for col in df_sample.columns:
+            series = df_sample[col]
+            # Capture top 5 unique non-null values as strings for prompt context
+            raw_samples = series.dropna().unique()[:5]
+            samples = [str(s) for s in raw_samples]
+            
+            profile[str(col).lower()] = {
+                "physical_type": str(series.dtype),
+                "cardinality": int(series.nunique()),
+                "null_ratio": round(float(series.isnull().mean()), 4),
+                "samples": samples
+            }
+        self.logger.info(f"📊 Grounding profile generated for {len(profile)} columns.")
+        return profile
+
     def discover_macro_domain(self, attributes: List[str], descriptions: List[str], explicit_targets: List[str]) -> Dict[str, Any]:
         """🧠 PHASE 1: Scans a sampling of the schema to establish global entity categories dynamically."""
         sample_size = min(15, len(attributes))
@@ -83,23 +101,33 @@ class LLMEntityClassifier:
         return {"logical_entities": ["unassigned"], "tag_keywords": {}}
 
     def discover_entities(
-        self, attributes: pd.Series, descriptions: pd.Series, explicit_targets: List[str], generated_hints: List[str] = None
+        self, 
+        attributes: pd.Series, 
+        descriptions: pd.Series, 
+        explicit_targets: List[str], 
+        generated_hints: List[str] = None,
+        grounding_profile: Dict[str, Any] = None
     ) -> Dict[str, Dict[str, Any]]:
         """Queries local Llama 3.2 model atomically per attribute row to guarantee classification stability."""
         assignments = {}
         active_hints = generated_hints if generated_hints else []
         hints_str = ", ".join(str(h) for h in active_hints) if active_hints else "Logical Categories"
         targets_str = ", ".join([f"'is_{t}' (boolean)" for t in explicit_targets])
+        grounding_profile = grounding_profile or {}
 
         self.logger.info(f"🧠 Processing {len(attributes)} attributes atomically via Llama 3.2...")
 
         for attr, desc in zip(attributes, descriptions):
             attr_str = str(attr)
+            # Fetch grounding data if available (case-insensitive)
+            stats = grounding_profile.get(attr_str.lower(), {})
+            stats_str = json.dumps(stats) if stats else "No physical data profile available."
             
             user_prompt = (
                 f"Classify this single data schema field:\n"
                 f"Field Name: {attr_str}\n"
-                f"Description: {str(desc)}\n\n"
+                f"Description: {str(desc)}\n"
+                f"Physical Data Profile (Grounding Context): {stats_str}\n\n"
                 f"Instructions:\n"
                 f"1. Select the best match for 'entity_assignment' from these discovered choices: [{hints_str}].\n"
                 f"2. Evaluate dedicated boolean flags for these explicit semantic targets: {targets_str}.\n\n"
