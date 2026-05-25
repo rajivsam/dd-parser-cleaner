@@ -13,8 +13,9 @@
 * **Orchestrator**: Executes a two-phase LLM pipeline (Macro Discovery + Atomic Row Assignment) synchronized with physical headers.
 * **Classification**: Phase 1 establishes logical entities/keywords; Phase 2 executes atomic row assignment via Llama 3.2.
 * **Post-Processor**: Derives prefix stems algorithmically; strips prefixes to validate tags (e.g., `borr_zip` -> `zip`); applies case-insensitive `overrides` as authoritative final step.
-* **Integrity & Profiling**: `DatasetDataProfiler` generates JSON metadata (cardinality, null ratios, samples) for LLM grounding. `Mixed Value Quarantine` isolates inconsistent types before cleaning.
-* **Reporting**: Unified `DS_type` inference; generates MD reports and CSV replicas with SHA-256 `.signature` security sidecars.
+* **Integrity Engine**: `IntegrityEngine` enforces a "Bucket Strategy" to validate the bridge between the Data Dictionary and Raw Data.
+    * **Bucket A (Operational)**: Matches found; proceed to cleaning. **Bucket B (Orphans)**: In Dictionary but missing from Data; quarantined/stripped. **Bucket C (Ghosts)**: In Data but missing from Dictionary.
+* **Reporting**: Unified `DS_type` inference; generates MD reports with "Critical Schema Mismatch" warnings and structured CSV matrices (stripped of orphans).
 
 ---
 

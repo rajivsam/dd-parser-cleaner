@@ -13,6 +13,12 @@ Unlike standard LLM parsers, this engine performs **Grounded Inference**. It pro
 1. **Prefix Discovery**: Algorithmic detection of prefixes (e.g., `borr_`, `bank_`).
 2. **Heuristic Stripping**: Strips prefixes to validate semantic tags (e.g., `borr_zip` -> `zip` -> `is_geographic`).
 3. **authoritative Overrides**: Absolute manual control via `config.yaml`.
+4. **Bridge Integrity (Orphan Quarantine)**: Automatically reconciles the Dictionary against Raw Headers using three buckets:
+    * **Bucket A (Operational)**: Valid matches sent to the cleaner.
+    * **Bucket B (Orphans)**: Definitions with no matching data column. These are **stripped** from the CSV matrix and flagged as "Critical Schema Mismatches" in the report.
+    * **Bucket C (Ghosts)**: Raw data columns with no dictionary definition.
+
+This prevents the cleaner from attempting to process non-existent data.
 
 ## 🧼 Component 2: The Cleaner (`clean-dataset`)
 The cleaner uses the parser's output to scrub and normalize your operational data.

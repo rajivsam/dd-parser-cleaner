@@ -8,6 +8,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, Any, Tuple, List, Set
 from path_coordinator import PathCoordinator
+from .rules import IntegrityEngine
 
 
 class MetadataPostProcessor:
@@ -25,6 +26,10 @@ class MetadataPostProcessor:
         """Refreshes operational configurations and targets dynamically."""
         self.paths = path_coordinator
         self.parser_config = parser_config if parser_config is not None else {}
+
+    def _normalize(self, s: str) -> str:
+        """Proxy for the centralized integrity normalization logic."""
+        return IntegrityEngine.normalize(s)
 
     def infer_schema_columns(self, df: pd.DataFrame) -> Tuple[pd.Series, pd.Series]:
         """Extracts structural parts from messy input columns dynamically using header names or indices."""
@@ -59,9 +64,10 @@ class MetadataPostProcessor:
         desc_series = df.iloc[:, best_desc_idx].astype(str).str.strip()
         return attr_series, desc_series
 
-    def synchronize_with_raw_headers(self, df_dict: pd.DataFrame, raw_headers: List[str]) -> pd.DataFrame:
-        """Replaces data dictionary attributes with authoritative case-sensitive raw headers."""
-        raw_headers_lower = [h.lower() for h in raw_headers]
+    def synchronize_with_raw_headers(self, df_dict: pd.DataFrame, df_raw_sample: pd.DataFrame) -> pd.DataFrame:
+        """Replaces attributes with authoritative headers and performs Early Binding of data types."""
+        raw_headers = list(df_raw_sample.columns)
+        raw_header_map = {self._normalize(h): h for h in raw_headers}
         
         target_col_name = self.paths.data_dictionary_attribute_col_name
         if not target_col_name or target_col_name not in df_dict.columns:
@@ -79,14 +85,20 @@ class MetadataPostProcessor:
         for _, row in df_dict.iterrows():
             row_dict = row.to_dict()
             dict_attr_val = str(row_dict[target_col_name]).strip()
+            dict_attr_norm = self._normalize(dict_attr_val)
             
-            try:
-                match_idx = raw_headers_lower.index(dict_attr_val.lower())
-                authoritative_val = raw_headers[match_idx]
-                row_dict[target_col_name] = authoritative_val
-                matched_raw_headers.add(authoritative_val)
-            except ValueError:
-                pass
+            matched_header = raw_header_map.get(dict_attr_norm)
+            
+            if matched_header:
+                row_dict[target_col_name] = matched_header
+                # 🎯 AUTHORITATIVE GATEWAY: Assign types early while the bridge is active
+                p_type, l_type = self.convert_to_DS_type(df_raw_sample[matched_header])
+                row_dict["physical_type"] = p_type
+                row_dict["logical_type"] = l_type
+                matched_raw_headers.add(matched_header)
+            else:
+                row_dict["physical_type"] = "unknown"
+                row_dict["logical_type"] = "unknown"
                 
             updated_rows.append(row_dict)
 
@@ -95,6 +107,9 @@ class MetadataPostProcessor:
                 new_row = {col: "" for col in df_dict.columns}
                 new_row[target_col_name] = raw_h
                 new_row[desc_col_name] = "No description available."
+                p_type, l_type = self.convert_to_DS_type(df_raw_sample[raw_h])
+                new_row["physical_type"] = p_type
+                new_row["logical_type"] = l_type
                 updated_rows.append(new_row)
 
         return pd.DataFrame(updated_rows)
@@ -125,15 +140,26 @@ class MetadataPostProcessor:
         attributes: pd.Series, 
         descriptions: pd.Series, 
         llm_assignments: Dict[str, Dict[str, Any]],
-        discovered_heuristics: Dict[str, List[str]] = None,
-        grounding_profile: Dict[str, Any] = None
+        grounding_profile: Dict[str, Any] = None,
+        df_raw_sample: pd.DataFrame = None
     ) -> pd.DataFrame:
         """Assembles data matrix, resolves configuration overrides, and saves output data blocks."""
         provisional_df = df.copy()
+        
+        # 🛡️ INTEGRITY CHECK: Evaluate the bridge before proceeding
+        raw_headers = list(df_raw_sample.columns) if df_raw_sample is not None else []
+        bridge_report = IntegrityEngine.evaluate_bridge(attributes.tolist(), raw_headers)
+        orphans = set(bridge_report["orphans"])
 
         # 1. Initialize Columns
         provisional_df["attribute_name"] = attributes
         provisional_df["provisional_entity_assignment"] = "unassigned"
+        
+        # Preserve Early-Bound types if they exist (from synchronization)
+        if "physical_type" not in provisional_df.columns:
+            provisional_df["physical_type"] = "unknown"
+        if "logical_type" not in provisional_df.columns:
+            provisional_df["logical_type"] = "unknown"
 
         raw_tags = self.parser_config.get("entity_tagging") or []
         explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
@@ -156,22 +182,10 @@ class MetadataPostProcessor:
             for target in explicit_targets:
                 provisional_df.at[idx, f"is_{target}"] = field_metadata.get(f"is_{target}", False)
 
-        # 🧠 METADATA RECONCILIATION: Derive prefixes directly from attributes that were assigned to entities
+        # 🧠 PREFIX DISCOVERY: Derive stems from assignments to improve heuristic matching
         assigned_attrs = [a for a, m in llm_assignments.items() if m.get("entity_assignment") != "unassigned"]
         self.known_prefixes = self._derive_prefix_stems(assigned_attrs)
-        self.logger.info(f"📊 Dynamically extracted operational prefix stems: {self.known_prefixes}")
-
-        # 3. PHASE 2: Hardened Heuristic Sweep (Automated inference enhancement)
-        heuristics = discovered_heuristics or {}
-        config_heuristics = self.parser_config.get("tag_heuristics") or {}
-        
-        # 🧠 ZERO-HARDCODING REGISTRY: Accumulate all keywords from discovery and config
-        # This ensures logical type inference (like temporal) works even without explicit ML tags.
-        self.all_keywords = {t: set(kws) for t, kws in heuristics.items()}
-        for t, kws in config_heuristics.items():
-            if t not in self.all_keywords:
-                self.all_keywords[t] = set()
-            self.all_keywords[t].update(kws)
+        self.all_keywords = {t: set(kws) for t, kws in (self.parser_config.get("tag_heuristics") or {}).items()}
 
         for target in explicit_targets:
             keywords = self.all_keywords.get(target, set())
@@ -199,27 +213,27 @@ class MetadataPostProcessor:
                 if lookup_key:
                     override_node = user_overrides[lookup_key]
                     if isinstance(override_node, dict):
-                        # Assign Category Override (Strict case-insensitive match)
-                        for k, v in override_node.items():
-                            if k.lower() == "provisional_entity_assignment":
-                                provisional_df.at[idx, "provisional_entity_assignment"] = v
-                                break
-                        
-                        # Assign Boolean Flag Overrides (Absolute enforcement, Case-insensitive match)
+                        if "provisional_entity_assignment" in override_node:
+                            provisional_df.at[idx, "provisional_entity_assignment"] = override_node["provisional_entity_assignment"]
                         for target in explicit_targets:
-                            flag_key = f"is_{target}".lower()
-                            for k, v in override_node.items():
-                                if k.lower() == flag_key:
-                                    provisional_df.at[idx, f"is_{target}"] = (str(v).lower() == 'true') if isinstance(v, str) else bool(v)
-                                    break
+                            flag_key = f"is_{target}"
+                            if flag_key in override_node:
+                                v = override_node[flag_key]
+                                provisional_df.at[idx, flag_key] = (str(v).lower() == 'true') if isinstance(v, str) else bool(v)
                     else:
                         provisional_df.at[idx, "provisional_entity_assignment"] = str(override_node)
 
         # 🛡️ GROUNDING VALIDATION: Flag obvious mismatches between LLM and Physical reality
         self._validate_grounding_consistency(provisional_df, grounding_profile)
 
-        self._write_pipeline_artifacts(provisional_df)
-        self._write_provisional_report(provisional_df, grounding_profile)
+        # 🧼 QUARANTINE & STRIP: Remove orphans from the operational matrix (CSV)
+        # We keep them in a separate df just for the human report warnings
+        operational_df = provisional_df[~provisional_df["attribute_name"].isin(orphans)].copy()
+        orphan_df = provisional_df[provisional_df["attribute_name"].isin(orphans)].copy()
+
+        self._write_pipeline_artifacts(operational_df)
+        self._write_provisional_report(operational_df, grounding_profile, orphan_df)
+        
         return provisional_df
 
     def _apply_name_heuristics(self, df: pd.DataFrame, target: str, keywords: Set[str], prefixes: List[str]) -> pd.DataFrame:
@@ -305,9 +319,9 @@ class MetadataPostProcessor:
             attr_name = str(series.name).lower() if series.name else ""
             
             # 🧠 ZERO-HARDCODING: Use keywords found during discovery/config for logical typing
-            temporal_keywords = self.all_keywords.get("temporal", set())
+            temporal_keywords = self.all_keywords.get("temporal", set()) | {"date", "time", "year", "timestamp"}
             
-            if any(re.search(rf"\b{kw}\b", attr_name) or attr_name.endswith(kw) for kw in temporal_keywords):
+            if any(kw in attr_name for kw in temporal_keywords):
                 is_temporal = True
             
             # 2. Check Value sample if name check is inconclusive
@@ -335,53 +349,36 @@ class MetadataPostProcessor:
         return t_name, l_name
 
 
-    def _write_provisional_report(self, df: pd.DataFrame, grounding_profile: Dict[str, Any] = None) -> None:
-        """Generates a markdown and CSV report summarizing entity assignments and types."""
+    def _write_provisional_report(self, df: pd.DataFrame, grounding_profile: Dict[str, Any] = None, orphan_df: pd.DataFrame = None) -> None:
+        """Generates a human-readable markdown report summarizing entity assignments and types."""
         # 🧠 DYNAMIC PATH RESOLUTION: Fetch the report path from the coordinator
-        report_path = getattr(self.paths, "parser_provisional_report_path", None)
+        report_path = self.paths.parser_provisional_report_path
         
-        if not report_path:
-            self.logger.warning("⚠️ Report generation skipped: Please check config.yaml to verify that 'parser_provisional_assingnment_dir' and 'parser_provisional_assingnment_filename' are populated.")
-            return
-
         if "attribute_name" not in df.columns:
             return
 
-        report_path = Path(report_path)
         report_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # 🔍 NATIVE TYPE DETECTION: Infer types from the raw dataset if available
-        type_map = {}
-        if grounding_profile:
-            for attr, stats in grounding_profile.items():
-                # Convert physical types to our logical DS types for the report
-                type_map[attr] = stats.get("physical_type", "unknown")
 
         # Extract the relevant columns for the summary report
         raw_tags = self.parser_config.get("entity_tagging") or []
         explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
         tag_cols = [f"is_{target}" for target in explicit_targets]
         
-        report_df = df[["attribute_name", "provisional_entity_assignment"] + tag_cols].copy()
-
-        report_df["Physical Type"] = report_df["attribute_name"].apply(lambda x: type_map.get(str(x).lower(), "unknown"))
-
-        # 💾 CSV GENERATION: Save a clean CSV copy before MD presentation formatting
-        csv_report_path = report_path.with_suffix(".csv")
-        report_df.to_csv(csv_report_path, index=False)
-        self.logger.info(f"📊 Provisional assignment CSV generated at: {csv_report_path}")
+        # Use the Early-Bound "Sticky" cargo columns for the report
+        report_df = df[["attribute_name", "provisional_entity_assignment", "logical_type", "physical_type"] + tag_cols].copy()
 
         # 🎨 PRESENTATION: Apply backticks for a consistent fixed-width font look
         md_display_df = report_df.copy()
         md_display_df["attribute_name"] = md_display_df["attribute_name"].apply(lambda x: f"`{x}`")
         md_display_df["provisional_entity_assignment"] = md_display_df["provisional_entity_assignment"].apply(lambda x: f"`{x}`")
-        md_display_df["Physical Type"] = md_display_df["Physical Type"].apply(lambda x: f"`{x}`")
+        md_display_df["logical_type"] = md_display_df["logical_type"].apply(lambda x: f"`{x}`")
+        md_display_df["physical_type"] = md_display_df["physical_type"].apply(lambda x: f"`{x}`")
 
         for col in tag_cols:
             md_display_df[col] = md_display_df[col].apply(lambda x: f"`{x}`")
 
         # Construct headers dynamically
-        md_headers = ["Attribute", "Provisional Entity Assignment"] + [f"Flag: {t.title()}" for t in explicit_targets] + ["Physical Type"]
+        md_headers = ["Attribute", "Assignment", "Logical Type", "Physical Type"] + [f"Flag: {t.title()}" for t in explicit_targets]
         md_display_df.columns = md_headers
 
         summary_stats = df["provisional_entity_assignment"].value_counts()
@@ -391,6 +388,16 @@ class MetadataPostProcessor:
             f.write(f"**Source Blueprint:** `{self.paths.data_dictionary_path.name}`\n\n### 📊 Classification Summary\n")
             for entity, count in summary_stats.items():
                 f.write(f"- **{entity}**: {count} fields\n")
+            
+            # 🚩 CRITICAL SCHEMA MISMATCH: Highlight Bucket B (Orphans)
+            if orphan_df is not None and not orphan_df.empty:
+                f.write(f"\n### ⚠️ CRITICAL SCHEMA MISMATCH (Orphaned Attributes)\n")
+                f.write("> The following attributes were found in your Data Dictionary but are missing from the raw data file. ")
+                f.write("They have been **excluded** from the operational cleaning matrix.\n\n")
+                for attr in orphan_df["attribute_name"].tolist():
+                    f.write(f"- `{attr}`\n")
+                f.write("\n")
+
             f.write(f"\n---\n\n### 📋 Detailed Assignments\n")
             f.write(md_display_df.to_markdown(index=False, tablefmt="github"))
             f.write("\n\n---\n*Report generated via automated dd-parser post-processing.*")

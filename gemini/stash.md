@@ -13,9 +13,10 @@
 * State Checkpoint: Replaced the batch processing approach with an Atomic Row-by-Row Execution Strategy to solve token context crowding and eliminate truncated or skipped classification payloads. The parser now implements a dynamic two-phase pipeline execution routine:
 
   1. **Standardized Logging**: Replaced all `print` statements with the `logging` module across all core components for consistent terminal feedback and error tracking.
-  2. **Automated Markdown Reporting**: The post-processor now generates a human-readable `Provisional Entity Assignment Report` in Markdown format, providing a classification summary and detailed attribute mapping.
+  2. **Automated Markdown Reporting**: The post-processor generates a human-readable Markdown assignment report in the primary output directory, sharing the CSV's base name.
   3. Phase 1 (Macro Domain Discovery): Samples the raw source fields at runtime using structured prompting rules to discover distinct logical core entity arrays (e.g., separating demographics from risk profiles and metrics) without manual configuration mapping.
   4. Phase 2 (Micro Atomic Assignment): Feeds each data dictionary row independently into Llama 3.2 using the Phase 1 architectural categories as classification instructions.
+  5. **Bridge Integrity Enforcement**: Integrated `IntegrityEngine` to proactively strip "Orphaned Attributes" (items in dictionary but missing from data) from the operational matrix while flagging them in reports.
 * Infrastructure Health: Integrated a strict background dependency connection probe inside `PipelineOrchestrator.__init__` and `set_working_config`. If the local Ollama backend is missing or offline, the tool logs a clean structural diagnostic payload and terminates immediately via `sys.exit(1)`.
 
 ---
@@ -37,8 +38,6 @@ parser:
   data_dictionary_file: sba_dd.csv
   dd_parser_output_dir: dd_analysis_results
   output_filename: sba_analysis_results.csv
-  parser_provisional_assingnment_dir: dd_parser_results
-  parser_provisional_assingnment_filename: sba_parser_provisional_assingnment.md
   entity_tagging:
     - geographic
   overrides: {}

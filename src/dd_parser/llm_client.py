@@ -3,8 +3,10 @@
 import json
 import logging
 import httpx
+import re
 import pandas as pd
 from typing import Dict, Any, List
+from .rules import IntegrityEngine
 
 
 class LLMEntityClassifier:
@@ -39,7 +41,8 @@ class LLMEntityClassifier:
             raw_samples = series.dropna().unique()[:5]
             samples = [str(s) for s in raw_samples]
             
-            profile[str(col).lower()] = {
+            # Aggressive normalization to ensure keys match the post-processor's lookup map
+            profile[IntegrityEngine.normalize(col)] = {
                 "physical_type": str(series.dtype),
                 "cardinality": int(series.nunique()),
                 "null_ratio": round(float(series.isnull().mean()), 4),
@@ -48,15 +51,13 @@ class LLMEntityClassifier:
         self.logger.info(f"📊 Grounding profile generated for {len(profile)} columns.")
         return profile
 
-    def discover_macro_domain(self, attributes: List[str], descriptions: List[str], explicit_targets: List[str]) -> Dict[str, Any]:
+    def discover_macro_domain(self, attributes: List[str], descriptions: List[str]) -> List[str]:
         """🧠 PHASE 1: Scans a sampling of the schema to establish global entity categories dynamically."""
         sample_size = min(15, len(attributes))
         sample_fields = [
             {"attr": str(a), "desc": str(d)} 
             for a, d in zip(attributes[:sample_size], descriptions[:sample_size])
         ]
-        
-        targets_str = ", ".join(explicit_targets) if explicit_targets else "None"
 
         macro_prompt = (
             f"You are a master data architect. Scan this snippet of a data dictionary blueprint:\n"
@@ -68,14 +69,10 @@ class LLMEntityClassifier:
             f"1. DO NOT lump all attributes into a single catch-all category name.\n"
             f"2. Separate attributes by their intrinsic structural nature (e.g., distinguish between "
             f"Demographics, Risk Profiles, Financial metrics, and Spatial/Temporal metadata).\n"
-            f"3. Make sure the entity concepts are granular enough to support target variations.\n"
-            f"4. For these specific feature tags: [{targets_str}], identify common keywords or suffixes "
-            f"present in the field names that characterize that tag for this specific dataset.\n\n"
-            f"Return a strict JSON object with two keys:\n"
-            f"- 'logical_entities': a list of strings.\n"
-            f"- 'tag_keywords': a dictionary mapping each feature tag to a list of identified keywords.\n\n"
+            f"3. Make sure the entity concepts are granular enough to support target variations.\n\n"
+            f"Return a strict JSON object with a single key 'logical_entities' containing a list of strings.\n"
             f"Example:\n"
-            f'{{"logical_entities": ["Demographics", "Financials"], "tag_keywords": {{"geographic": ["city", "zip", "state"]}}}}'
+            f'{{"logical_entities": ["Demographics", "RiskAssessment", "Financials", "Location"]}}'
         )
 
         try:
@@ -93,12 +90,14 @@ class LLMEntityClassifier:
             if response.status_code == 200:
                 raw_json = response.json().get("response", "{}")
                 data = json.loads(raw_json)
-                self.logger.info(f"🎯 Dynamic Domain Discovery Successful!")
-                return data
+                discovered = data.get("logical_entities", [])
+                if discovered:
+                    self.logger.info(f"🎯 Dynamic Domain Discovery Successful! Extracted Core Concepts: {discovered}")
+                    return [str(item) for item in discovered]
         except Exception as e:
             self.logger.warning(f"⚠️ Macro domain onboarding lookup bypassed: {e}")
             
-        return {"logical_entities": ["unassigned"], "tag_keywords": {}}
+        return ["unassigned"]
 
     def discover_entities(
         self, 
@@ -115,12 +114,13 @@ class LLMEntityClassifier:
         targets_str = ", ".join([f"'is_{t}' (boolean)" for t in explicit_targets])
         grounding_profile = grounding_profile or {}
 
-        self.logger.info(f"🧠 Processing {len(attributes)} attributes atomically via Llama 3.2...")
+        self.logger.info(f"🧠 Processing {len(attributes)} attributes atomically via {self.model_name}...")
 
         for attr, desc in zip(attributes, descriptions):
             attr_str = str(attr)
-            # Fetch grounding data if available (case-insensitive)
-            stats = grounding_profile.get(attr_str.lower(), {})
+            # Aggressive normalization via the shared IntegrityEngine
+            attr_norm = IntegrityEngine.normalize(attr_str)
+            stats = grounding_profile.get(attr_norm, {})
             stats_str = json.dumps(stats) if stats else "No physical data profile available."
             
             user_prompt = (

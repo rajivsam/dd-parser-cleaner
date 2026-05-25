@@ -12,8 +12,6 @@ parser:
   data_dictionary_file: MN_traffic_dd.csv
   dd_parser_output_dir: dd_analysis_results
   output_filename: MN_traffic_analysis_results.csv
-  parser_provisional_assingnment_dir: dd_parser_results
-  parser_provisional_assingnment_filename: MN_traffic_parser_provisional_assingnment.md
   overrides:
 system_prompt: You are a precise data engineering assistant. Respond strictly in JSON.
 temperature: 0.0

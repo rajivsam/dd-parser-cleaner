@@ -13,8 +13,6 @@ parser:
   data_dictionary_attribute_col_name: Field Name
   data_dictionary_file: sba_dd.csv
   dd_parser_output_dir: dd_analysis_results
-  parser_provisional_assingnment_dir: dd_parser_results
-  parser_provisional_assingnment_filename: sba_parser_provisional_assingnment.md
   entity_tagging:
   - geographic
   output_filename: sba_analysis_results.csv

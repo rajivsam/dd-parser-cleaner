@@ -26,13 +26,14 @@ class PipelineOrchestrator:
         self.parser_config = self.global_config.get("parser", self.global_config)
         
         # 📊 DIAGNOSTIC: Evaluate configuration state immediately after hydration
-        self.logger.info("=== [DIAGNOSTIC] CONFIGURATION TAG EVALUATION ===")
+        self.logger.info("=== CONFIGURATION TAG EVALUATION ===")
         raw_tags = self.parser_config.get("entity_tagging") or []
         self.logger.info(f"1. Raw 'entity_tagging' from YAML: {raw_tags}")
         explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
         self.logger.info(f"2. Sanitized target concepts to tag: {explicit_targets}")
         overrides = self.parser_config.get("overrides") or {}
         self.logger.info(f"3. Active structural overrides found: {list(overrides.keys())}")
+        self.logger.info("=====================================")
 
         # Inject modular specialized sub-components safely via relative module references
         self.llm_classifier = LLMEntityClassifier(self.global_config, self.parser_config)
@@ -81,37 +82,30 @@ class PipelineOrchestrator:
 
         # 📊 GROUNDED INFERENCE: Synchronize schema and generate data profile
         grounding_profile = {}
+        df_raw_sample = None
         raw_dataset_path = self.paths.raw_dataset_path
         if raw_dataset_path.exists():
             self.logger.info(f"📊 Generating grounding profile from sample of: {raw_dataset_path.name}")
             # Read a 500-row sample to generate cardinality and distribution metrics
             df_raw_sample = pd.read_csv(raw_dataset_path, sep=None, engine='python', nrows=500)
-            raw_headers = list(df_raw_sample.columns)
             
             # Task 4.1: Request the LLM client to generate the metadata bundle
             grounding_profile = self.llm_classifier.generate_grounding_profile(df_raw_sample)
 
-            # Re-index data dictionary instantly so columns reflect raw file lowercase properties
-            df_dict = self.post_processor.synchronize_with_raw_headers(df_dict, raw_headers)
+            # 📊 HEADER SYNCHRONIZATION: Align dictionary attributes with authoritative raw headers
+            df_dict = self.post_processor.synchronize_with_raw_headers(df_dict, df_raw_sample)
 
         # 🎯 ZERO-HARDCODING FIX: Extract the tag list strictly from your config space with empty list fallback
         raw_tags = self.parser_config.get("entity_tagging") or []
         explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
         
-        # 🧠 INTERNAL DISCOVERY: Always include 'temporal' in the discovery pass 
-        # to support logical type inference even if it's not a requested ML tag.
-        discovery_targets = list(set(explicit_targets + ["temporal"]))
-
         # Extract normalized, synchronized attributes and description values
         attr_series, desc_series = self.post_processor.infer_schema_columns(df_dict)
         
         # 🧠 PHASE 1 RUNTIME ENGAGEMENT: Bootstrap domain identification directly from data file arrays
-        discovery_results = self.llm_classifier.discover_macro_domain(
-            attr_series.tolist(), desc_series.tolist(), discovery_targets
+        discovered_hints = self.llm_classifier.discover_macro_domain(
+            attr_series.tolist(), desc_series.tolist()
         )
-        
-        discovered_hints = discovery_results.get("logical_entities", ["unassigned"])
-        discovered_heuristics = discovery_results.get("tag_keywords", {})
 
         # 🧠 PHASE 2 STREAMING EXECUTION: Pass dynamically extracted definitions down the pipe
         llm_assignments = self.llm_classifier.discover_entities(
@@ -121,7 +115,7 @@ class PipelineOrchestrator:
         
         # Component 3: Saves exact layout attributes without subsequent corruption
         parsed_matrix = self.post_processor.execute(
-            df_dict, attr_series, desc_series, llm_assignments, 
-            discovered_heuristics=discovered_heuristics, grounding_profile=grounding_profile
+            df_dict, attr_series, desc_series, llm_assignments,
+            grounding_profile=grounding_profile, df_raw_sample=df_raw_sample
         )
         return parsed_matrix

@@ -85,11 +85,11 @@ class PathCoordinator:
     @property
     def parser_output_directory(self) -> Path:
         """
-        OUTPUT DIR: Target directory location rooted strictly within the data_dictionary workspace layout.
-        Targets: {$working_dir}/data_dictionary/{dd_parser_output_dir}
+        OUTPUT DIR: Target directory location for parser results (CSV/MD).
+        Targets: {$working_dir}/{$documents_dir}/{$dd_parser_output_dir}
         """
         out_dir_name = self._get_required_val(self._parser_config, "dd_parser_output_dir", "parser")
-        out_dir = self.base_dir / "documents" / out_dir_name
+        out_dir = Path(self.documents_dir) / out_dir_name
         out_dir.mkdir(parents=True, exist_ok=True)
         return out_dir
 
@@ -97,7 +97,7 @@ class PathCoordinator:
     def data_dictionary_csv_path(self) -> str:
         """
         OUTPUT FILE: Primary contract endpoint requested directly by core parser clients.
-        Targets: {$working_dir}/data_dictionary/{dd_parser_output_dir}/{$output_filename}
+        Targets: {$working_dir}/{$documents_dir}/{$dd_parser_output_dir}/{$output_filename}
         """
         filename = self._get_required_val(self._parser_config, "output_filename", "parser")
         return str(self.parser_output_directory / filename)
@@ -136,18 +136,16 @@ class PathCoordinator:
         filename = self._get_required_val(self._cleaner_config, "profiling_report_filename", "cleaner")
         
         # Consistent with standard cleaner output storage rules
-        target_dir = Path(self.base_dir) / "documents" / output_dir
+        target_dir = Path(self.documents_dir) / output_dir
         return target_dir / filename
 
     @property
     def parser_provisional_report_path(self) -> Path:
         """
-        Authoritative routing for the provisional entity assignment report.
-        Targets: {$base_dir}/documents/{$parser_provisional_assingnment_dir}/{$parser_provisional_assingnment_filename}
+        Authoritative routing for the human-readable markdown assignment report.
+        Dynamically derived from the primary CSV output path.
         """
-        dir_name = self._get_required_val(self._parser_config, "parser_provisional_assingnment_dir", "parser")
-        file_name = self._get_required_val(self._parser_config, "parser_provisional_assingnment_filename", "parser")
-        return Path(self.documents_dir) / dir_name / file_name
+        return Path(self.data_dictionary_csv_path).with_suffix(".md")
 
     @property
     def quarantine_path(self) -> Path:
