@@ -17,15 +17,17 @@ class MetadataPostProcessor:
     def __init__(self, path_coordinator: PathCoordinator, parser_config: Dict[str, Any]) -> None:
         """Initializes the processor layers."""
         self.logger = logging.getLogger(__name__)
-        self.update_config(path_coordinator, parser_config)
         self.all_keywords: Dict[str, Set[str]] = {}
-        # 🧠 ZERO-HARDCODING: Initialized empty. Hydrated dynamically at runtime.
         self.known_prefixes: List[str] = []
+        self.update_config(path_coordinator, parser_config)
 
     def update_config(self, path_coordinator: PathCoordinator, parser_config: Dict[str, Any]) -> None:
         """Refreshes operational configurations and targets dynamically."""
         self.paths = path_coordinator
         self.parser_config = parser_config if parser_config is not None else {}
+        # 🧠 EARLY HYDRATION: Populate keywords from config immediately to support 
+        # type inference during synchronization (Early Binding).
+        self.all_keywords = {t: set(kws) for t, kws in (self.parser_config.get("tag_heuristics") or {}).items()}
 
     def _normalize(self, s: str) -> str:
         """Proxy for the centralized integrity normalization logic."""
@@ -185,7 +187,6 @@ class MetadataPostProcessor:
         # 🧠 PREFIX DISCOVERY: Derive stems from assignments to improve heuristic matching
         assigned_attrs = [a for a, m in llm_assignments.items() if m.get("entity_assignment") != "unassigned"]
         self.known_prefixes = self._derive_prefix_stems(assigned_attrs)
-        self.all_keywords = {t: set(kws) for t, kws in (self.parser_config.get("tag_heuristics") or {}).items()}
 
         for target in explicit_targets:
             keywords = self.all_keywords.get(target, set())

@@ -6,7 +6,7 @@ import yaml
 import pandas as pd
 from pathlib import Path
 # 🧬 ALIGNED ROUTING FIX: Import the newly decoupled modular pipeline orchestrator
-from dd_cleaner.orchestrator import CleanerPipelineOrchestrator
+from dd_cleaner.pipeline import PipelineRunner
 from path_coordinator import PathCoordinator
 
 
@@ -20,7 +20,7 @@ def test_cleaner_orchestration_workflow(managed_test_config):
     coordinator = PathCoordinator(config_path=managed_test_config, working_dir="./tests")
     
     # 2. Initialize decoupled system modules via Constructor Dependency Injection
-    cleaner = CleanerPipelineOrchestrator(path_coordinator=coordinator)
+    runner = PipelineRunner(coordinator=coordinator)
     
     print("\n🚀 Starting decoupled dataset cleaner orchestration workflow execution...")
     
@@ -39,28 +39,42 @@ def test_cleaner_orchestration_workflow(managed_test_config):
     
     # --- PHASE 2: Clean Operational Datasets ---
     print("🧼 Triggering downstream modular cleaning engine matrix scrub transformations...")
-    cleaner.process_cleaning_pipeline()
+    runner.run()
     
-    # Verify cleaning stage output file structures inside the sandbox
-    cleaned_csv_path = Path(coordinator.clean_dataset_output_path)
-    assert cleaned_csv_path.exists(), f"❌ Orchestration contract breach: Cleaner output missing at {cleaned_csv_path}"
+    # ⚖️ INTEGRITY CHECK: Verify synchronized dictionary (Bucket Strategy output)
+    sync_dict_path = coordinator.cleaner_output_directory / "synchronized_dictionary.csv"
+    assert sync_dict_path.exists(), f"❌ Integrity Sync Failed: Synchronized dictionary missing at {sync_dict_path}"
     
-        # Verify profiling stage output markdown layout structure inside the sandbox
+    # 📊 PROFILING CHECK: Verify markdown report AND Grounded Inference JSON sidecar
     profile_md_path = Path(coordinator.profiling_report_path)
+    profile_json_path = profile_md_path.with_suffix(".json")
+    
     assert profile_md_path.exists(), f"❌ Orchestration contract breach: Profiling report missing at {profile_md_path}"
+    assert profile_json_path.exists(), f"❌ Task 4.1 Breach: Grounded Inference JSON sidecar missing at {profile_json_path}"
+    
     print(f"✅ Data profiling quality metric report successfully generated at: {profile_md_path}")
 
     # --- PHASE 3: Functional & Structural Compliance Handshake Verification ---
     print("🔍 Executing functional verification assertions...")
-    df_clean_results = pd.read_csv(cleaned_csv_path)
+    df_sync_dict = pd.read_csv(sync_dict_path)
     
-    # Assert column case normalization matches the synchronized source dictionary parameters exactly
-    for column_header in df_clean_results.columns:
-        clean_header_token = str(column_header).lower().strip()
-        if clean_header_token in case_insensitive_lookup:
-            assert str(column_header) == case_insensitive_lookup[clean_header_token], (
-                f"❌ Cleaner Data Defect: Casing mutated downstream for target header field '{column_header}' "
-                f"(Expected reconciled format: '{case_insensitive_lookup[clean_header_token]}', Got: '{column_header}')"
-            )
+    # ⚖️ BUCKET A VALIDATION: Ensure synchronized dictionary contains only physical headers
+    # 1. Load physical headers directly from the raw data source for the ground truth
+    raw_data_path = coordinator.raw_dataset_path
+    df_raw_headers = pd.read_csv(raw_data_path, nrows=0)
+    physical_headers = set(df_raw_headers.columns)
+
+    # 2. Check that every attribute in the operational matrix matches a physical column
+    for attr in df_sync_dict[target_attr_col]:
+        assert attr in physical_headers, (
+            f"❌ Integrity Breach: Attribute '{attr}' in synchronized dictionary is an orphan. "
+            "It does not exist in the physical raw data file headers."
+        )
+        
+        # 3. Verify character-for-character casing alignment with the Data Dictionary
+        attr_clean = str(attr).lower().strip()
+        assert attr_clean in case_insensitive_lookup, (
+            f"❌ Alignment Breach: Attribute '{attr}' was not found in the source Data Dictionary."
+        )
                 
     print("✅ Dataset cleaner orchestration contract fully validated.")

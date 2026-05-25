@@ -1,15 +1,18 @@
 # 📑 Project Stash: Data Dictionary Parser & Cleaner State
 
 ## 🤖 Agent Operational Directives
-* **Domain Agnosticism**: Strict requirement. Zero hardcoded domain-specific items.
+* **Domain Agnosticism**: Strict requirement. Zero hardcoded domain-specific items or assumptions.
 * **Communication Style**: Brief, direct answers by default. Explanations provided only on request.
 * **Config Management**: The agent must never modify `config.yaml` directly. If a configuration update is required (e.g., adding `tag_heuristics`), the agent must request the user to update the file and provide the intended YAML snippet.
 * **Stash Maintenance**: Consolidate output to ~90% of allowable space. Prioritize active designs, the Resumption Backlog, and the Golden Rule; condense historical architectural logs.
 
-## 🛠️ Active Project State (Last Updated: May 2024)
+## 🛠️ Active Project State (Last Updated: October 2024)
 
 ### 1. Core Architecture
 * **Infrastructure**: `PathCoordinator` enforces zero-default path resolution; `logging` (INFO) provides uniform feedback. 
+* **Cleaner Orchestration**: `PipelineRunner` established as an idempotent engine. It performs early type-casting to pivot cleaning logic off the authoritative parser output.
+* **Data Quality & Grounding**: `DatasetDataProfiler` generates Markdown reports and JSON metadata sidecars (cardinality, samples) to ground LLM inference in physical reality (Task 4.1).
+* **Design Decision**: Prefect was evaluated but rejected to maintain a lightweight, zero-infrastructure footprint and minimize dependency bloat.
 * **Orchestrator**: Executes a two-phase LLM pipeline (Macro Discovery + Atomic Row Assignment) synchronized with physical headers.
 * **Classification**: Phase 1 establishes logical entities/keywords; Phase 2 executes atomic row assignment via Llama 3.2.
 * **Post-Processor**: Derives prefix stems algorithmically; strips prefixes to validate tags (e.g., `borr_zip` -> `zip`); applies case-insensitive `overrides` as authoritative final step.
@@ -60,17 +63,29 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
 ## 🎯 Resumption Backlog
 
 1. **Grounded Inference Implementation**: 
-    * **Task 4.1**: Enhance `null_profiler.py` or integrate `fg-data-profiling` to generate a lightweight JSON metadata bundle (cardinality, top 5 samples, inferred physical type).
+    * **Task 4.1**: [STABILIZED] `null_profiler.py` generates JSON metadata sidecar (cardinality, top 5 samples, normalized types).
     * **Task 4.2**: Update `orchestrator.py` to left-join this profile bundle with the Data Dictionary before LLM dispatch.
-    * **Task 4.3**: Augment `LLMEntityClassifier` prompts to include the "Profile Sidecar" for improved zero-shot accuracy.
+    * **Task 4.3**: Augment `LLMEntityClassifier` prompts to include the "Profile Sidecar" for improved zero-shot accuracy. 
     * **Task 4.4**: Harden `post_processor.py` to use profile stats as an authoritative safety check against semantic hallucination.
     *   **Task 4.5**: Verify "Notebook-first" validation by creating a sample test notebook that exercises a custom imputation handler before CLI execution.
 
-2. **Phase 3: Missing Value Handler Implementation**:
-    *   **Task 5.1**: Implement the `MissingValueHandler` core engine with hierarchical resolution (Override > Logical Default > Fallback).
-    *   **Task 5.2**: Develop the `CustomCodeBridge` using `importlib` to support the `custom:` prefix in `config.yaml`.
+2. **Phase 3: Cleaner Pipeline & Missing Values (Active)**:
+    *   **Task 5.1**: [COMPLETED] Implement `PipelineRunner` core and CLI/Test alignment.
+    *   **Task 5.2**: [PARTIAL] Integrity Sync (Bucket Strategy) implemented. **Next: Implement 'filter' (Attribute dropping) step.**
+    *   **Task 5.3**: Implement the `MissingValueHandler` core engine with hierarchical resolution.
+    *   **Task 5.4**: Develop the `CustomCodeBridge` for `custom:` hooks.
+    *   **Task 5.5**: Add CLI support for `--action` to trigger explicit atomic cleaning steps.
 
-## 🧼 Phase 3: Cleaner Missing Value Design (LOCKED)
+## 🧼 Phase 3: Cleaner Pipeline Design (LOCKED)
+
+### 0. Execution Pipeline
+The cleaner executes transformations in a strict, idempotent sequence:
+1. **Integrity Sync**: Reconcile Dictionary vs Raw (Bucket Strategy).
+2. **Filtering**: Drop unwanted attributes/rows.
+3. **Type Casting**: Ensure physical types match logical definitions.
+4. **Imputation**: Handle missing values (Resolution Hierarchy).
+5. **Standardization**: Title-casing, zero-padding, etc.
+6. **Derivation**: Custom feature engineering.
 
 ### 1. Resolution Hierarchy
 For any column containing null values, the cleaner resolves the cleaning action using the following priority:
@@ -100,6 +115,9 @@ The cleaner provides these internal vectorized operations:
 ### 5. Configuration Schema Example
 ```yaml
 cleaner:
+  pipeline: [integrity, filter, impute, standardize, derive]
+  filters:
+    drop_attributes: ["LocationID", "InternalNotes"]
   missing_values:
     custom_logic_path: "scripts/my_imputers.py"
     logical_defaults:

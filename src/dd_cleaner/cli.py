@@ -3,7 +3,7 @@
 import argparse
 import logging
 import sys
-from dd_cleaner.orchestrator import CleanerPipelineOrchestrator
+from dd_cleaner.pipeline import PipelineRunner
 from path_coordinator import PathCoordinator
 
 
@@ -28,19 +28,25 @@ def main():
         default="config.yaml", 
         help="Path to the runtime parameter configuration file (default: config.yaml)"
     )
+    parser.add_argument(
+        "--action",
+        choices=["full", "integrity", "profile"],
+        default="full",
+        help="Specify an atomic cleaning action or 'full' for the entire pipeline (default: full)."
+    )
     
     args = parser.parse_args()
 
     try:
-        logger.info("Initializing Path Coordinator and Cleaner Orchestration layers...")
+        logger.info("Initializing Path Coordinator and Pipeline Runner...")
         # 🎯 CONSTRUCTOR DEPENDENCY INJECTION: Instantiate the authoritative routing contract
         coordinator = PathCoordinator(config_path=args.config, working_dir=args.workspace)
         
         # 🎯 MODULAR ENTRY POINT: Inject the coordinator tracking boundary cleanly
-        orchestrator = CleanerPipelineOrchestrator(path_coordinator=coordinator)
+        runner = PipelineRunner(coordinator=coordinator)
         
-        logger.info("Starting data profiling and cleaning pipeline...")
-        orchestrator.process_cleaning_pipeline()
+        logger.info(f"Starting cleaner pipeline [Action: {args.action}]...")
+        runner.run()
         
         logger.info("Cleaner pipeline successfully concluded. View cleaned data and markdown profiles in output targets.")
         
