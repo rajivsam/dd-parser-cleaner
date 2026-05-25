@@ -14,8 +14,8 @@
 
   1. **Standardized Logging**: Replaced all `print` statements with the `logging` module across all core components for consistent terminal feedback and error tracking.
   2. **Automated Markdown Reporting**: The post-processor now generates a human-readable `Provisional Entity Assignment Report` in Markdown format, providing a classification summary and detailed attribute mapping.
-  1. Phase 1 (Macro Domain Discovery): Samples the raw source fields at runtime using structured prompting rules to discover distinct logical core entity arrays (e.g., separating demographics from risk profiles and metrics) without manual configuration mapping.
-  2. Phase 2 (Micro Atomic Assignment): Feeds each data dictionary row independently into Llama 3.2 using the Phase 1 architectural categories as classification instructions.
+  3. Phase 1 (Macro Domain Discovery): Samples the raw source fields at runtime using structured prompting rules to discover distinct logical core entity arrays (e.g., separating demographics from risk profiles and metrics) without manual configuration mapping.
+  4. Phase 2 (Micro Atomic Assignment): Feeds each data dictionary row independently into Llama 3.2 using the Phase 1 architectural categories as classification instructions.
 * Infrastructure Health: Integrated a strict background dependency connection probe inside `PipelineOrchestrator.__init__` and `set_working_config`. If the local Ollama backend is missing or offline, the tool logs a clean structural diagnostic payload and terminates immediately via `sys.exit(1)`.
 
 ---
@@ -143,7 +143,7 @@ classLLMEntityClassifier:
                     return [str(item) foritemin discovered]
         except Exception ase:
             print(f"⚠️ Macro domain onboarding lookup bypassed: {e}")
-          
+      
         return ["unassigned"]
 
     defdiscover_entities(
@@ -159,7 +159,7 @@ classLLMEntityClassifier:
 
         forattr, descin zip(attributes, descriptions):
             attr_str = str(attr)
-          
+      
             user_prompt = (
                 f"Classify this single data schema field:\n"
                 f"Field Name: {attr_str}\n"
@@ -194,7 +194,7 @@ classLLMEntityClassifier:
             assignments[attr_str] = {"entity_assignment": "unassigned"}
             fortargetin explicit_targets:
                 assignments[attr_str][f"is_{target}"] = False
-              
+          
         return assignments
 ```
 
@@ -219,11 +219,11 @@ classPipelineOrchestrator:
         """Injects dependencies and hydrates framework configuration boundaries."""
         if path_coordinator isNone:
             raise TypeError("PipelineOrchestrator requires a valid PathCoordinator instance.")
-          
+      
         self.paths = path_coordinator
         self.global_config = self.paths.config
         self.parser_config = self.global_config.get("parser", self.global_config)
-      
+  
         # Inject modular specialized sub-components safely via relative module references
         self.llm_classifier = LLMEntityClassifier(self.global_config, self.parser_config)
         self.post_processor = MetadataPostProcessor(self.paths, self.parser_config)
@@ -255,11 +255,11 @@ classPipelineOrchestrator:
         self.paths = self.paths.__class__(config_path=config_path, working_dir=working_dir)
         self.global_config = self.paths.config
         self.parser_config = self.global_config.get("parser", self.global_config)
-      
+  
         # Refresh configurations across downstream dependencies
         self.llm_classifier.update_config(self.global_config, self.parser_config)
         self.post_processor.update_config(self.paths, self.parser_config)
-      
+  
         # Re-verify infrastructure capabilities following environmental layout adjustments
         self._verify_infrastructure_availability()
 
@@ -268,7 +268,7 @@ classPipelineOrchestrator:
         target_path = self.paths.data_dictionary_path
         ifnot target_path.exists():
             return []
-          
+      
         df_dict = pd.read_csv(target_path, sep=None, engine='python', skipinitialspace=True)
         attr_series, _ = self.post_processor.infer_schema_columns(df_dict)
         clean_series = attr_series.dropna().astype(str).str.strip()
@@ -279,7 +279,7 @@ classPipelineOrchestrator:
         target_path = self.paths.data_dictionary_path
         ifnot target_path.exists():
             raise FileNotFoundError(f"Data Dictionary blueprint missing at: {target_path}")
-          
+      
         df_dict = pd.read_csv(target_path, sep=None, engine='python', skipinitialspace=True)
 
         # Synchronize schema names BEFORE column series extraction
@@ -287,7 +287,7 @@ classPipelineOrchestrator:
         if raw_dataset_path.exists():
             df_raw_schema = pd.read_csv(raw_dataset_path, sep=None, engine='python', nrows=0)
             raw_headers = list(df_raw_schema.columns)
-          
+      
             # Re-index data dictionary instantly so columns reflect raw file lowercase properties
             df_dict = self.post_processor.synchronize_with_raw_headers(df_dict, raw_headers)
 
@@ -297,17 +297,17 @@ classPipelineOrchestrator:
 
         # Extract normalized, synchronized attributes and description values
         attr_series, desc_series = self.post_processor.infer_schema_columns(df_dict)
-      
+  
         # 🧠 PHASE 1 RUNTIME ENGAGEMENT: Bootstrap domain identification directly from data file arrays
         discovered_hints = self.llm_classifier.discover_macro_domain(
             attr_series.tolist(), desc_series.tolist()
         )
-      
+  
         # 🧠 PHASE 2 STREAMING EXECUTION: Pass dynamically extracted definitions down the pipe
         llm_assignments = self.llm_classifier.discover_entities(
             attr_series, desc_series, explicit_targets, generated_hints=discovered_hints
         )
-      
+  
         # Component 3: Saves exact layout attributes without subsequent corruption
         parsed_matrix = self.post_processor.execute(df_dict, attr_series, desc_series, llm_assignments)
         return parsed_matrix
@@ -316,15 +316,6 @@ classPipelineOrchestrator:
         if not self.llm_classifier.is_ready():
             self.logger.critical("❌ Background inference model (Ollama) is offline.")
 ```
-
----
-
-## 🎯 Resumption Backlog (Next Steps)
-
-1. Timeseries Traffic Dataset Processing: Load the new traffic data file containing traffic metrics and overlapping weather status markers to verify dynamic multi-category decomposition.
-2. Parser Audit Log Report Tuning: Shift to formatting the generated markdown report templates within the parser engine once cross-domain performance layout metrics stabilize.
-
----
 
 ## 📜 Clear Acknowledgement of the Golden Rule
 

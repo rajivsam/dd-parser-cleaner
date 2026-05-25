@@ -4,34 +4,17 @@
 * **Domain Agnosticism**: Strict requirement. Zero hardcoded domain-specific items.
 * **Communication Style**: Brief, direct answers by default. Explanations provided only on request.
 * **Config Management**: The agent must never modify `config.yaml` directly. If a configuration update is required (e.g., adding `tag_heuristics`), the agent must request the user to update the file and provide the intended YAML snippet.
+* **Stash Maintenance**: Consolidate output to ~90% of allowable space. Prioritize active designs, the Resumption Backlog, and the Golden Rule; condense historical architectural logs.
 
 ## 🛠️ Active Project State (Last Updated: May 2024)
 
 ### 1. Core Architecture
-* **Standardized Logging**: All components utilize `logging` (INFO level) for terminal feedback.
-* **Path Coordination**: No-defaults policy. `PathCoordinator` raises blocking `ValueError` if any required `config.yaml` variable is missing.
-* **Orchestration**: Two-phase LLM pipeline (Macro Discovery + Atomic Assignment) synchronized with raw data headers.
-
-### 2. LLM Discovery & Classification (`llm_client.py`)
-* **Phase 1 (Macro Domain)**: Samples fields to identify Logical Entities AND dynamic `tag_keywords` (heuristics) for feature tags like `geographic`.
-* **Phase 2 (Atomic Assignment)**: Row-by-row classification to prevent context window crowding.
-
-### 3. Post-Processing Logic (`post_processor.py`)
-* **Dynamic Prefix Discovery**: Prefix stems (e.g., `borr`, `bank`) are derived algorithmically from the **attribute names** of successfully assigned entities, not from the entity labels themselves.
-* **Heuristic Sweep**: Applies name-based heuristics using LLM-discovered keywords and hardened safety defaults (e.g., `street`, `city`). Performs prefix-stripping (e.g., `borrstreet` -> `street`) to validate tags.
-* **Authoritative Overrides**: Absolute final step. Case-insensitive matching for both attribute keys and internal property flags (e.g., `is_geographic`). Overrides explicitly overwrite previous LLM or heuristic values.
-
-### 4. Cleaner Logic & Data Integrity
-* **Mixed Value Quarantine**: Before cleaning, the system uses `pd.api.types.infer_dtype` to identify columns with inconsistent types. Outlier records (deviating from the dominant type) are unioned and moved to a coordinated quarantine CSV, then dropped from the pipeline to prevent type corruption.
-* **Lightweight Profiling**: Generates a JSON metadata bundle (types, cardinality, null ratio, samples) used for both LLM grounding and post-process validation.
-
-### 4. Reporting Architecture
-* **Unified Type Inference**: `convert_to_DS_type()` abstracts native Python types and Logical Categories (numeric, text, datetime, categorical).
-* **Dual Output**: Generates both a professional Markdown report (with backticks for fixed-width display) and a raw CSV replica in the `dd_parser_results` directory.
-* **Signature Security**: Generates a `.signature` SHA-256 sidecar for the output matrix to ensure pipeline integrity without corrupting CSV headers.
-* **Grounded Inference Design**: 
-    * **Contextual Sidecar**: Integration point for `fg-data-profiling` to feed physical data reality (cardinality, sample values, inferred types) into the LLM context.
-    * **Validation Loop**: The `MetadataPostProcessor` will use profile data to flag logical mismatches (e.g., LLM identifies "City" but profiler sees `float64`).
+* **Infrastructure**: `PathCoordinator` enforces zero-default path resolution; `logging` (INFO) provides uniform feedback. 
+* **Orchestrator**: Executes a two-phase LLM pipeline (Macro Discovery + Atomic Row Assignment) synchronized with physical headers.
+* **Classification**: Phase 1 establishes logical entities/keywords; Phase 2 executes atomic row assignment via Llama 3.2.
+* **Post-Processor**: Derives prefix stems algorithmically; strips prefixes to validate tags (e.g., `borr_zip` -> `zip`); applies case-insensitive `overrides` as authoritative final step.
+* **Integrity & Profiling**: `DatasetDataProfiler` generates JSON metadata (cardinality, null ratios, samples) for LLM grounding. `Mixed Value Quarantine` isolates inconsistent types before cleaning.
+* **Reporting**: Unified `DS_type` inference; generates MD reports and CSV replicas with SHA-256 `.signature` security sidecars.
 
 ---
 
@@ -39,16 +22,10 @@
 
 ```yaml
 parser:
-  entity_tagging:
-    - geographic
-  # Grounding: Physical data distribution injected into Phase 2 prompts
-  overrides:
-    LocationID:
-      is_geographic: false
-      provisional_entity_assignment: Lender
+  entity_tagging: [geographic]
+  overrides: {LocationID: {is_geographic: false, provisional_entity_assignment: Lender}}
 cleaner:
-  quarantine_directory: quarantine
-  quarantine_filename: isolated_records.csv
+  quarantine_directory: quarantine; quarantine_filename: isolated_records.csv
 ```
 
 ---
@@ -86,6 +63,54 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
     * **Task 4.2**: Update `orchestrator.py` to left-join this profile bundle with the Data Dictionary before LLM dispatch.
     * **Task 4.3**: Augment `LLMEntityClassifier` prompts to include the "Profile Sidecar" for improved zero-shot accuracy.
     * **Task 4.4**: Harden `post_processor.py` to use profile stats as an authoritative safety check against semantic hallucination.
+    *   **Task 4.5**: Verify "Notebook-first" validation by creating a sample test notebook that exercises a custom imputation handler before CLI execution.
+
+2. **Phase 3: Missing Value Handler Implementation**:
+    *   **Task 5.1**: Implement the `MissingValueHandler` core engine with hierarchical resolution (Override > Logical Default > Fallback).
+    *   **Task 5.2**: Develop the `CustomCodeBridge` using `importlib` to support the `custom:` prefix in `config.yaml`.
+
+## 🧼 Phase 3: Cleaner Missing Value Design (LOCKED)
+
+### 1. Resolution Hierarchy
+For any column containing null values, the cleaner resolves the cleaning action using the following priority:
+1. **Attribute Override**: Check `cleaner.missing_values.attribute_overrides` for the specific column name. Supports both predefined actions and `custom:` hooks.
+2. **Logical Type Default**: Check `cleaner.missing_values.logical_defaults` using the `logical_type` assigned by the parser (e.g., numeric, categorical). Supports both predefined and `custom:` hooks.
+3. **System Fallback**: Leave as `NaN` and log a warning.
+
+### 2. The "Custom Code Bridge"
+* **Mechanism**: Dynamic module loading via `importlib.util`. The cleaner loads the script specified in `custom_logic_path`.
+* **Trigger**: Any rule string starting with the prefix `custom:` (e.g., `custom:calc_weighted_mean`).
+* **User Contract (The Signature)**: Data Scientists implement functions with the following signature:
+  `def function_name(df: pd.DataFrame, col: str) -> pd.Series`
+* **Persona Focus**: Minimal plumbing; the user writes standard Pandas logic in a local file.
+
+### 3. Guidelines & Validation
+* **Portability**: All paths in `custom_logic_path` must be relative to the `--workspace` root to ensure reproducibility across environments.
+* **Interactive Testing (Best Practice)**: Before running the CLI, users should test their imputation functions in a Jupyter notebook by passing a sample DataFrame slice to verify the transformation behavior.
+* **Dependency Safety**: Custom logic should rely only on libraries already present in the tool's runtime (Pandas/Numpy).
+
+### 4. Predefined Action Library
+The cleaner provides these internal vectorized operations:
+* `mean-imputation`, `median-imputation`, `mode-imputation`
+* `ffill`, `bfill`
+* `drop-row` (Removes the record if the value is missing)
+* `constant:[value]` (e.g., `constant:Unknown` or `constant:0`)
+
+### 5. Configuration Schema Example
+```yaml
+cleaner:
+  missing_values:
+    custom_logic_path: "scripts/my_imputers.py"
+    logical_defaults:
+      numeric: "mean-imputation"
+      categorical: "mode-imputation"
+      temporal: "ffill"
+      text: "constant:Missing"
+    attribute_overrides:
+      LoanAmount: "custom:risk_adjusted_impute"
+      BorrZip: "constant:00000"
+      SocialSecurity: "drop-row"
+```
 
 ---
 *This stash ensures that the "Golden Rule" is maintained: any future updates must build upon the logic summarized here.*
