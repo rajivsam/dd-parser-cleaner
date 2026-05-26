@@ -6,6 +6,9 @@ cleaner:
   raw_dataset_file: sba_loans_raw.csv
   quarantine_dir: quarantine
   quarantine_filename: sba_loans_quarantine.csv
+  filters:
+    drop_attributes: []
+    ignore_recommendations: []
   structural_assessment:
     dataset_type: "not_yet_inferred"
     primary_keys: []

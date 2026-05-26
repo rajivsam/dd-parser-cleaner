@@ -19,6 +19,8 @@
 * **Integrity Engine**: `IntegrityEngine` enforces a "Bucket Strategy" to validate the bridge between the Data Dictionary and Raw Data.
     * **Bucket A (Operational)**: Matches found; proceed to cleaning. **Bucket B (Orphans)**: In Dictionary but missing from Data; quarantined/stripped. **Bucket C (Ghosts)**: In Data but missing from Dictionary.
 * **Reporting**: Unified `DS_type` inference; generates MD reports with "Critical Schema Mismatch" warnings and structured CSV matrices (stripped of orphans).
+* **Testing Workspace Context**: The `tests/` directory is designated as the primary operational workspace for development and testing. The `PathCoordinator` is configured to handle `working_dir=tests/` and will correctly resolve paths, including the authoritative `config.yaml` located at the project root. Custom code for testing and development (e.g., `scripts/domain_logic.py`) should be placed relative to this `tests/` working directory (e.g., `tests/scripts/domain_logic.py`).
+
 
 ---
 
@@ -72,7 +74,7 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
 2. **Phase 3: Cleaner Pipeline & Missing Values (Active)**:
     *   **Task 5.1**: [COMPLETED] Implement `PipelineRunner` core and CLI/Test alignment.
     *   **Task 5.2**: [DESIGNED] Integrity Sync (Bucket Strategy) implemented.
-    *   **Task 5.2.1**: [READY] Implement Interactive Structural Assessment (Rich Wizard + Config Persistence + Safety Hashing).
+    *   **Task 5.2.1**: [STABILIZED] Heuristic Structural Assessment & Filtering (Rich Wizard + Safety Hashing + Manual Drop Gate) implemented. Removed mandatory PK/Type requirements to streamline ML cleaning.
     *   **Task 5.3**: Implement the `MissingValueHandler` core engine with hierarchical resolution.
     *   **Task 5.4**: [DESIGNED] Contracts established for generalized `CustomCodeBridge` across all pipeline stages.
     *   **Task 5.5**: Add CLI support for `--action` to trigger explicit atomic cleaning steps.
@@ -82,8 +84,8 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
 ### 0. Execution Pipeline
 The cleaner executes transformations in a strict, idempotent sequence:
 1. **Integrity Sync**: Reconcile Dictionary vs Raw (Bucket Strategy).
-2. **Structural Assessment**: Confirm Dataset Type & Primary Keys (Gate 1).
-3. **Filter Recommendation**: Review/Accept automated drop suggestions (Gate 2).
+2. **Structural Assessment**: Heuristic audit for constant and sparse columns (Gate 1).
+3. **Manual Drop Gate**: Enforce explicit configuration updates in `config.yaml` for flagged attributes (Gate 2).
 4. **Filtering**: Execute the physical drop of attributes/rows.
 5. **Type Casting & Profiling**: Coerce types and generate the final Null Profile Report.
 6. **Imputation**: Handle missing values (Resolution Hierarchy).

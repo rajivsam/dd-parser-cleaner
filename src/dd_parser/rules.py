@@ -2,7 +2,7 @@
 
 import re
 import pandas as pd
-from typing import List, Tuple, Dict, Set
+from typing import List, Dict
 
 class IntegrityEngine:
     """Evaluates connectivity between the Data Dictionary and Physical Data Headers."""

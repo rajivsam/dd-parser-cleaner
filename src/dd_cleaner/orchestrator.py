@@ -1,92 +1,127 @@
-"""Coordinates data cleaning lifecycles using Constructor Dependency Injection."""
+"""Orchestration engine for the dataset cleaning pipeline."""
 
-import json
+import sys
+import logging
 import pandas as pd
 from pathlib import Path
-from typing import List
+from typing import Dict, Any, List
+from rich.console import Console
+from rich.prompt import Confirm
 from path_coordinator import PathCoordinator
-from .rules import CleaningRulesEngine
-from .reporter import CleaningReportManager
-# 📊 ALIGNED IMPORT FIX: Point strictly to the new null_profiler module asset
-from .null_profiler import DatasetDataProfiler
 
+from dd_parser.rules import IntegrityEngine
+from dd_parser.structural_assessor import StructuralAssessor
 
-class CleanerPipelineOrchestrator:
-    """Symmetric cleaner pipeline manager mirroring the parser execution layout."""
+class CleanerOrchestrator:
+    """
+    Manages the idempotent execution of data cleaning transformations.
+    Implements the Phase 3 pipeline: Integrity -> Assessment -> etc.
+    """
 
     def __init__(self, path_coordinator: PathCoordinator) -> None:
-        """Injects operational dependencies and isolates configuration boundaries."""
-        if path_coordinator is None:
-            raise TypeError("CleanerPipelineOrchestrator requires a valid PathCoordinator instance.")
+        self.logger = logging.getLogger(__name__)
         self.paths = path_coordinator
-
-    def process_cleaning_pipeline(self) -> pd.DataFrame:
-        """Executes the data cleaning stage sequentially using decoupled sub-modules."""
-        input_path = self.paths.raw_dataset_path
-        if not input_path.exists():
-            raise FileNotFoundError(f"Raw operational dataset table missing at: {input_path}")
-            
-        df_raw = pd.read_csv(input_path)
+        self.config = self.paths.config
+        self.cleaner_cfg = self.config.get("cleaner", {})
         
-        # 🎯 DATA QUALITY PROFILE: Run baseline metrics BEFORE any scrubbing transformations execute
-        profiler = DatasetDataProfiler(output_report_path=self.paths.profiling_report_path)
-        print(f"📊 Generating raw dataset metrics report at: {self.paths.profiling_report_path}")
-        profiler.generate_null_quality_report(df_raw)
+        self.structural_assessor = StructuralAssessor(self.config)
+        self.console = Console()
 
-        # 🛡️ MIXED VALUE QUARANTINE: Identify and isolate inconsistent records
-        # This check occurs before transformations to prevent data type corruption
-        temp_engine = CleaningRulesEngine(active_prefixes=[])
-        quarantine_indices = temp_engine.identify_mixed_value_indices(df_raw)
+    def run_pipeline(self, action: str = "full") -> None:
+        """Executes the sequence of cleaning gates and transformations."""
+        self.logger.info("🚀 Starting Cleaner Pipeline...")
         
-        if quarantine_indices:
-            df_quarantine = df_raw.loc[quarantine_indices]
-            quarantine_path = self.paths.quarantine_path
-            print(f"⚠️ Mixed values detected! Quarantining {len(df_quarantine)} records to: {quarantine_path}")
-            df_quarantine.to_csv(quarantine_path, index=False)
+        # 🛡️ GATEKEEPER: Check if dataset_type is still present in config as a requirement.
+        # Since we are dropping the feature, we assume the user just wants to filter.
+        dataset_type = self.cleaner_cfg.get("structural_assessment", {}).get("dataset_type", "not_yet_inferred")
+        if dataset_type == "not_yet_inferred":
+             self.logger.debug("Dataset type not specified; proceeding with heuristic filtering only.")
+
+        # 1. Ingest Data
+        raw_path = Path(self.paths.raw_dataset_path)
+        if not raw_path.exists():
+            self.logger.error(f"Raw dataset missing at: {raw_path}")
+            return
+
+        # Standard read (sep=None handles CSV/TSV)
+        df = pd.read_csv(raw_path, sep=None, engine='python')
+        
+        # 1.5 Integrity Sync (Bucket Strategy): Reconcile Dictionary vs Raw
+        dd_path = Path(self.paths.data_dictionary_csv_path)
+        if dd_path.exists():
+            df_dict = pd.read_csv(dd_path)
+            # Reconciled dictionary attributes live in 'attribute_name' per post-processor rules
+            dd_attributes = df_dict["attribute_name"].dropna().tolist()
+            bridge = IntegrityEngine.evaluate_bridge(dd_attributes, list(df.columns))
+            self.logger.info(f"🌉 Bridge Evaluation: {len(bridge['operational'])} Operational, {len(bridge['orphans'])} Orphans")
+        
+        if action == "integrity":
+            return
+
+        # 2. Structural Assessment (Gate 1 & 2)
+        pk_list = self.cleaner_cfg.get("structural_assessment", {}).get("primary_keys", [])
+        
+        # 🛡️ GATEKEEPER: Fetch current exclusions to filter recommendations
+        filters = self.cleaner_cfg.get("filters", {})
+        manual_drops = filters.get("drop_attributes", [])
+        ignored = filters.get("ignore_recommendations", [])
+        all_exclusions = list(set(manual_drops) | set(ignored))
+        
+        report = self.structural_assessor.assess(df, exclude_cols=all_exclusions)
+        
+        self._run_structural_wizard(report)
+
+        if action == "assessment":
+            return
+
+        # 3. Filtering Stage: Physically drop attributes marked in config.yaml
+        df = self._execute_filtering(df, manual_drops)
+        
+        if action == "filter":
+            return
+
+        self.logger.info("✅ Cleaner Pre-flight checks complete.")
+
+    def _run_structural_wizard(self, report: Dict[str, Any]) -> None:
+        """Interactive terminal wizard to review structural recommendations."""
+        self.console.print("\n[bold cyan]📋 Cleaner: Structural Assessment Report[/bold cyan]")
+        self.console.print(f"Structural Hash: [yellow]{report['structural_hash']}[/yellow]")
+
+        # 📝 MANUAL OVERRIDE VISIBILITY: Display existing config-driven drops
+        filters = self.cleaner_cfg.get("filters", {})
+        manual_drops = filters.get("drop_attributes", [])
+        ignored = filters.get("ignore_recommendations", [])
+        
+        if manual_drops:
+            self.console.print(f"\n[bold blue]📝 Manual Drops (from config):[/bold blue] {manual_drops}")
+        if ignored:
+            self.console.print(f"[bold blue]🙈 Ignored Recommendations:[/bold blue] {ignored}")
+        
+        if report["recommendations"]:
+            self.console.print("\n[bold yellow]⚠️  New Recommendations Found (Unhandled):[/bold yellow]")
+            for rec in report["recommendations"]:
+                self.console.print(f" - {rec}")
             
-            # Remove quarantined records from the primary cleaning pipeline
-            df_raw = df_raw.drop(index=quarantine_indices).reset_index(drop=True)
+            self.console.print("\n[bold yellow]🛠️  ACTION REQUIRED:[/bold yellow] Update [cyan]config.yaml[/cyan] to address these findings.")
+            self.console.print(" - Add columns to [bold]cleaner.filters.drop_attributes[/bold] to remove them.")
+            self.console.print(" - Add columns to [bold]cleaner.filters.ignore_recommendations[/bold] to acknowledge and keep them.")
+            
+            self.console.print("\n[bold red]Pipeline stopped for structural safety. Re-run after updating config.[/bold red]")
+            sys.exit(0)
         else:
-            print("✅ No mixed value records identified for quarantine.")
+            self.console.print("\n[green]✅ No unhandled structural issues detected.[/green]")
 
-        dict_path = Path(self.paths.data_dictionary_csv_path)
-        casing_map = {}
-        active_prefixes: List[str] = []
-        
-        if dict_path.exists():
-            try:
-                df_dict = pd.read_csv(dict_path)
-                attr_col_name = self.paths.data_dictionary_attribute_col_name
-                
-                if attr_col_name in df_dict.columns:
-                    casing_map = {str(attr).lower().strip(): str(attr).strip() for attr in df_dict[attr_col_name].dropna()}
-                elif "attribute_name" in df_dict.columns:
-                    casing_map = {str(attr).lower().strip(): str(attr).strip() for attr in df_dict["attribute_name"].dropna()}
-                    
-                sig_path = dict_path.with_suffix(".signature")
-                if sig_path.exists():
-                    with open(sig_path, "r", encoding="utf-8") as sf:
-                        meta_payload = json.load(sf)
-                        active_prefixes = meta_payload.get("dynamic_prefixes", [])
-                        print(f"📡 Cleaner imported dynamic prefix matrix from sidecar: {active_prefixes}")
-            except Exception as e:
-                print(f"⚠️ Handshake read warning: Falling back to empty state. Detail: {e}")
+    def _execute_filtering(self, df: pd.DataFrame, drop_cols: List[str]) -> pd.DataFrame:
+        """Physically removes attributes specified in the configuration."""
+        if not drop_cols:
+            return df
+            
+        existing_drops = [c for c in drop_cols if c in df.columns]
+        if existing_drops:
+            self.logger.info(f"✂️  Filtering: Dropping {len(existing_drops)} attributes defined in config...")
+            df = df.drop(columns=existing_drops)
+        return df
 
-        # Continue with decoupled cleaner rule passes
-        rules_engine = CleaningRulesEngine(active_prefixes=active_prefixes)
-        reporter = CleaningReportManager(output_file_path=self.paths.clean_dataset_output_path)
-
-        cleaned_df = rules_engine.execute_transformations(df_raw)
-        
-        if casing_map:
-            cleaned_df.columns = [
-                casing_map.get(str(col).lower().strip(), col)
-                for col in cleaned_df.columns
-            ]
-        
-        reporter.write_cleaned_dataset(cleaned_df)
-        return cleaned_df
-
-    def process_pipeline(self) -> pd.DataFrame:
-        """Backward-compatible alias keeping interface symmetric with parser."""
-        return self.process_cleaning_pipeline()
+    def update_config(self, config: Dict[str, Any]) -> None:
+        """Refreshes sub-component settings."""
+        self.structural_assessor.update_config(config)
