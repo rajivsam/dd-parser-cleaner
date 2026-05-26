@@ -71,7 +71,8 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
 
 2. **Phase 3: Cleaner Pipeline & Missing Values (Active)**:
     *   **Task 5.1**: [COMPLETED] Implement `PipelineRunner` core and CLI/Test alignment.
-    *   **Task 5.2**: [DESIGNED] Integrity Sync implemented. **Next: Implement 'filter' (Attribute list & Regex) step.**
+    *   **Task 5.2**: [DESIGNED] Integrity Sync (Bucket Strategy) implemented.
+    *   **Task 5.2.1**: [READY] Implement Interactive Structural Assessment (Rich Wizard + Config Persistence + Safety Hashing).
     *   **Task 5.3**: Implement the `MissingValueHandler` core engine with hierarchical resolution.
     *   **Task 5.4**: [DESIGNED] Contracts established for generalized `CustomCodeBridge` across all pipeline stages.
     *   **Task 5.5**: Add CLI support for `--action` to trigger explicit atomic cleaning steps.
@@ -81,11 +82,13 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
 ### 0. Execution Pipeline
 The cleaner executes transformations in a strict, idempotent sequence:
 1. **Integrity Sync**: Reconcile Dictionary vs Raw (Bucket Strategy).
-2. **Filtering**: Drop unwanted attributes/rows.
-3. **Type Casting**: Ensure physical types match logical definitions.
-4. **Imputation**: Handle missing values (Resolution Hierarchy).
-5. **Standardization**: Title-casing, zero-padding, etc.
-6. **Derivation**: Custom feature engineering.
+2. **Structural Assessment**: Confirm Dataset Type & Primary Keys (Gate 1).
+3. **Filter Recommendation**: Review/Accept automated drop suggestions (Gate 2).
+4. **Filtering**: Execute the physical drop of attributes/rows.
+5. **Type Casting & Profiling**: Coerce types and generate the final Null Profile Report.
+6. **Imputation**: Handle missing values (Resolution Hierarchy).
+7. **Standardization**: Title-casing, zero-padding, etc.
+8. **Derivation**: Custom feature engineering.
 
 ### 1. Resolution Hierarchy
 For any column containing null values, the cleaner resolves the cleaning action using the following priority:
@@ -124,6 +127,11 @@ cleaner:
   filters:
     drop_attributes: ["LocationID", "InternalNotes"]
     attribute_overrides: { Email: "exclude-regex:.*@test\\.com$" }
+  structural_assessment:
+    dataset_type: "not_yet_inferred"
+    primary_keys: []
+    auto_drop_constant: true
+    null_threshold: 0.95
   missing_values:
     custom_logic_path: "scripts/my_imputers.py"
     logical_defaults:

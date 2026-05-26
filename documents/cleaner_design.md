@@ -10,7 +10,13 @@ Instead of hardcoded rules, the cleaner treats all operations as lookups within 
 ```yaml
 cleaner:
   custom_logic_path: "scripts/domain_logic.py"
-  pipeline: [integrity, filter, impute, standardize, derive]
+  pipeline: [integrity, assessment, filter, impute, standardize, derive]
+
+  structural_assessment:
+    dataset_type: "not_yet_inferred" # Options: cross-sectional, longitudinal, panel
+    primary_keys: []         # Confirmed by user (e.g., ["LoanID", "LineItem"])
+    auto_drop_constant: true
+    null_threshold: 0.95
   
   # Each action group maps a column or logical type to a strategy
   missing_values:
