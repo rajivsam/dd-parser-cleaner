@@ -34,10 +34,10 @@ Before writing custom code, check if a built-in vectorized action exists:
 | :--- | :--- | :--- |
 | **Impute** | `mean`, `median`, `mode`, `ffill`, `bfill` | `LoanAmount: "mean"` |
 | **Impute** | `constant:[value]` | `Status: "constant:Unknown"` |
-| **Filter** | `drop-row` | `Email: "drop-row"` (removes row if null) |
-| **Filter** | `include-regex:[pattern]` | `ID: "include-regex:^L-.*"` |
-| **Filter** | `exclude-regex:[pattern]` | `Email: "exclude-regex:.*@test.com"` |
-| **Filter** | `drop-list` (in config) | `drop_attributes: ["ColA", "ColB"]` |
+| **Row Filter** | `drop-row` | `Email: "drop-row"` (removes row if null) |
+| **Column Filter** | `include-regex:[pattern]` | `ID: "include-regex:^L-.*"` |
+| **Column Filter** | `exclude-regex:[pattern]` | `Email: "exclude-regex:.*@test.com"` |
+| **Column Filter** | `drop-list` (in config) | `drop_attributes: ["ColA", "ColB"]` |
 
 ## 5. Writing Custom Logic (`scripts/domain_logic.py`)
 If built-ins are insufficient, write a function in the logic script. **You must use one of these three exact signatures.**

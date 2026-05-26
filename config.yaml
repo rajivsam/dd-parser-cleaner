@@ -6,7 +6,7 @@ cleaner:
   raw_dataset_file: sba_loans_raw.csv
   quarantine_dir: quarantine
   quarantine_filename: sba_loans_quarantine.csv
-  filters:
+  column_filters:
     drop_attributes: []
     ignore_recommendations: []
   structural_assessment:
@@ -14,7 +14,7 @@ cleaner:
     primary_keys: []
     auto_drop_constant: true
     null_threshold: 0.95
-  pipeline: [integrity, assessment, filter, impute, standardize, derive]
+  pipeline: [integrity, assessment, column_filter, row_filter, impute, standardize, derive]
 documents_dir: documents
 model_name: llama3.2
 parser:

@@ -86,11 +86,12 @@ The cleaner executes transformations in a strict, idempotent sequence:
 1. **Integrity Sync**: Reconcile Dictionary vs Raw (Bucket Strategy).
 2. **Structural Assessment**: Heuristic audit for constant and sparse columns (Gate 1).
 3. **Manual Drop Gate**: Enforce explicit configuration updates in `config.yaml` for flagged attributes (Gate 2).
-4. **Filtering**: Execute the physical drop of attributes/rows.
-5. **Type Casting & Profiling**: Coerce types and generate the final Null Profile Report.
-6. **Imputation**: Handle missing values (Resolution Hierarchy).
-7. **Standardization**: Title-casing, zero-padding, etc.
-8. **Derivation**: Custom feature engineering.
+4. **Row Filtering**: Remove records based on semantic rules, primarily via custom logic.
+5. **Column Filtering**: Execute the physical drop of attributes.
+6. **Type Casting & Profiling**: Coerce types and generate the final Null Profile Report.
+7. **Imputation**: Handle missing values (Resolution Hierarchy).
+8. **Standardization**: Title-casing, zero-padding, etc.
+9. **Derivation**: Custom feature engineering.
 
 ### 1. Resolution Hierarchy
 For any column containing null values, the cleaner resolves the cleaning action using the following priority:
@@ -118,15 +119,15 @@ The cleaner provides these internal vectorized operations:
 * `mean-imputation`, `median-imputation`, `mode-imputation`
 * `ffill`, `bfill`
 * `drop-row` (Removes the record if the value is missing)
-* `include-regex:[pattern]`, `exclude-regex:[pattern]`
-* `drop-list`, `include-list` (Global attribute filtering)
+* `include-regex:[pattern]`, `exclude-regex:[pattern]` (Primarily for column filtering)
+* `drop-list`, `include-list` (Global attribute column filtering)
 * `constant:[value]` (e.g., `constant:Unknown` or `constant:0`)
 
 ### 5. Configuration Schema Example
 ```yaml
 cleaner:
-  pipeline: [integrity, filter, impute, standardize, derive]
-  filters:
+  pipeline: [integrity, row_filter, column_filter, impute, standardize, derive]
+  column_filters:
     drop_attributes: ["LocationID", "InternalNotes"]
     attribute_overrides: { Email: "exclude-regex:.*@test\\.com$" }
   structural_assessment:

@@ -10,7 +10,7 @@ Instead of hardcoded rules, the cleaner treats all operations as lookups within 
 ```yaml
 cleaner:
   custom_logic_path: "scripts/domain_logic.py"
-  pipeline: [integrity, assessment, filter, impute, standardize, derive]
+  pipeline: [integrity, assessment, row_filter, column_filter, impute, standardize, derive]
 
   structural_assessment:
     dataset_type: "not_yet_inferred" # Options: cross-sectional, longitudinal, panel
@@ -26,8 +26,8 @@ cleaner:
     attribute_overrides:
       BorrState: "custom:map_to_regions"
 
-  # Built-in specialized filters
-  filters:
+  # Built-in specialized column filters (Structural)
+  column_filters:
     drop_attributes: ["LocationID", "InternalNotes"] # Global drop list
     include_attributes: ["LoanID", "Amount", "Status"] # Global white list (optional)
     attribute_overrides:
@@ -41,7 +41,7 @@ To prevent "signature inflation," all custom logic must adhere to one of three s
 | Contract | Targeted Actions | Signature | Return Type |
 | :--- | :--- | :--- | :--- |
 | **Transform** | Imputing, Recoding, Scaling | `func(df, col)` | `pd.Series` |
-| **Filter** | Row Removal, Outlier Clipping | `func(df)` | `pd.Index` or `Boolean Mask` |
+| **Row Filter** | Row Removal, Outlier Clipping | `func(df)` | `pd.Index` or `Boolean Mask` |
 | **Derivation** | Feature Engineering, Merging | `func(df)` | `pd.DataFrame` |
 
 ### 🔧 Action-to-Signature Mapping

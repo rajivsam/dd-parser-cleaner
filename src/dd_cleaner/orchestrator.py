@@ -62,9 +62,9 @@ class CleanerOrchestrator:
         pk_list = self.cleaner_cfg.get("structural_assessment", {}).get("primary_keys", [])
         
         # 🛡️ GATEKEEPER: Fetch current exclusions to filter recommendations
-        filters = self.cleaner_cfg.get("filters", {})
-        manual_drops = filters.get("drop_attributes", [])
-        ignored = filters.get("ignore_recommendations", [])
+        col_filters = self.cleaner_cfg.get("column_filters", {})
+        manual_drops = col_filters.get("drop_attributes", [])
+        ignored = col_filters.get("ignore_recommendations", [])
         all_exclusions = list(set(manual_drops) | set(ignored))
         
         report = self.structural_assessor.assess(df, exclude_cols=all_exclusions)
@@ -74,10 +74,10 @@ class CleanerOrchestrator:
         if action == "assessment":
             return
 
-        # 3. Filtering Stage: Physically drop attributes marked in config.yaml
-        df = self._execute_filtering(df, manual_drops)
+        # 3. Column Filtering Stage: Physically drop attributes marked in config.yaml
+        df = self._execute_column_filtering(df, manual_drops)
         
-        if action == "filter":
+        if action == "column_filter":
             return
 
         self.logger.info("✅ Cleaner Pre-flight checks complete.")
@@ -88,9 +88,9 @@ class CleanerOrchestrator:
         self.console.print(f"Structural Hash: [yellow]{report['structural_hash']}[/yellow]")
 
         # 📝 MANUAL OVERRIDE VISIBILITY: Display existing config-driven drops
-        filters = self.cleaner_cfg.get("filters", {})
-        manual_drops = filters.get("drop_attributes", [])
-        ignored = filters.get("ignore_recommendations", [])
+        col_filters = self.cleaner_cfg.get("column_filters", {})
+        manual_drops = col_filters.get("drop_attributes", [])
+        ignored = col_filters.get("ignore_recommendations", [])
         
         if manual_drops:
             self.console.print(f"\n[bold blue]📝 Manual Drops (from config):[/bold blue] {manual_drops}")
@@ -103,22 +103,22 @@ class CleanerOrchestrator:
                 self.console.print(f" - {rec}")
             
             self.console.print("\n[bold yellow]🛠️  ACTION REQUIRED:[/bold yellow] Update [cyan]config.yaml[/cyan] to address these findings.")
-            self.console.print(" - Add columns to [bold]cleaner.filters.drop_attributes[/bold] to remove them.")
-            self.console.print(" - Add columns to [bold]cleaner.filters.ignore_recommendations[/bold] to acknowledge and keep them.")
+            self.console.print(" - Add columns to [bold]cleaner.column_filters.drop_attributes[/bold] to remove them.")
+            self.console.print(" - Add columns to [bold]cleaner.column_filters.ignore_recommendations[/bold] to acknowledge and keep them.")
             
             self.console.print("\n[bold red]Pipeline stopped for structural safety. Re-run after updating config.[/bold red]")
             sys.exit(0)
         else:
             self.console.print("\n[green]✅ No unhandled structural issues detected.[/green]")
 
-    def _execute_filtering(self, df: pd.DataFrame, drop_cols: List[str]) -> pd.DataFrame:
+    def _execute_column_filtering(self, df: pd.DataFrame, drop_cols: List[str]) -> pd.DataFrame:
         """Physically removes attributes specified in the configuration."""
         if not drop_cols:
             return df
             
         existing_drops = [c for c in drop_cols if c in df.columns]
         if existing_drops:
-            self.logger.info(f"✂️  Filtering: Dropping {len(existing_drops)} attributes defined in config...")
+            self.logger.info(f"✂️  Column Filtering: Dropping {len(existing_drops)} attributes defined in config...")
             df = df.drop(columns=existing_drops)
         return df
 
