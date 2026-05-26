@@ -143,7 +143,8 @@ class MetadataPostProcessor:
         descriptions: pd.Series, 
         llm_assignments: Dict[str, Dict[str, Any]],
         grounding_profile: Dict[str, Any] = None,
-        df_raw_sample: pd.DataFrame = None
+        df_raw_sample: pd.DataFrame = None,
+        dataset_type: str = "cross-sectional"
     ) -> pd.DataFrame:
         """Assembles data matrix, resolves configuration overrides, and saves output data blocks."""
         provisional_df = df.copy()
@@ -233,7 +234,7 @@ class MetadataPostProcessor:
         orphan_df = provisional_df[provisional_df["attribute_name"].isin(orphans)].copy()
 
         self._write_pipeline_artifacts(operational_df)
-        self._write_provisional_report(operational_df, grounding_profile, orphan_df)
+        self._write_provisional_report(operational_df, grounding_profile, orphan_df, dataset_type=dataset_type)
         
         return provisional_df
 
@@ -350,7 +351,7 @@ class MetadataPostProcessor:
         return t_name, l_name
 
 
-    def _write_provisional_report(self, df: pd.DataFrame, grounding_profile: Dict[str, Any] = None, orphan_df: pd.DataFrame = None) -> None:
+    def _write_provisional_report(self, df: pd.DataFrame, grounding_profile: Dict[str, Any] = None, orphan_df: pd.DataFrame = None, dataset_type: str = "cross-sectional") -> None:
         """Generates a human-readable markdown report summarizing entity assignments and types."""
         # 🧠 DYNAMIC PATH RESOLUTION: Fetch the report path from the coordinator
         report_path = self.paths.parser_provisional_report_path
@@ -386,7 +387,12 @@ class MetadataPostProcessor:
 
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(f"# 📑 Data Dictionary: Provisional Entity Assignment Report\n")
-            f.write(f"**Source Blueprint:** `{self.paths.data_dictionary_path.name}`\n\n### 📊 Classification Summary\n")
+            f.write(f"**Source Blueprint:** `{self.paths.data_dictionary_path.name}`\n\n")
+            f.write(f"### 🏗️ Structural Assessment\n")
+            f.write(f"- **Inferred Dataset Type:** `{dataset_type}`\n")
+            f.write(f"> ⚠️ **Note:** This inference is an automated suggestion based on schema patterns and may be incorrect. ")
+            f.write(f"The `dataset_type` must be explicitly confirmed or defined in `config.yaml` before the Cleaner phase begins.\n\n")
+            f.write(f"### 📊 Classification Summary\n")
             for entity, count in summary_stats.items():
                 f.write(f"- **{entity}**: {count} fields\n")
             

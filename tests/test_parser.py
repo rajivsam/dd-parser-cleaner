@@ -47,3 +47,13 @@ def test_parser_pipeline_execution(managed_test_config):
     for target in explicit_targets:
         expected_col = f"is_{target}"
         assert expected_col in df_meta.columns, f"❌ Target concept column '{expected_col}' failed to bind to dataframe."
+
+    # 5. Verify Structural Assessment inclusion in the report
+    with open(report_out, "r", encoding="utf-8") as f:
+        report_text = f.read()
+
+    print("🔍 Validating Structural Assessment section in report...")
+    assert "### 🏗️ Structural Assessment" in report_text, "❌ Structural Assessment header missing from report."
+    assert "Inferred Dataset Type:" in report_text, "❌ Dataset type inference line missing from report."
+    # Ensure the LLM actually returned a valid type wrapped in backticks
+    assert any(t in report_text for t in ["`panel`", "`cross-sectional`"]), "❌ Inferred dataset type value invalid or missing."

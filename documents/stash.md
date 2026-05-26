@@ -19,6 +19,9 @@
 * **Integrity Engine**: `IntegrityEngine` enforces a "Bucket Strategy" to validate the bridge between the Data Dictionary and Raw Data.
     * **Bucket A (Operational)**: Matches found; proceed to cleaning. **Bucket B (Orphans)**: In Dictionary but missing from Data; quarantined/stripped. **Bucket C (Ghosts)**: In Data but missing from Dictionary.
 * **Reporting**: Unified `DS_type` inference; generates MD reports with "Critical Schema Mismatch" warnings and structured CSV matrices (stripped of orphans).
+* **Structural Assessment (Phase 1.5)**: Integrated LLM-based inference to distinguish between `panel` and `cross-sectional` data structures.
+    * **Logic**: Detects repeating temporal attribute sets vs. single snapshot timestamps (e.g., `asOfDate`). 
+    * **HITL Design**: The parser remains non-blocking; inference is presented in the Markdown report for user confirmation in `config.yaml` prior to cleaning.
 * **Testing Workspace Context**: The `tests/` directory is designated as the primary operational workspace for development and testing. The `PathCoordinator` is configured to handle `working_dir=tests/` and will correctly resolve paths, including the authoritative `config.yaml` located at the project root. Custom code for testing and development (e.g., `scripts/domain_logic.py`) should be placed relative to this `tests/` working directory (e.g., `tests/scripts/domain_logic.py`).
 
 
@@ -71,11 +74,11 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
     * **Task 4.4**: Harden `post_processor.py` to use profile stats as an authoritative safety check against semantic hallucination.
     *   **Task 4.5**: Verify "Notebook-first" validation by creating a sample test notebook that exercises a custom imputation handler before CLI execution.
 
-2. **Phase 3: Cleaner Pipeline & Missing Values (Active)**:
+2. **Phase 3: Cleaner Pipeline & Missing Values (Next Cycle)**:
     *   **Task 5.1**: [COMPLETED] Implement `PipelineRunner` core and CLI/Test alignment.
     *   **Task 5.2**: [DESIGNED] Integrity Sync (Bucket Strategy) implemented.
-    *   **Task 5.2.1**: [STABILIZED] Heuristic Structural Assessment & Filtering (Rich Wizard + Safety Hashing + Manual Drop Gate) implemented. Removed mandatory PK/Type requirements to streamline ML cleaning.
-    *   **Task 5.3**: Implement the `MissingValueHandler` core engine with hierarchical resolution.
+    *   **Task 5.2.1**: [STABILIZED] Phase 1.5 Structural Assessment implemented. Blocking wizard removed from parser to maintain non-interactive extraction.
+    *   **Task 5.3**: [UPCOMING] Implement the `MissingValueHandler` core engine with hierarchical resolution.
     *   **Task 5.4**: [DESIGNED] Contracts established for generalized `CustomCodeBridge` across all pipeline stages.
     *   **Task 5.5**: Add CLI support for `--action` to trigger explicit atomic cleaning steps.
 

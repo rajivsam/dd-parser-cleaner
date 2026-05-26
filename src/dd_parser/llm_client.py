@@ -51,6 +51,48 @@ class LLMEntityClassifier:
         self.logger.info(f"📊 Grounding profile generated for {len(profile)} columns.")
         return profile
 
+    def infer_dataset_type(self, attributes: List[str], descriptions: List[str]) -> str:
+        """🧠 PHASE 1.5: Infers structural nature (Cross-sectional vs Panel) via temporal cues."""
+        sample_size = min(30, len(attributes))
+        sample_fields = [
+            {"attr": str(a), "desc": str(d)} 
+            for a, d in zip(attributes[:sample_size], descriptions[:sample_size])
+        ]
+
+        type_prompt = (
+            "Analyze this data dictionary snippet to determine the dataset's structural type.\n"
+            f"Data: {json.dumps(sample_fields)}\n\n"
+            "CRITERIA:\n"
+            "1. 'panel': Schema contains repeating attribute sets for different time periods in one row.\n"
+            "2. 'cross-sectional': Data represents a single snapshot. A single reference date column "
+            "(like 'asOfDate' or 'ReportDate') indicates a snapshot, NOT a panel.\n\n"
+            "Return a strict JSON object:\n"
+            '{"dataset_type": "cross-sectional" | "panel"}'
+        )
+
+        try:
+            response = httpx.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": self.model_name,
+                    "prompt": f"{self.system_prompt}\n\n{type_prompt}",
+                    "stream": False,
+                    "options": {"temperature": 0.0},
+                    "format": "json"
+                },
+                timeout=15.0
+            )
+            if response.status_code == 200:
+                raw_json = response.json().get("response", "{}")
+                data = json.loads(raw_json)
+                inferred = data.get("dataset_type", "cross-sectional").lower()
+                self.logger.info(f"📊 Structural Assessment: Inferred dataset as '{inferred}'")
+                return inferred
+        except Exception as e:
+            self.logger.warning(f"⚠️ Dataset type inference failed: {e}")
+        
+        return "cross-sectional"
+
     def discover_macro_domain(self, attributes: List[str], descriptions: List[str]) -> List[str]:
         """🧠 PHASE 1: Scans a sampling of the schema to establish global entity categories dynamically."""
         sample_size = min(15, len(attributes))
