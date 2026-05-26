@@ -71,9 +71,9 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
 
 2. **Phase 3: Cleaner Pipeline & Missing Values (Active)**:
     *   **Task 5.1**: [COMPLETED] Implement `PipelineRunner` core and CLI/Test alignment.
-    *   **Task 5.2**: [PARTIAL] Integrity Sync (Bucket Strategy) implemented. **Next: Implement 'filter' (Attribute dropping) step.**
+    *   **Task 5.2**: [DESIGNED] Integrity Sync implemented. **Next: Implement 'filter' (Attribute list & Regex) step.**
     *   **Task 5.3**: Implement the `MissingValueHandler` core engine with hierarchical resolution.
-    *   **Task 5.4**: Develop the `CustomCodeBridge` for `custom:` hooks.
+    *   **Task 5.4**: [DESIGNED] Contracts established for generalized `CustomCodeBridge` across all pipeline stages.
     *   **Task 5.5**: Add CLI support for `--action` to trigger explicit atomic cleaning steps.
 
 ## 🧼 Phase 3: Cleaner Pipeline Design (LOCKED)
@@ -92,12 +92,15 @@ For any column containing null values, the cleaner resolves the cleaning action 
 1. **Attribute Override**: Check `cleaner.missing_values.attribute_overrides` for the specific column name. Supports both predefined actions and `custom:` hooks.
 2. **Logical Type Default**: Check `cleaner.missing_values.logical_defaults` using the `logical_type` assigned by the parser (e.g., numeric, categorical). Supports both predefined and `custom:` hooks.
 3. **System Fallback**: Leave as `NaN` and log a warning.
+*Note: This hierarchy applies to all transformation stages (Impute, Recode, Standardize).*
 
 ### 2. The "Custom Code Bridge"
 * **Mechanism**: Dynamic module loading via `importlib.util`. The cleaner loads the script specified in `custom_logic_path`.
 * **Trigger**: Any rule string starting with the prefix `custom:` (e.g., `custom:calc_weighted_mean`).
-* **User Contract (The Signature)**: Data Scientists implement functions with the following signature:
-  `def function_name(df: pd.DataFrame, col: str) -> pd.Series`
+* **Standardized Contracts**: 
+    * **Transform**: `func(df, col) -> pd.Series`
+    * **Filter**: `func(df) -> pd.Index`
+    * **Derivation**: `func(df) -> pd.DataFrame`
 * **Persona Focus**: Minimal plumbing; the user writes standard Pandas logic in a local file.
 
 ### 3. Guidelines & Validation
@@ -110,6 +113,8 @@ The cleaner provides these internal vectorized operations:
 * `mean-imputation`, `median-imputation`, `mode-imputation`
 * `ffill`, `bfill`
 * `drop-row` (Removes the record if the value is missing)
+* `include-regex:[pattern]`, `exclude-regex:[pattern]`
+* `drop-list`, `include-list` (Global attribute filtering)
 * `constant:[value]` (e.g., `constant:Unknown` or `constant:0`)
 
 ### 5. Configuration Schema Example
@@ -118,6 +123,7 @@ cleaner:
   pipeline: [integrity, filter, impute, standardize, derive]
   filters:
     drop_attributes: ["LocationID", "InternalNotes"]
+    attribute_overrides: { Email: "exclude-regex:.*@test\\.com$" }
   missing_values:
     custom_logic_path: "scripts/my_imputers.py"
     logical_defaults:
