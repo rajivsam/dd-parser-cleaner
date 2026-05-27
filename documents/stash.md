@@ -8,6 +8,7 @@
 *   **Raw Data Verification**: The agent must strictly verify that every attribute name referenced in code or configuration changes matches an existing column in the raw dataset file to prevent schema drift and runtime errors.
 *   **Migration Role**: The agent acts as a facilitator for "Tag & Inject" workflows. Users provide legacy code and a target cleaner action; the agent then implements the standardized hook in `scripts/domain_logic.py`, generates the `config.yaml` snippet, and aligns all variable names with the authoritative raw data schema while preserving existing structures.
 * **Stash Maintenance**: Consolidate output to ~90% of allowable space. Prioritize active designs, the Resumption Backlog, and the Golden Rule; condense historical architectural logs.
+* **Single Source of Truth**: This `documents/stash.md` is the sole authoritative record of the project's state. All other historical or redundant stashes have been removed.
 
 ## 🛠️ Active Project State (Last Updated: October 2024)
 
@@ -15,7 +16,7 @@
 * **Infrastructure**: `PathCoordinator` enforces zero-default path resolution; `logging` (INFO) provides uniform feedback. 
 * **Cleaner Orchestration**: `PipelineRunner` established as an idempotent engine. It performs early type-casting to pivot cleaning logic off the authoritative parser output.
 * **Data Quality & Grounding**: `DatasetDataProfiler` generates Markdown reports and JSON metadata sidecars (cardinality, samples) to ground LLM inference in physical reality (Task 4.1).
-* **Design Decision**: Prefect was evaluated but rejected to maintain a lightweight, zero-infrastructure footprint and minimize dependency bloat.
+* **Project Cleanup**: The `gemini/` directory has been deleted to resolve context drift andtechnical debt. Redundant configurations (`insconfig.yaml`, `mn_traffic.yaml`, `sbaconfig.yaml`) are retained as legitimate counterparts for secondary datasets.
 * **Orchestrator**: Executes a two-phase LLM pipeline (Macro Discovery + Atomic Row Assignment) synchronized with physical headers.
 * **Classification**: Phase 1 establishes logical entities/keywords; Phase 2 executes atomic row assignment via Llama 3.2.
 * **Post-Processor**: Derives prefix stems algorithmically; strips prefixes to validate tags (e.g., `borr_zip` -> `zip`); applies case-insensitive `overrides` as authoritative final step.
@@ -24,7 +25,7 @@
 * **Reporting**: Unified `DS_type` inference; generates MD reports with "Critical Schema Mismatch" warnings and structured CSV matrices (stripped of orphans).
 * **Structural Assessment (Phase 1.5)**: Integrated LLM-based inference to distinguish between `panel` and `cross-sectional` data structures.
     * **Logic**: Detects repeating temporal attribute sets vs. single snapshot timestamps (e.g., `asOfDate`). 
-    * **HITL Design**: This is a Cleaner-phase operation. The orchestrator automatically persists the inferred `dataset_type` to `config.yaml` with an `(inferred)` tag using absolute path resolution. This process is non-blocking to support continuous pipeline integration.
+    * **Implementation**: The orchestrator persists the inferred `dataset_type` to `config.yaml` with an `(inferred)` tag using absolute path resolution.
 * **Testing Workspace Context**: The `tests/` directory is designated as the primary operational workspace for development and testing. The `PathCoordinator` is configured to handle `working_dir=tests/` and will correctly resolve paths, including the authoritative `config.yaml` located at the project root. Custom code for testing and development (e.g., `scripts/domain_logic.py`) should be placed relative to this `tests/` working directory (e.g., `tests/scripts/domain_logic.py`).
 
 

@@ -42,4 +42,3 @@ uv run pytest -v tests/
 For deep-dive architectural specifications, path coordinator details, and pipeline handshake rules, please consult the full documentation suite:
 
 * 👉 **[USER_GUIDE.md](USER_GUIDE.md)**: Exhaustive manual detailing hardened engineering constraints, file-routing abstraction schemas, data transformation algorithms, and structural testing profiles.
-* 👉 **`gemini/stash.md`**: Active unified project session stashes tracking historical migration logs and live execution snapshots.

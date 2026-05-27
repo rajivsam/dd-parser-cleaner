@@ -5,7 +5,7 @@ cleaner:
   profiling_report_filename: sba_loans_profiling_report.md
   raw_dataset_file: sba_loans_raw.csv
   quarantine_dir: quarantine
-  quarantine_filename: MN_traffic_quarantine.csv
+  quarantine_filename: sba_loans_quarantine.csv
 documents_dir: documents
 model_name: llama3.2
 parser:
