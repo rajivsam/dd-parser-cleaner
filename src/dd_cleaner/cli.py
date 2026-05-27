@@ -30,7 +30,7 @@ def main():
     )
     parser.add_argument(
         "--action",
-        choices=["full", "integrity", "assessment", "filter"],
+        choices=["full", "integrity", "assessment", "column_filter", "row_filter", "impute", "derive"],
         default="full",
         help="Specify a pipeline stage to run or 'full' for the entire sequence (default: full)."
     )

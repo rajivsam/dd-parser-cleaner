@@ -4,7 +4,9 @@
 * **Domain Agnosticism**: Strict requirement. Zero hardcoded domain-specific items or assumptions.
 * **Communication Style**: Brief, direct answers by default. Explanations provided only on request.
 * **Config Management**: The agent must never modify `config.yaml` directly. If a configuration update is required (e.g., adding `tag_heuristics`), the agent must request the user to update the file and provide the intended YAML snippet.
-* **Migration Role**: The agent acts as a facilitator for "Tag & Inject" workflows. Users provide legacy code and a target cleaner action; the agent then implements the standardized hook in `scripts/domain_logic.py`, generates the `config.yaml` snippet, and aligns all variable names with the authoritative raw data schema.
+*   **Behavioral Change Awareness**: Before suggesting changes that modify existing logic in `domain_logic.py` or functional settings in `config.yaml`, the agent must explicitly notify the user of the expected change in behavior.
+*   **Raw Data Verification**: The agent must strictly verify that every attribute name referenced in code or configuration changes matches an existing column in the raw dataset file to prevent schema drift and runtime errors.
+*   **Migration Role**: The agent acts as a facilitator for "Tag & Inject" workflows. Users provide legacy code and a target cleaner action; the agent then implements the standardized hook in `scripts/domain_logic.py`, generates the `config.yaml` snippet, and aligns all variable names with the authoritative raw data schema while preserving existing structures.
 * **Stash Maintenance**: Consolidate output to ~90% of allowable space. Prioritize active designs, the Resumption Backlog, and the Golden Rule; condense historical architectural logs.
 
 ## 🛠️ Active Project State (Last Updated: October 2024)
@@ -22,7 +24,7 @@
 * **Reporting**: Unified `DS_type` inference; generates MD reports with "Critical Schema Mismatch" warnings and structured CSV matrices (stripped of orphans).
 * **Structural Assessment (Phase 1.5)**: Integrated LLM-based inference to distinguish between `panel` and `cross-sectional` data structures.
     * **Logic**: Detects repeating temporal attribute sets vs. single snapshot timestamps (e.g., `asOfDate`). 
-    * **HITL Design**: The parser remains non-blocking; inference is presented in the Markdown report for user confirmation in `config.yaml` prior to cleaning.
+    * **HITL Design**: This is a Cleaner-phase operation. The orchestrator automatically persists the inferred `dataset_type` to `config.yaml` with an `(inferred)` tag using absolute path resolution. This process is non-blocking to support continuous pipeline integration.
 * **Testing Workspace Context**: The `tests/` directory is designated as the primary operational workspace for development and testing. The `PathCoordinator` is configured to handle `working_dir=tests/` and will correctly resolve paths, including the authoritative `config.yaml` located at the project root. Custom code for testing and development (e.g., `scripts/domain_logic.py`) should be placed relative to this `tests/` working directory (e.g., `tests/scripts/domain_logic.py`).
 
 
@@ -35,7 +37,10 @@ parser:
   entity_tagging: [geographic]
   overrides: {LocationID: {is_geographic: false, provisional_entity_assignment: Lender}}
 cleaner:
-  quarantine_directory: quarantine; quarantine_filename: isolated_records.csv
+  column_filters:
+    drop_attributes: ["firstdisbursementdate", "asofdate", "paidinfulldate"]
+  quarantine_directory: quarantine
+  quarantine_filename: isolated_records.csv
 ```
 
 ---
@@ -81,7 +86,7 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
     *   **Task 5.2.1**: [STABILIZED] Phase 1.5 Structural Assessment implemented. Blocking wizard removed from parser to maintain non-interactive extraction.
     *   **Task 5.3**: [UPCOMING] Implement the `MissingValueHandler` core engine with hierarchical resolution.
     *   **Task 5.4**: [DESIGNED] Contracts established for generalized `CustomCodeBridge` across all pipeline stages.
-    *   **Task 5.5**: Add CLI support for `--action` to trigger explicit atomic cleaning steps.
+    *   **Task 5.5**: [COMPLETED] Add CLI support for `--action` to trigger explicit atomic cleaning steps.
 
 ## 🧼 Phase 3: Cleaner Pipeline Design (LOCKED)
 
@@ -150,7 +155,6 @@ cleaner:
       temporal: "ffill"
       text: "constant:Missing"
     attribute_overrides:
-      LoanAmount: "custom:risk_adjusted_impute"
       BorrZip: "constant:00000"
       SocialSecurity: "drop-row"
 ```

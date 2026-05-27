@@ -28,7 +28,7 @@ class PipelineRunner:
         filename = self.cleaner_config.get("clean_output_filename", "cleaned_data.csv")
         self.reporter = CleaningReportManager(output_dir / filename)
 
-    def run(self) -> pd.DataFrame:
+    def run(self, action: str = "full") -> pd.DataFrame:
         """Executes the sequence of cleaning steps defined in the authoritative config."""
         self.logger.info("🚀 Initializing Cleaner Pipeline Runner...")
 
@@ -54,13 +54,44 @@ class PipelineRunner:
         # 5. Step: Row Filtering (Custom Logic Bridge)
         df = self._execute_row_filtering(df)
 
-        # 6. Step: Null Profiling (Always performed for visibility)
+        if action == "row_filter": return df
+
+        # 6. Step: Column Filtering (Physically drop attributes marked in config)
+        df = self._execute_column_filtering(df)
+
+        if action == "column_filter": return df
+
+        # 7. Step: Imputation (Missing Value Handler - Task 5.3)
+        df = self._execute_imputation(df, dict_df)
+
+        if action == "impute": return df
+
+        # 8. Step: Derivation (Custom Feature Engineering - Task 5.4)
+        df = self._execute_derivation(df)
+
+        if action == "derive": return df
+
+        # 9. Step: Null Profiling (Always performed for visibility)
         self.profiler.generate_null_quality_report(df)
 
-        # 7. Step: Save Results
+        # 10. Step: Save Results
         self.reporter.write_cleaned_dataset(df)
 
         self.logger.info("🏁 Pipeline core increment (Integrity & Profiling) complete.")
+        return df
+
+    def _execute_column_filtering(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Physically removes attributes specified in the configuration."""
+        drop_cols = self.cleaner_config.get("column_filters", {}).get("drop_attributes", [])
+        if not drop_cols:
+            return df
+            
+        # Capture count for visual confirmation as requested
+        target_drops = [c for c in drop_cols if c in df.columns]
+        self.logger.info(f"✂️  Column Filter: Removing {len(target_drops)} attributes from the dataset.")
+
+        if target_drops:
+            df = df.drop(columns=target_drops)
         return df
 
     def _execute_row_filtering(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -74,22 +105,98 @@ class PipelineRunner:
             return df
             
         initial_count = len(df)
-        for rule_name, action in filters.items():
-            if action.startswith("custom:"):
-                func_name = action.split(":")[1]
-                if hasattr(custom_module, func_name):
-                    self.logger.info(f"🛡️ Applying custom row filter: {rule_name} ({func_name})")
-                    func = getattr(custom_module, func_name)
-                    # Filter Contract: func(df) -> pd.Index (indices to KEEP)
-                    keep_index = func(df)
-                    df = df.loc[keep_index]
-                else:
-                    self.logger.error(f"❌ Custom filter function '{func_name}' not found in domain logic.")
+        for rule_name, action_data in filters.items():
+            # Normalize to list to support single strings or multiple components
+            actions = [action_data] if isinstance(action_data, str) else action_data
+            
+            for action in actions:
+                if action.startswith("custom:"):
+                    func_name = action.split(":")[1]
+                    if hasattr(custom_module, func_name):
+                        self.logger.info(f"🛡️ Applying custom row filter: {rule_name} ({func_name})")
+                        func = getattr(custom_module, func_name)
+                        # Filter Contract: func(df) -> pd.Index (indices to KEEP)
+                        keep_index = func(df)
+                        df = df.loc[keep_index]
+                    else:
+                        self.logger.error(f"❌ Custom filter function '{func_name}' not found in domain logic.")
         
         dropped = initial_count - len(df)
         if dropped > 0:
             self.logger.info(f"✂️ Row Filtering complete: {dropped} rows excluded ({len(df)} remaining).")
             
+        return df
+
+    def _execute_imputation(self, df: pd.DataFrame, dict_df: pd.DataFrame) -> pd.DataFrame:
+        """Task 5.3: Implements the Resolution Hierarchy for missing values."""
+        mv_config = self.cleaner_config.get("missing_values", {})
+        overrides = mv_config.get("attribute_overrides", {})
+        defaults = mv_config.get("logical_defaults", {})
+        custom_module = self._load_custom_logic()
+        
+        # Identify columns with nulls
+        null_cols = df.columns[df.isna().any()].tolist()
+        if not null_cols:
+            return df
+            
+        self.logger.info(f"🩹 Imputation: Processing {len(null_cols)} columns with missing data.")
+        
+        attr_col = "attribute_name"
+        if attr_col not in dict_df.columns:
+            attr_col = dict_df.columns[0]
+
+        for col in null_cols:
+            strategy = None
+            
+            # 1. Attribute Override (Highest Priority)
+            if col in overrides:
+                strategy = overrides[col]
+            # 2. Logical Type Default (Middle Priority)
+            elif col in dict_df[attr_col].values:
+                l_type = str(dict_df.loc[dict_df[attr_col] == col, 'logical_type'].iloc[0]).lower()
+                strategy = defaults.get(l_type)
+                
+            if not strategy:
+                continue
+
+            self.logger.debug(f"  - Imputing '{col}' using strategy: {strategy}")
+
+            # Execute Strategy
+            if strategy.startswith("custom:"):
+                func_name = strategy.split(":")[1]
+                if custom_module and hasattr(custom_module, func_name):
+                    func = getattr(custom_module, func_name)
+                    # Transform Contract: func(df, col) -> pd.Series
+                    df[col] = func(df, col)
+            elif strategy == "mean-imputation":
+                fill_val = df[col].mean()
+                # 🧮 Type Safety: Integer-typed columns (Int64) cannot accept float means with decimals
+                if pd.api.types.is_integer_dtype(df[col]) and not pd.isna(fill_val):
+                    fill_val = round(fill_val)
+                df[col] = df[col].fillna(fill_val)
+            elif strategy == "mode-imputation":
+                df[col] = df[col].fillna(df[col].mode()[0] if not df[col].mode().empty else None)
+                
+        return df
+
+    def _execute_derivation(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Task 5.4: Custom Code Bridge for feature derivations."""
+        derivations = self.cleaner_config.get("derivation", {}).get("attribute_overrides", {})
+        if not derivations:
+            return df
+            
+        custom_module = self._load_custom_logic()
+        if not custom_module:
+            return df
+
+        for attr, strategy in derivations.items():
+            if strategy.startswith("custom:"):
+                func_name = strategy.split(":")[1]
+                if hasattr(custom_module, func_name):
+                    self.logger.info(f"✨ Executing derivation: {attr} ({func_name})")
+                    func = getattr(custom_module, func_name)
+                    # Derivation Contract: func(df) -> pd.DataFrame
+                    df = func(df)
         return df
 
     def _load_custom_logic(self) -> Any:

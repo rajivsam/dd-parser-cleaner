@@ -7,26 +7,34 @@ cleaner:
   quarantine_dir: quarantine
   quarantine_filename: sba_loans_quarantine.csv
   column_filters:
-    drop_attributes: []
+    drop_attributes:
+    - firstdisbursementdate
+    - asofdate
+    - paidinfulldate
     attribute_overrides: {}
     ignore_recommendations: []
   row_filters:
     attribute_overrides:
-      InvalidLoanExclusion: "custom:filter_invalid_loan_status_dates"
+      InvalidLoanExclusion: custom:filter_invalid_loan_status_dates
   missing_values:
-    custom_logic_path: "scripts/domain_logic.py"
+    custom_logic_path: scripts/domain_logic.py
     logical_defaults:
-      numeric: "mean-imputation"
-      categorical: "mode-imputation"
+      numeric: mean-imputation
+      categorical: mode-imputation
     attribute_overrides: {}
   derivation:
     attribute_overrides: {}
   structural_assessment:
-    dataset_type: "not_yet_inferred"
-    primary_keys: []
+    dataset_type: cross-sectional (inferred)
     auto_drop_constant: true
     null_threshold: 0.95
-  pipeline: [integrity, assessment, column_filter, row_filter, impute, derive]
+  pipeline:
+  - integrity
+  - assessment
+  - column_filter
+  - row_filter
+  - impute
+  - derive
 documents_dir: documents
 model_name: llama3.2
 parser:
@@ -36,7 +44,6 @@ parser:
   dd_parser_output_dir: dd_analysis_results
   entity_tagging:
   - geographic
-
   output_filename: sba_analysis_results.csv
   overrides:
     LocationID:

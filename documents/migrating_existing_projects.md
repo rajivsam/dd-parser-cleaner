@@ -23,8 +23,13 @@ Custom logic must be placed in `domain_logic.py` within the `scripts/` directory
 ### 3. Agent Responsibilities
 Upon receiving a code block, the agent is responsible for:
 *   **Writing the Function**: Implementing the logic in `domain_logic.py`.
+*   **Impact Assessment**: If the proposed change modifies the existing behavior of a function in `domain_logic.py` or a key setting in `config.yaml`, the agent must explicitly warn the user before providing the code.
+*   **Attribute Verification**: The agent must verify that every attribute name referenced in a code block or configuration snippet exists in the raw data file headers before suggesting the change.
 *   **Updating Configuration**: Providing the specific YAML snippet for the `attribute_overrides` section in `config.yaml`.
 *   **Providing Verification**: Generating a test harness for the user to verify the transformation before running the full pipeline.
+
+### 4. Structural Preservation
+The agent must preserve the existing structure of `config.yaml` and any existing logic within `scripts/domain_logic.py` unless explicitly directed otherwise.
 
 ## 📋 Contract Mapping Reference
 
