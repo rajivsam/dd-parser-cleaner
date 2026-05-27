@@ -4,6 +4,7 @@
 * **Domain Agnosticism**: Strict requirement. Zero hardcoded domain-specific items or assumptions.
 * **Communication Style**: Brief, direct answers by default. Explanations provided only on request.
 * **Config Management**: The agent must never modify `config.yaml` directly. If a configuration update is required (e.g., adding `tag_heuristics`), the agent must request the user to update the file and provide the intended YAML snippet.
+* **Migration Role**: The agent acts as a facilitator for "Tag & Inject" workflows. Users provide legacy code and a target cleaner action; the agent then implements the standardized hook in `scripts/domain_logic.py`, generates the `config.yaml` snippet, and aligns all variable names with the authoritative raw data schema.
 * **Stash Maintenance**: Consolidate output to ~90% of allowable space. Prioritize active designs, the Resumption Backlog, and the Golden Rule; condense historical architectural logs.
 
 ## 🛠️ Active Project State (Last Updated: October 2024)
@@ -93,8 +94,11 @@ The cleaner executes transformations in a strict, idempotent sequence:
 5. **Column Filtering**: Execute the physical drop of attributes.
 6. **Type Casting & Profiling**: Coerce types and generate the final Null Profile Report.
 7. **Imputation**: Handle missing values (Resolution Hierarchy).
-8. **Standardization**: Title-casing, zero-padding, etc.
-9. **Derivation**: Custom feature engineering.
+8. **Derivation**: Custom feature engineering.
+
+### 0.1 Consolidated Safety Gate
+*   **Logic**: The cleaner suppresses individual prompts in favor of a single pre-execution summary.
+*   **Provisional Mode**: If any pipeline phase (Filters, Imputation, Derivation) is undefined, the engine runs on inferred structural decisions and issues a terminal warning. Scaling/Standardization is explicitly out of scope (moved to featurization).
 
 ### 1. Resolution Hierarchy
 For any column containing null values, the cleaner resolves the cleaning action using the following priority:
@@ -129,7 +133,7 @@ The cleaner provides these internal vectorized operations:
 ### 5. Configuration Schema Example
 ```yaml
 cleaner:
-  pipeline: [integrity, row_filter, column_filter, impute, standardize, derive]
+  pipeline: [integrity, assessment, column_filter, row_filter, impute, derive]
   column_filters:
     drop_attributes: ["LocationID", "InternalNotes"]
     attribute_overrides: { Email: "exclude-regex:.*@test\\.com$" }

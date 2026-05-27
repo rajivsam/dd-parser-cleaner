@@ -1,11 +1,13 @@
 """Idempotent cleaning pipeline runner for structured data transformation."""
 
+import importlib.util
 import logging
 import pandas as pd
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Any
 from path_coordinator import PathCoordinator
 from .null_profiler import DatasetDataProfiler
+from .reporter import CleaningReportManager
 
 class PipelineRunner:
     """
@@ -20,6 +22,11 @@ class PipelineRunner:
         
         # Initialize sub-components
         self.profiler = DatasetDataProfiler(self.paths.profiling_report_path)
+        
+        # 🎯 DYNAMIC RESOLUTION: Bind the reporter to the output target defined in config
+        output_dir = self.paths.cleaner_output_directory
+        filename = self.cleaner_config.get("clean_output_filename", "cleaned_data.csv")
+        self.reporter = CleaningReportManager(output_dir / filename)
 
     def run(self) -> pd.DataFrame:
         """Executes the sequence of cleaning steps defined in the authoritative config."""
@@ -44,11 +51,68 @@ class PipelineRunner:
         # 4. Step: Type Casting (Alignment with Parser Metadata)
         df = self._apply_type_casting(df, dict_df)
 
-        # 5. Step: Null Profiling (Always performed for visibility)
+        # 5. Step: Row Filtering (Custom Logic Bridge)
+        df = self._execute_row_filtering(df)
+
+        # 6. Step: Null Profiling (Always performed for visibility)
         self.profiler.generate_null_quality_report(df)
+
+        # 7. Step: Save Results
+        self.reporter.write_cleaned_dataset(df)
 
         self.logger.info("🏁 Pipeline core increment (Integrity & Profiling) complete.")
         return df
+
+    def _execute_row_filtering(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Applies row exclusion logic based on config overrides."""
+        filters = self.cleaner_config.get("row_filters", {}).get("attribute_overrides", {})
+        if not filters:
+            return df
+            
+        custom_module = self._load_custom_logic()
+        if not custom_module:
+            return df
+            
+        initial_count = len(df)
+        for rule_name, action in filters.items():
+            if action.startswith("custom:"):
+                func_name = action.split(":")[1]
+                if hasattr(custom_module, func_name):
+                    self.logger.info(f"🛡️ Applying custom row filter: {rule_name} ({func_name})")
+                    func = getattr(custom_module, func_name)
+                    # Filter Contract: func(df) -> pd.Index (indices to KEEP)
+                    keep_index = func(df)
+                    df = df.loc[keep_index]
+                else:
+                    self.logger.error(f"❌ Custom filter function '{func_name}' not found in domain logic.")
+        
+        dropped = initial_count - len(df)
+        if dropped > 0:
+            self.logger.info(f"✂️ Row Filtering complete: {dropped} rows excluded ({len(df)} remaining).")
+            
+        return df
+
+    def _load_custom_logic(self) -> Any:
+        """Dynamically loads the python module containing domain-specific logic."""
+        logic_path_str = self.cleaner_config.get("missing_values", {}).get("custom_logic_path")
+        if not logic_path_str:
+            return None
+            
+        # PathCoordinator handles working_dir (e.g., tests/)
+        logic_path = self.paths.raw_dataset_path.parent.parent / logic_path_str
+        
+        if not logic_path.exists():
+            self.logger.warning(f"⚠️ Custom logic script not found at {logic_path}")
+            return None
+            
+        try:
+            spec = importlib.util.spec_from_file_location("domain_logic", logic_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            return module
+        except Exception as e:
+            self.logger.error(f"❌ Failed to load custom logic module: {e}")
+            return None
 
     def _apply_type_casting(self, df: pd.DataFrame, dict_df: pd.DataFrame) -> pd.DataFrame:
         """Casts DataFrame columns to their intended physical types based on the dictionary."""

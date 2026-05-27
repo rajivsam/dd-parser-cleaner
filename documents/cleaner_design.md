@@ -10,7 +10,7 @@ Instead of hardcoded rules, the cleaner treats all operations as lookups within 
 ```yaml
 cleaner:
   custom_logic_path: "scripts/domain_logic.py"
-  pipeline: [integrity, assessment, row_filter, column_filter, impute, standardize, derive]
+  pipeline: [integrity, assessment, row_filter, column_filter, impute, derive]
 
   structural_assessment:
     dataset_type: "not_yet_inferred" # Options: cross-sectional, longitudinal, panel
@@ -40,14 +40,14 @@ To prevent "signature inflation," all custom logic must adhere to one of three s
 
 | Contract | Targeted Actions | Signature | Return Type |
 | :--- | :--- | :--- | :--- |
-| **Transform** | Imputing, Recoding, Scaling | `func(df, col)` | `pd.Series` |
+| **Transform** | Imputing, Recoding | `func(df, col)` | `pd.Series` |
 | **Row Filter** | Row Removal, Outlier Clipping | `func(df)` | `pd.Index` or `Boolean Mask` |
 | **Derivation** | Feature Engineering, Merging | `func(df)` | `pd.DataFrame` |
 
 ### 🔧 Action-to-Signature Mapping
 When implementing custom logic in `scripts/domain_logic.py`, the signature is determined by the pipeline step:
 
-#### 1. Transform Actions (`impute`, `standardize`, `recoding`)
+#### 1. Transform Actions (`impute`, `recoding`)
 Used when modifying an existing column.
 ```python
 def my_custom_transform(df: pd.DataFrame, col: str) -> pd.Series:
@@ -73,7 +73,12 @@ def my_custom_derivation(df: pd.DataFrame) -> pd.DataFrame:
 ```
 
 ## 🔄 Execution Flow
-The Cleaner operates as an idempotent sequence:
+The Cleaner operates as an idempotent sequence with a **Consolidated Safety Gate**:
+
+1.  **Readiness Check**: The engine determines if all phases (`row_filter`, `column_filter`, `impute`, `derive`) are defined in `config.yaml`. 
+    *   If **Complete**: Present a single unified summary for user acknowledgement.
+    *   If **Partial**: Execute using provisional defaults (e.g., from `structural_assessment`) and print a "Provisional Execution" warning.
+
 1.  **Integrity Sync**: Reconciles the Data Dictionary against physical headers (Bucket Strategy).
 2.  **Type Alignment**: Coerces raw data into the physical types identified by the Profiler.
 3.  **The Action Loop**: Iterates through the `pipeline` defined in config.
