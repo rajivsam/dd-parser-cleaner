@@ -9,6 +9,10 @@ Your objective is to transform raw data into a clean state based on a **Data Dic
 3.  Implementing the logic in `scripts/domain_logic.py`.
 4.  Registering the logic in `config.yaml`.
 
+## 1.1 The Two Interaction Paths
+*   **Path 1 (Chat-to-Pipeline)**: You implement the logic directly based on user instructions and update the config.
+*   **Path 2 (Notebook-to-Pipeline)**: You provide the user with code snippets to test in a Notebook. Once the user confirms the results are correct, you "wire" those snippets into Path 1.
+
 ## 2. Project File Structure
 Expect the following layout. Never use absolute paths in your code; use relative paths from the workspace root.
 ```text
@@ -101,6 +105,19 @@ cleaner:
 4.  **Error Handling**: Let exceptions bubble up; the Cleaner Engine handles the crash/log boundary. Do not return "None" or "Error" strings.
 
 ## 🧪 Verification Protocol
+
+### The Notebook Trial (Path 2)
+Before committing logic to the pipeline, encourage the user to test it. Provide this template:
+```python
+import pandas as pd
+from scripts.domain_logic import your_new_function
+
+df = pd.read_csv("data/sba_loans_raw.csv").head(100)
+col = "TargetColumn"
+df[col] = your_new_function(df, col)
+print(df[col].head())
+```
+
 Before telling the user "I am done," provide a test snippet they can run in a Notebook:
 ```python
 # AGENT TEST SCRIP

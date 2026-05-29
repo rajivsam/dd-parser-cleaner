@@ -11,7 +11,13 @@
 * **Stash Maintenance**: Consolidate output to ~90% of allowable space. Prioritize active designs, the Resumption Backlog, and the 7-Point Framework.
 * **Single Source of Truth**: This `documents/stash.md` is the sole authoritative record of the project's state. All other historical or redundant stashes have been removed.
 
-## 🛠️ Active Project State (Last Updated: May 29, 2026)
+## 🎭 User Experience (UX) Personas & Interaction Paths [LOCKED]
+*   **Path 1: The Agent-Led Workflow**: Intended for quick iterative refinement. The user reviews `cleaning_recommendations.md` and asks the Agent to implement specific handlers. The Agent writes to `domain_logic.py`, updates `config.yaml`, and the user runs `clean-dataset --action full`.
+*   **Path 2: The Notebook-Led Explorer**: Intended for deep domain science (e.g., KNN, ML-based imputation). The user instantiates the `PipelineRunner` in a Jupyter/VSCode Notebook, tests transformations on dataframe slices, and once satisfied, instructs the Agent to "wire in" the finalized logic through Path 1.
+*   **Handshake Centricity**: Both paths rely on the `parser_cleaner_handshake.md` to provide semantic context to the Agent/User.
+*   **Safety Gate**: The Cleaner enforces the presence of the Handshake file; discovery and cleaning cannot proceed without Parser metadata.
+
+## 🛠️ Active Project State (Last Updated: May 29, 2026 - Session Wrap)
 
 ### 1. Core Architecture
 * **Infrastructure**: `PathCoordinator` enforces zero-default path resolution; `logging` (INFO) provides uniform feedback. 
@@ -20,9 +26,9 @@
 * **Cleaner Orchestration**: `PipelineRunner` established as an idempotent engine. It performs early type-casting to pivot cleaning logic off the authoritative parser output.
 * **Data Quality & Grounding**: `DatasetDataProfiler` generates Markdown reports and JSON metadata sidecars (cardinality, samples) to ground LLM inference in physical reality (Task 4.1).
 * **Project Cleanup**: The `gemini/` directory has been deleted to resolve context drift andtechnical debt. Redundant configurations (`insconfig.yaml`, `mn_traffic.yaml`, `sbaconfig.yaml`) are retained as legitimate counterparts for secondary datasets.
-* **Orchestrator**: Executes a two-phase LLM pipeline (Macro Discovery + Atomic Row Assignment) synchronized with physical headers.
+* **Orchestrator**: Executes a two-phase LLM pipeline (Macro Discovery + Atomic Row Assignment) synchronized with physical headers. Handshake Safety Gate is active.
 * **Classification**: Phase 1 establishes logical entities/keywords; Phase 2 executes atomic row assignment via Llama 3.2.
-* **Post-Processor**: Derives prefix stems algorithmically; strips prefixes to validate tags (e.g., `borr_zip` -> `zip`); applies case-insensitive `overrides` as authoritative final step.
+* **Post-Processor**: Derives prefix stems algorithmically; strips prefixes to validate tags; applies authoritative `overrides`. Generates Handshake with Timestamp.
 * **Integrity Engine**: `IntegrityEngine` enforces a "Bucket Strategy" to validate the bridge between the Data Dictionary and Raw Data.
     * **Bucket A (Operational)**: Matches found. **Bucket B (Orphans)**: In Dictionary but missing from Data. **Bucket C (Ghosts)**: In Data but missing from Dictionary.
 * **Policy Engine**: `UniversalValidator` consumes externalized manifests for domain logic. Legacy hard-coded SBA thresholds ($350k caps) have been retired.
@@ -33,7 +39,7 @@
 * **Standardized CLI Entry Points**: The project is configured with authoritative CLI commands: `classify-entities` for the Metadata Parser and `clean-dataset` for the Dataset Cleaner. Users should always run these commands instead of direct python calls to ensure consistent path resolution and orchestration.
 * **Installation Protocol**: This project strictly uses `uv`. To register CLI entry points in the local environment, use `uv pip install -e .`. Standard `pip` commands are deprecated for this workspace.
 * **Testing Workspace Context**: The `tests/` directory is the primary sandbox for development. **CRITICAL**: When executing CLI tools (e.g., `clean-dataset --workspace ./tests/ --action discovery`), you must point `--workspace` to `./tests/`. This ensures the `PathCoordinator` resolves the simulated KMDS hierarchy correctly.
-* **Cleaning Assistant**: LOCKED 7-point heuristic framework producing segmented reports. Artifacts from interactive loops and Phase 2 filtering have been removed.
+* **Cleaning Assistant**: LOCKED 7-point heuristic framework producing segmented reports (`cleaning_recommendations.md`) and `provisional_config.yaml`.
 * **Loan Health & Distress Monitoring**: LOCKED ordinal metric system.
     * **Universe Filter**: Excludes administrative/integrity noise (`CANCLD`, `EXEMPT`, `COMMIT`, `pna`).
     * **Distress Metric**: 3-tier ordinal score (0: Healthy, 1: Under Duress, 2: Written Off) derived via `custom:derive_loan_distress_metric`.
@@ -50,7 +56,7 @@ parser:
 cleaner:
   column_filters:
     drop_attributes: ["firstdisbursementdate", "asofdate", "paidinfulldate"]
-  quarantine_directory: quarantine
+  quarantine_dir: quarantine
   quarantine_filename: isolated_records.csv
 ```
 
