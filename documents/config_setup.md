@@ -51,7 +51,8 @@ This sub-block controls settings for operational data scrubbing transformations 
 
 * `raw_dataset_file`: Points to the heavy, unformatted production payload target table (e.g., `sba_loans_raw.csv`) residing inside your local workspace `data/` folder directory.
 * `clean_output_filename` & `dd_cleaner_output_dir`: Controls the name and folder path destination where clean datasets are written after passing through vectorized padding and title-casing transformations.
-* `quarantine_directory` & `quarantine_filename`: Defines the destination for records containing mixed data types that were isolated during the cleaning pass.
+* `handshake_file`: The fixed filename for the Parser-Cleaner handshake protocol (e.g., `parser_cleaner_handshake.md`).
+* `quarantine_dir` & `quarantine_filename`: Defines the destination for records containing mixed data types that were isolated during the cleaning pass.
 
 ---
 
@@ -98,10 +99,18 @@ parser:
 cleaner:
   raw_dataset_file: sba_loans_raw.csv
   clean_output_filename: sba_loans_clean.csv
-  dd_cleaner_output_dir: dd_cleaner_results
-  quarantine_directory: quarantine
-  quarantine_filename: isolated_records.csv
+  dd_cleaner_output_dir: dd_cleaner
+  quarantine_dir: quarantine
+  quarantine_filename: sba_loans_quarantine.csv
 ```
+
+## 4. Phase 0: Domain Discovery (KMDS Documents)
+
+The Domain Discovery phase (`--action discovery`) leverages the KMDS standard for document storage.
+
+* **Location**: The primary handshake artifact (`parser_cleaner_handshake.md`) produced by the Parser is stored in `documents/dd_cleaner/`. This serves as the "Inbox" for the Cleaner.
+* **Auto-Discovery**: The engine automatically performs a recursive search for files with `.txt`, `.md`, or `.pdf` extensions.
+* **Boundary Fallback**: If no narrative documentation is found, the system will attempt to generate a baseline Policy Manifest using the semantic context of the existing Data Dictionary.
 
 ---
 

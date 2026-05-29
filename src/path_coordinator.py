@@ -65,10 +65,10 @@ class PathCoordinator:
 
     # --- SHARED GLOBAL DIR CONTRACTS ---
     @property
-    def documents_dir(self) -> str:
+    def documents_dir(self) -> Path:
         """Base layout folder for Human-in-the-Loop context summaries."""
         dirname = self._get_required_val(self.config, "documents_dir", "global")
-        return str(self.base_dir / dirname)
+        return self.base_dir / dirname
 
     # --- PARSER MODULE ENDPOINTS ---
     @property
@@ -94,15 +94,26 @@ class PathCoordinator:
         return out_dir
 
     @property
-    def data_dictionary_csv_path(self) -> str:
+    def data_dictionary_csv_path(self) -> Path:
         """
         OUTPUT FILE: Primary contract endpoint requested directly by core parser clients.
         Targets: {$working_dir}/{$documents_dir}/{$dd_parser_output_dir}/{$output_filename}
         """
         filename = self._get_required_val(self._parser_config, "output_filename", "parser")
-        return str(self.parser_output_directory / filename)
+        return self.parser_output_directory / filename
 
     # --- CLEANER MODULE ENDPOINTS ---
+    @property
+    def cleaner_narrative_directory(self) -> Path:
+        """
+        Authoritative 'Inbox' for cleaner narrative artifacts and handshake logic.
+        Targets: {$working_dir}/{$documents_dir}/{$dd_cleaner_output_dir}
+        """
+        out_dir_name = self._get_required_val(self._cleaner_config, "dd_cleaner_output_dir", "cleaner")
+        target_dir = Path(self.documents_dir) / out_dir_name
+        target_dir.mkdir(parents=True, exist_ok=True)
+        return target_dir
+
     @property
     def raw_dataset_path(self) -> Path:
         """
@@ -121,41 +132,46 @@ class PathCoordinator:
         return out_dir
 
     @property
-    def clean_dataset_output_path(self) -> str:
+    def clean_dataset_output_path(self) -> Path:
         """OUTPUT FILE: Endpoint contract where cleaned table datasets are stored."""
         filename = self._get_required_val(self._cleaner_config, "clean_output_filename", "cleaner")
-        return str(self.cleaner_output_directory / filename)
+        return self.cleaner_output_directory / filename
     
     @property
     def profiling_report_path(self) -> Path:
         """
         Authoritative routing endpoint for the markdown data quality profiling report.
-        Maps dynamically to: {$working_dir}/documents/{$dd_cleaner_output_dir}/{$profiling_report_filename}
+        Targets: {$cleaner_narrative_directory}/{$profiling_report_filename}
         """
-        output_dir = self._get_required_val(self._cleaner_config, "dd_cleaner_output_dir", "cleaner")
         filename = self._get_required_val(self._cleaner_config, "profiling_report_filename", "cleaner")
-        
-        # Consistent with standard cleaner output storage rules
-        target_dir = Path(self.documents_dir) / output_dir
-        return target_dir / filename
+        return self.cleaner_narrative_directory / filename
 
     @property
     def parser_provisional_report_path(self) -> Path:
         """
         Authoritative routing for the human-readable markdown assignment report.
-        Dynamically derived from the primary CSV output path.
+        Redirected to the Cleaner's handshake 'Inbox' per the protocol.
         """
-        return Path(self.data_dictionary_csv_path).with_suffix(".md")
+        return self.handshake_path
 
     @property
     def quarantine_path(self) -> Path:
         """
         Authoritative routing for isolated mixed-value records.
-        Targets: {$base_dir}/data/{$quarantine_directory}/{$quarantine_filename}
+        Targets: {$base_dir}/data/{$quarantine_dir}/{$quarantine_filename}
         """
-        dir_name = self._get_required_val(self._cleaner_config, "quarantine_directory", "cleaner")
+        dir_name = self._get_required_val(self._cleaner_config, "quarantine_dir", "cleaner")
         file_name = self._get_required_val(self._cleaner_config, "quarantine_filename", "cleaner")
         
         target_dir = self.base_dir / "data" / dir_name
         target_dir.mkdir(parents=True, exist_ok=True)
         return target_dir / file_name
+
+    @property
+    def handshake_path(self) -> Path:
+        """
+        Authoritative routing for the parser-cleaner handshake narrative.
+        Targets: {$cleaner_narrative_directory}/{$handshake_file}
+        """
+        filename = self._get_required_val(self._cleaner_config, "handshake_file", "cleaner")
+        return self.cleaner_narrative_directory / filename

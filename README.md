@@ -14,7 +14,7 @@ cd dd_parser_cleaner
 uv sync
 
 # Install package command entry points in editable mode
-pip install -e .
+uv pip install -e .
 ```
 
 ### 2. Run the Pipeline CLI

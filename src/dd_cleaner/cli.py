@@ -3,6 +3,7 @@
 import argparse
 import logging
 import sys
+from pathlib import Path
 from dd_cleaner.orchestrator import CleanerOrchestrator
 from path_coordinator import PathCoordinator
 
@@ -20,7 +21,7 @@ def main():
     )
     parser.add_argument(
         "--workspace", 
-        default=".", 
+        default="./tests", 
         help="Path to the active directory workspace (default: current directory)"
     )
     parser.add_argument(
@@ -30,7 +31,7 @@ def main():
     )
     parser.add_argument(
         "--action",
-        choices=["full", "integrity", "assessment", "column_filter", "row_filter", "impute", "derive"],
+        choices=["discovery", "full", "integrity", "assessment", "column_filter", "row_filter", "impute", "derive"],
         default="full",
         help="Specify a pipeline stage to run or 'full' for the entire sequence (default: full)."
     )
@@ -39,9 +40,18 @@ def main():
 
     try:
         logger.info("Initializing Path Coordinator and Cleaner Orchestrator...")
-        # 🎯 CONSTRUCTOR DEPENDENCY INJECTION: Instantiate the authoritative routing contract
-        coordinator = PathCoordinator(config_path=args.config, working_dir=args.workspace)
         
+        # 🎯 PATH RESOLUTION: Ensure workspace and config are resolved to absolute paths 
+        # to prevent relative path drift and align with test execution patterns.
+        workspace_root = str(Path(args.workspace).resolve())
+        config_path = str(Path(args.config).resolve())
+
+        # 🎯 CONSTRUCTOR DEPENDENCY INJECTION: Instantiate the authoritative routing contract
+        coordinator = PathCoordinator(config_path=config_path, working_dir=workspace_root)
+        
+        # 🧪 AUTHORITATIVE BINDING: Ensure the coordinator explicitly tracks its config source
+        coordinator.config_path = config_path
+
         # 🎯 MODULAR ENTRY POINT: Inject the coordinator tracking boundary cleanly
         orchestrator = CleanerOrchestrator(path_coordinator=coordinator)
         

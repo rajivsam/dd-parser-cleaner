@@ -2,11 +2,12 @@
 
 ## 🎯 Core Philosophy
 The Cleaner is a **domain-agnostic transformation engine**. It provides the "plumbing" (IO, validation, sequencing) while allowing the user to inject "domain science" via a unified **Custom Code Bridge**.
+**Simplicity Rule**: The engine is a deterministic, declarative pipeline. Interactivity is handled via the AI Agent (Natural Language to YAML). The engine generates reports; the Agent translates intent into instructions.
 
 ## 🏗️ The Logic Registry
 Instead of hardcoded rules, the cleaner treats all operations as lookups within a registry. This allows a seamless blend of built-in vectorized operations and user-defined scripts.
 
-### Configuration Contract (`config.yaml`)
+### 1. Configuration Contract (`config.yaml`)
 ```yaml
 cleaner:
   custom_logic_path: "scripts/domain_logic.py"
@@ -82,9 +83,14 @@ The Cleaner operates as an idempotent sequence with a **Consolidated Safety Gate
 1.  **Integrity Sync**: Reconciles the Data Dictionary against physical headers (Bucket Strategy).
 2.  **Type Alignment**: Coerces raw data into the physical types identified by the Profiler.
 3.  **The Action Loop**: Iterates through the `pipeline` defined in config.
-    *   **Lookup**: Check if the strategy is internal (e.g., `mean-imputation`) or `custom:`.
-    *   **Dispatch**: The engine selects the Signature Contract based on the current Pipeline Step (e.g., `impute` always uses the **Transform** contract).
-    *   **Validation**: Ensure the return type matches the contract expectations.
+
+### 🔄 Execution Sequence (Final Order)
+1. **Integrity Sync**: Reconcile Dictionary vs Raw.
+2. **Type Alignment**: Coerce types based on Parser metadata.
+3. **Row Filtering**: Execute custom/built-in row exclusion.
+4. **Imputation**: Resolve missing values via Hierarchy.
+5. **Derivation**: Feature engineering (e.g., Datetime-to-Numeric offsets).
+6. **Column Filtering**: Final physical removal of attributes (Deletes original datetimes and user-requested drops).
 
 ## 🛡️ Safety & Error Boundaries
 Custom code is treated as an "untrusted" layer. 

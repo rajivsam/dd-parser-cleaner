@@ -1,0 +1,51 @@
+{
+  "metadata": {
+    "domain": "Provisional Entity Assignment Report",
+    "version": "2026-05-29 06:05:47",
+    "authority_source": "sba_dd.csv",
+    "generation_timestamp": "2026-05-29 06:07:04"
+  },
+  "constants": {
+    "FORMATTING_PADDING": {
+      "zip": 5,
+      "id": 10
+    },
+    "FORMATTING_TITLE_CASE": [
+      "name",
+      "street",
+      "city"
+    ],
+    "CRITICAL_SCHEMA_MISMATCH": {
+      "BankName": null,
+      "BankFDICNumber": null,
+      "BankNCUANumber": null,
+      "BankStreet": null,
+      "BankCity": null,
+      "BankState": null,
+      "BankZip": null,
+      "SBAGuaranteedApproval": null,
+      "InitialInterestRate": null,
+      "FixedorVariableInterestInd": null,
+      "RevolverStatus": null,
+      "SoldSecMrktInd": null
+    }
+  },
+  "validation_rules": [
+    {
+      "rule_id": "geographic",
+      "description": "Geographic validation rule",
+      "attribute": "borrstate",
+      "operator": "eq",
+      "value": "US",
+      "action": "flag_warning"
+    },
+    {
+      "rule_id": "numeric_threshold",
+      "description": "Numerical threshold rule",
+      "attribute": "grossapproval",
+      "operator": ">",
+      "value": 1000,
+      "action": "quarantine"
+    }
+  ]
+}

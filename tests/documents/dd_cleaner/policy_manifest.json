@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "domain": "Provisional Entity Assignment Report",
+    "version": "2026-05-29 06:28:07",
+    "authority_source": "sba_dd.csv",
+    "generation_timestamp": "2026-05-29 06:28:38"
+  },
+  "constants": {
+    "FORMATTING_PADDING": {
+      "zip": 5,
+      "id": 10
+    },
+    "FORMATTING_TITLE_CASE": [
+      "name",
+      "street",
+      "city"
+    ],
+    "CRITICAL_SCHEMA_MISMATCH_EXCLUDED_ATTRIBUTES": [
+      "BankName",
+      "BankFDICNumber",
+      "BankNCUANumber",
+      "BankStreet",
+      "BankCity",
+      "BankState",
+      "BankZip",
+      "SBAGuaranteedApproval",
+      "InitialInterestRate",
+      "FixedorVariableInterestInd",
+      "RevolverStatus",
+      "SoldSecMrktInd"
+    ]
+  },
+  "validation_rules": [
+    {
+      "rule_id": "geographic_check",
+      "description": "Check if attribute is geographic",
+      "attribute": "Flag: Geographic",
+      "operator": "in",
+      "value": [
+        "True"
+      ],
+      "action": "quarantine"
+    }
+  ]
+}

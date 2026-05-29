@@ -2,12 +2,16 @@
 
 import importlib.util
 import logging
+import json
 import pandas as pd
 from pathlib import Path
-from typing import Tuple, Any
+from typing import Tuple, Any, Dict, List
 from path_coordinator import PathCoordinator
 from .null_profiler import DatasetDataProfiler
 from .reporter import CleaningReportManager
+from .imputation_engine import MissingValueHandler
+from .rules import CleaningRulesEngine
+from .validator import UniversalValidator
 
 class PipelineRunner:
     """
@@ -24,9 +28,11 @@ class PipelineRunner:
         self.profiler = DatasetDataProfiler(self.paths.profiling_report_path)
         
         # 🎯 DYNAMIC RESOLUTION: Bind the reporter to the output target defined in config
-        output_dir = self.paths.cleaner_output_directory
-        filename = self.cleaner_config.get("clean_output_filename", "cleaned_data.csv")
-        self.reporter = CleaningReportManager(output_dir / filename)
+        self.reporter = CleaningReportManager(Path(self.paths.clean_dataset_output_path))
+
+        # 📜 Load the Domain Policy Manifest (Phase 0 Discovery Artifact)
+        self.manifest = self._load_policy_manifest()
+        self.validator = UniversalValidator(self.manifest)
 
     def run(self, action: str = "full") -> pd.DataFrame:
         """Executes the sequence of cleaning steps defined in the authoritative config."""
@@ -51,25 +57,32 @@ class PipelineRunner:
         # 4. Step: Type Casting (Alignment with Parser Metadata)
         df = self._apply_type_casting(df, dict_df)
 
+        # 4.5 Step: Vectorized Cleaning (Manifest-driven formatting)
+        df = self._execute_vectorized_cleaning(df, dict_df)
+
         # 5. Step: Row Filtering (Custom Logic Bridge)
         df = self._execute_row_filtering(df)
 
         if action == "row_filter": return df
 
-        # 6. Step: Column Filtering (Physically drop attributes marked in config)
-        df = self._execute_column_filtering(df)
-
-        if action == "column_filter": return df
-
-        # 7. Step: Imputation (Missing Value Handler - Task 5.3)
+        # 6. Step: Imputation (Missing Value Handler - Task 5.3)
         df = self._execute_imputation(df, dict_df)
 
         if action == "impute": return df
 
-        # 8. Step: Derivation (Custom Feature Engineering - Task 5.4)
+        # 7. Step: Derivation (Custom Feature Engineering - Task 5.4)
         df = self._execute_derivation(df)
 
+        # 7.5 Step: Policy Validation (Universal Validator - Task 6.3)
+        df = self._execute_policy_validation(df)
+
         if action == "derive": return df
+
+        # 8. Step: Column Filtering (Physically drop attributes marked in config)
+        # Executed last to allow previous steps to utilize raw data before removal.
+        df = self._execute_column_filtering(df)
+
+        if action == "column_filter": return df
 
         # 9. Step: Null Profiling (Always performed for visibility)
         self.profiler.generate_null_quality_report(df)
@@ -79,6 +92,58 @@ class PipelineRunner:
 
         self.logger.info("🏁 Pipeline core increment (Integrity & Profiling) complete.")
         return df
+
+    def _load_policy_manifest(self) -> Dict[str, Any]:
+        """Loads the domain manifest from the documents directory."""
+        manifest_file = self.cleaner_config.get("policy_manifest_file", "policy_manifest.json")
+        
+        # Resolving via PathCoordinator authoritative routing
+        manifest_path = self.paths.cleaner_narrative_directory / manifest_file
+
+        if manifest_path.exists():
+            try:
+                with open(manifest_path, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                self.logger.error(f"❌ Failed to load policy manifest: {e}")
+        
+        self.logger.warning("⚠️ No Policy Manifest found. Proceeding with default heuristics.")
+        return {}
+
+    def _execute_vectorized_cleaning(self, df: pd.DataFrame, dict_df: pd.DataFrame) -> pd.DataFrame:
+        """Applies formatting rules (padding, casing) driven by the manifest."""
+        # Derive active prefixes from the dictionary entity assignments
+        prefixes = []
+        if "provisional_entity_assignment" in dict_df.columns:
+            prefixes = dict_df["provisional_entity_assignment"].unique().tolist()
+        
+        engine = CleaningRulesEngine(active_prefixes=prefixes, policy_manifest=self.manifest)
+        
+        self.logger.info("🧹 Applying manifest-driven vectorized transformations...")
+        return engine.execute_transformations(df)
+
+    def _execute_policy_validation(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Executes regulatory audit rules and isolates violations."""
+        df_out, quarantine_indices = self.validator.execute_validation(df)
+        
+        if quarantine_indices:
+            self.logger.warning(f"🛡️ Policy Validation: Isolating {len(quarantine_indices)} records to quarantine.")
+            
+            # Isolate records for the quarantine file
+            quarantine_df = df_out.loc[quarantine_indices]
+            self._write_quarantine_records(quarantine_df)
+            
+            # Remove from active pipeline
+            df_out = df_out.drop(index=quarantine_indices)
+            
+        return df_out
+
+    def _write_quarantine_records(self, df: pd.DataFrame) -> None:
+        """Persists isolated records to the configured quarantine directory."""
+        q_path = self.paths.quarantine_path
+        q_path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(q_path, index=False)
+        self.logger.info(f"📁 Isolated records saved to: {q_path}")
 
     def _execute_column_filtering(self, df: pd.DataFrame) -> pd.DataFrame:
         """Physically removes attributes specified in the configuration."""
@@ -129,54 +194,24 @@ class PipelineRunner:
 
     def _execute_imputation(self, df: pd.DataFrame, dict_df: pd.DataFrame) -> pd.DataFrame:
         """Task 5.3: Implements the Resolution Hierarchy for missing values."""
-        mv_config = self.cleaner_config.get("missing_values", {})
-        overrides = mv_config.get("attribute_overrides", {})
-        defaults = mv_config.get("logical_defaults", {})
-        custom_module = self._load_custom_logic()
-        
         # Identify columns with nulls
         null_cols = df.columns[df.isna().any()].tolist()
         if not null_cols:
             return df
             
         self.logger.info(f"🩹 Imputation: Processing {len(null_cols)} columns with missing data.")
-        
-        attr_col = "attribute_name"
-        if attr_col not in dict_df.columns:
-            attr_col = dict_df.columns[0]
+        # Use authoritative base_dir from coordinator
+        handler = MissingValueHandler(self.paths.config, self.paths.base_dir)
+
+        attr_col = "attribute_name" if "attribute_name" in dict_df.columns else dict_df.columns[0]
 
         for col in null_cols:
-            strategy = None
-            
-            # 1. Attribute Override (Highest Priority)
-            if col in overrides:
-                strategy = overrides[col]
-            # 2. Logical Type Default (Middle Priority)
-            elif col in dict_df[attr_col].values:
+            l_type = "unknown"
+            if col in dict_df[attr_col].values:
                 l_type = str(dict_df.loc[dict_df[attr_col] == col, 'logical_type'].iloc[0]).lower()
-                strategy = defaults.get(l_type)
-                
-            if not strategy:
-                continue
+            
+            df[col] = handler.resolve(df, col, l_type)
 
-            self.logger.debug(f"  - Imputing '{col}' using strategy: {strategy}")
-
-            # Execute Strategy
-            if strategy.startswith("custom:"):
-                func_name = strategy.split(":")[1]
-                if custom_module and hasattr(custom_module, func_name):
-                    func = getattr(custom_module, func_name)
-                    # Transform Contract: func(df, col) -> pd.Series
-                    df[col] = func(df, col)
-            elif strategy == "mean-imputation":
-                fill_val = df[col].mean()
-                # 🧮 Type Safety: Integer-typed columns (Int64) cannot accept float means with decimals
-                if pd.api.types.is_integer_dtype(df[col]) and not pd.isna(fill_val):
-                    fill_val = round(fill_val)
-                df[col] = df[col].fillna(fill_val)
-            elif strategy == "mode-imputation":
-                df[col] = df[col].fillna(df[col].mode()[0] if not df[col].mode().empty else None)
-                
         return df
 
     def _execute_derivation(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -201,12 +236,12 @@ class PipelineRunner:
 
     def _load_custom_logic(self) -> Any:
         """Dynamically loads the python module containing domain-specific logic."""
-        logic_path_str = self.cleaner_config.get("missing_values", {}).get("custom_logic_path")
+        logic_path_str = self.cleaner_config.get("custom_logic_path")
         if not logic_path_str:
             return None
             
-        # PathCoordinator handles working_dir (e.g., tests/)
-        logic_path = self.paths.raw_dataset_path.parent.parent / logic_path_str
+        # Use authoritative base_dir from coordinator
+        logic_path = self.paths.base_dir / logic_path_str
         
         if not logic_path.exists():
             self.logger.warning(f"⚠️ Custom logic script not found at {logic_path}")
@@ -289,8 +324,8 @@ class PipelineRunner:
             for ghost in sorted(list(bucket_c)):
                 self.logger.debug(f"    [GHOST]: {ghost}")
 
-        # Optional: Save the synchronized 'Bucket A' dictionary for downstream pipeline traceability
-        sync_path = self.paths.cleaner_output_directory / "synchronized_dictionary.csv"
+        # Optional: Save the synchronized 'Bucket A' dictionary to narrative directory for traceability
+        sync_path = self.paths.cleaner_narrative_directory / "synchronized_dictionary.csv"
         dict_df.to_csv(sync_path, index=False)
         self.logger.info(f"✅ Synchronized operational matrix saved to: {sync_path.name}")
 

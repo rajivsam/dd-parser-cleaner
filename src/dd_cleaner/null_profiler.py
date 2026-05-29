@@ -23,6 +23,10 @@ class DatasetDataProfiler:
             null_count = int(series.isnull().sum())
             null_ratio = float(series.isnull().mean())
             cardinality = int(series.nunique())
+            
+            # mixed type detection for Assistant Rule 3
+            non_null = series.dropna()
+            is_mixed = "mixed" in pd.api.types.infer_dtype(non_null) if not non_null.empty else False
 
             # 🧼 DTYPE NORMALIZATION: Simplify pandas dtypes for the human report
             raw_dtype = str(series.dtype).lower()
@@ -51,12 +55,18 @@ class DatasetDataProfiler:
                 "null_ratio": null_ratio,
                 "cardinality": cardinality,
                 "dtype": dtype,
+                "is_mixed_type": is_mixed,
                 "samples": samples
             }
 
         profile_df = pd.DataFrame(stats)
         self._write_markdown_report(profile_df)
-        self._write_json_bundle(json_bundle)
+        
+        # Wrap bundle in a structured format for the Assistant
+        self._write_json_bundle({
+            "columns": json_bundle,
+            "row_count": len(df)
+        })
 
     def execute(self, df: pd.DataFrame) -> None:
         """Backward compatible alias for the pipeline runner."""

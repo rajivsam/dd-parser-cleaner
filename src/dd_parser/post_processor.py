@@ -4,6 +4,7 @@ import re
 import json
 import hashlib
 import logging
+from datetime import datetime
 import pandas as pd
 from pathlib import Path
 from typing import Dict, Any, Tuple, List, Set
@@ -387,6 +388,7 @@ class MetadataPostProcessor:
 
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(f"# 📑 Data Dictionary: Provisional Entity Assignment Report\n")
+            f.write(f"**Generation Timestamp:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n")
             f.write(f"**Source Blueprint:** `{self.paths.data_dictionary_path.name}`\n\n")
             f.write(f"### 🏗️ Structural Assessment\n")
             f.write(f"- **Inferred Dataset Type:** `{dataset_type}`\n")

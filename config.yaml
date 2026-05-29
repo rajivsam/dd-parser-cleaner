@@ -1,40 +1,39 @@
 batch_size: 10
 cleaner:
   clean_output_filename: sba_loans_clean.csv
-  dd_cleaner_output_dir: dd_cleaner_results
-  profiling_report_filename: sba_loans_profiling_report.md
-  raw_dataset_file: sba_loans_raw.csv
-  quarantine_dir: quarantine
-  quarantine_filename: sba_loans_quarantine.csv
   column_filters:
-    drop_attributes:
-    - firstdisbursementdate
-    - asofdate
-    - paidinfulldate
     attribute_overrides: {}
+    drop_attributes: []
     ignore_recommendations: []
-  row_filters:
-    attribute_overrides:
-      InvalidLoanExclusion: custom:filter_invalid_loan_status_dates
-  missing_values:
-    custom_logic_path: scripts/domain_logic.py
-    logical_defaults:
-      numeric: mean-imputation
-      categorical: mode-imputation
-    attribute_overrides: {}
+  custom_logic_path: scripts/domain_logic.py
+  dd_cleaner_output_dir: dd_cleaner
+  handshake_file: parser_cleaner_handshake.md
+  policy_manifest_file: policy_manifest.json
   derivation:
-    attribute_overrides: {}
-  structural_assessment:
-    dataset_type: cross-sectional (inferred)
-    auto_drop_constant: true
-    null_threshold: 0.95
+    attribute_overrides:
+      loan_distress_metric: custom:derive_loan_distress_metric
+  missing_values:
+    attribute_overrides:
+      term_in_months: median-imputation
+    logical_defaults: {}
   pipeline:
   - integrity
   - assessment
-  - column_filter
   - row_filter
   - impute
   - derive
+  - column_filter
+  profiling_report_filename: sba_loans_profiling_report.md
+  quarantine_dir: quarantine
+  quarantine_filename: sba_loans_quarantine.csv
+  raw_dataset_file: sba_loans_raw.csv
+  row_filters:
+    attribute_overrides:
+      ActiveHealthUniverse: custom:filter_active_health_universe
+  structural_assessment:
+    auto_drop_constant: true
+    dataset_type: cross-sectional (inferred)
+    null_threshold: 0.95
 documents_dir: documents
 model_name: llama3.2
 parser:
