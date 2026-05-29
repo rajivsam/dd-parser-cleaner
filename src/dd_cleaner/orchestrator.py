@@ -75,6 +75,14 @@ class CleanerOrchestrator:
         if action == "integrity":
             return
 
+        # 📊 INDEPENDENT FEATURE: Null Profiling
+        if action == "profile":
+            self.console.print("\n[bold yellow]📊 Generating independent data quality profile...[/bold yellow]")
+            profiler = DatasetDataProfiler(Path(self.paths.profiling_report_path))
+            profiler.generate_null_quality_report(df)
+            self.console.print(f"[bold green]✅ Null Profile Generated![/bold green] See: [cyan]{self.paths.profiling_report_path}[/cyan]")
+            return
+
         # 🛡️ GATEKEEPER: Fetch current exclusions to filter recommendations
         col_filters = self.cleaner_cfg.get("column_filters", {})
         manual_drops = col_filters.get("drop_attributes", [])

@@ -2,7 +2,7 @@
 
 ## 🤖 Agent Operational Directives
 * **Domain Agnosticism**: Strict requirement. Zero hardcoded domain-specific items, magic numbers, or regulatory assumptions. All domain logic must be injected via config or discovered via the "Domain Discovery" phase.
-* **Communication Style**: Brief, direct answers by default. Explanations provided only on request.
+* **Communication Style**: Brief, direct answers by default. Explanations provided only on request. (Refined: Conversational but concise).
 * **Config Management**: The agent must never modify `config.yaml` directly. If a configuration update is required (e.g., adding `tag_heuristics`), the agent must request the user to update the file and provide the intended YAML snippet.
 *   **Behavioral Change Awareness**: Before suggesting changes that modify existing logic in `domain_logic.py` or functional settings in `config.yaml`, the agent must explicitly notify the user of the expected change in behavior.
 *   **Raw Data Verification**: The agent must strictly verify that every attribute name referenced in code or configuration changes matches an existing column in the raw dataset file to prevent schema drift and runtime errors.
@@ -11,11 +11,11 @@
 * **Stash Maintenance**: Consolidate output to ~90% of allowable space. Prioritize active designs, the Resumption Backlog, and the 7-Point Framework.
 * **Single Source of Truth**: This `documents/stash.md` is the sole authoritative record of the project's state. All other historical or redundant stashes have been removed.
 
-## 🛠️ Active Project State (Last Updated: May 28, 2026)
+## 🛠️ Active Project State (Last Updated: May 29, 2026)
 
 ### 1. Core Architecture
 * **Infrastructure**: `PathCoordinator` enforces zero-default path resolution; `logging` (INFO) provides uniform feedback. 
-* **Baseline Status**: Cleaner aligned with Manifest-driven logic; path routing and config keys synchronized for regression testing.
+* **Baseline Status**: Cleaner 'profile', 'discovery', and 'assessment' (recommendations) actions verified in ./tests workspace; system is logically locked and ready for full transformation execution.
 * **Phase 0: Domain Discovery (Design Goal)**: Shifting from hard-coded rules to "Policy-as-Configuration." Ingests supplemental docs (PDF/SOPs) via LLM to generate machine-readable JSON/YAML manifests.
 * **Cleaner Orchestration**: `PipelineRunner` established as an idempotent engine. It performs early type-casting to pivot cleaning logic off the authoritative parser output.
 * **Data Quality & Grounding**: `DatasetDataProfiler` generates Markdown reports and JSON metadata sidecars (cardinality, samples) to ground LLM inference in physical reality (Task 4.1).
@@ -104,7 +104,7 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
     *   **Task 5.2**: [STABILIZED] Integrity Sync (Bucket Strategy) implemented.
     *   **Task 5.2.1**: [STABILIZED] Phase 1.5 Structural Assessment & Cleaning Assistant Report generation implemented.
     *   **Task 5.3**: [STABILIZED] PipelineRunner refactored to delegate to MissingValueHandler engine.
-    * **Task 5.4**: [STABILIZED] Unified `CustomCodeBridge` implemented; logic path moved to global cleaner root.
+    * **Task 5.4**: [STABILIZED] Unified `CustomCodeBridge` implemented; `profile` action added as independent feature.
     *   **Task 5.5**: [COMPLETED] Add CLI support for `--action` to trigger explicit atomic cleaning steps.
     * **Task 5.6**: [LOCKED] Loan Health Monitoring suite (Active Universe Filter + Distress Metric) integrated and verified.
     * **Task 5.7**: [LEGACY] Policy Engine implemented with hard-coded logic; scheduled for Task 6.3 refactor.
@@ -122,6 +122,7 @@ The cleaner executes transformations in a strict, idempotent sequence:
 
 ### 0.1 Streamlined Execution
 The engine operates in two primary modes:
+*   **Profile Mode**: Generates independent missingness and structural health reports (Task 5.4).
 *   **Assessment Mode**: Generates reports and identifies unhandled structural anomalies.
 *   **Full Mode**: Executes the declarative pipeline defined in `config.yaml`.
 *   **Non-Blocking Logic**: The "Structural Safety Gate" has been transitioned to a reporting-only phase. The pipeline no longer halts on unhandled recommendations, allowing for fluid Agent-mediated configuration management.

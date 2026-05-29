@@ -1,0 +1,81 @@
+Field Name,Definition,physical_type,logical_type,attribute_name,provisional_entity_assignment,is_geographic
+asofdate,Date when the data was recorded,datetime,datetime,asofdate,Borrower,False
+program,Indicator of whether loan was approved under SBA's 7(a) or 504 loan program,int,numeric,program,LoanProgram,False
+locationid,SBA's unique lender ID code,int,numeric,locationid,Lender,False
+borrname,Borrower name,str,text,borrname,Borrower,False
+borrstreet,Borrower street address,str,text,borrstreet,Borrower,True
+borrcity,Borrower city,str,text,borrcity,Borrower,True
+borrstate,Borrower state,str,categorical,borrstate,Borrower,True
+borrzip,Borrower zip code,int,numeric,borrzip,Borrower,True
+grossapproval,Total loan amount,int,numeric,grossapproval,Borrower,False
+approvaldate,Date the loan was approved,datetime,datetime,approvaldate,Borrower,False
+approvalfy,Fiscal year the loan was approved,int,numeric,approvalfy,Borrower,False
+firstdisbursementdate,Date of first loan disbursement (if available),datetime,datetime,firstdisbursementdate,Borrower,False
+processingmethod,"Specific processing method loan was approved under.  See SOP 50 10 5 for definitions and rules for each processing method.  
+7(a) Processing Methods:
+	• 7a General = 7AG
+	• 7a with EWCP = 7EW
+	• 7a with WCP = WCP
+	• Builders Line of Credit (CAPLine) = SGC
+	• Certified Lenders Program = CLP
+	• Certified Lenders Program with EWCP = CLW
+	• Community Advantage Initiative = CAI
+	• Community Advantage International Trade = CAT
+	• Community Advantage RLOC = CAR
+	• Community Advantage Recovery Loan = CRL
+	• Community Express = CMX
+	• Contract Loan Line of Credit (CAPLine) = CTR
+	• Dealer Floor Plan Loans = FPL
+	• Domestic Revolving Line of Credit = DLC
+	• Export Express = EXP
+	• Export Import Harmonization  (EXIM) = EIH
+	• Gulf Opportunity Pilot Loan Program = GOL
+	• International Trade Loans = ITR
+	• Low Documentation Program = LDP
+	• Patriot Express Loans = PTX
+	• Preferred Lenders Program = PLP
+	• Preferred Lenders with EWCP = PLW
+	• Preferred Lenders with WCP = PWC
+	• Rural Loan Initiative = RLI
+	• SBA Express Bridge Loan = SBL
+	• SBA Express Program = SBX
+	• Seasonal Line of Credit (CAPLine) = SLC
+	• Small Asset Base Line of Credit (CAPLine) = SAB
+	• Small Loan Advantage Initiative = LAI
+	• Standard Asset Base Working Capital Line of Credit (CAPLine) = STC",str,categorical,processingmethod,LoanProgram,False
+subprogram,Subprogram description - specific subprogram loan was aproved under.  See SOP 50 10 5 for definitions and rules for each subprogram.,str,categorical,subprogram,Borrower,False
+terminmonths,Length of loan term,int,numeric,terminmonths,LoanProgram,False
+naicscode,North American Industry Classification System (NAICS) code,int,numeric,naicscode,LenderInformation,False
+naicsdescription,North American Industry Classification System (NAICS) description,str,text,naicsdescription,Borrower,False
+franchisecode,Franchise Code,float,numeric,franchisecode,LenderInformation,False
+franchisename,Franchise Name (if applicable),str,categorical,franchisename,LenderInformation,False
+projectcounty,County where project occurs,str,text,projectcounty,LoanProgram,True
+projectstate,State where project occurs,str,categorical,projectstate,LoanProgram,True
+sbadistrictoffice,SBA district office,str,categorical,sbadistrictoffice,LoanProgram,True
+congressionaldistrict,Congressional district where project occurs,int,numeric,congressionaldistrict,LoanProgram,True
+businesstype,"Borrower Business Type - Individual, Partnership, or Corporation",str,categorical,businesstype,Borrower,False
+businessage,"SBA began collecting the following business age information in fiscal year 2018:  
+• Change of Ownership
+• Existing or more than 2 years old
+• New Business or 2 years or less
+• Startup, Loan Funds will Open Business",str,categorical,businessage,Borrower,False
+loanstatus,"Current status of loan:  
+• COMMIT = Undisbursed
+• PIF = Paid In Full
+• CHGOFF = Charged Off
+• CANCLD = Cancelled
+• EXEMPT = The status of loans that have been disbursed but have not been cancelled, paid in full, or charged off are exempt from disclosure under FOIA Exemption 4",str,categorical,loanstatus,Borrower,False
+paidinfulldate,Date loan was paid in full (if applicable),datetime,datetime,paidinfulldate,Borrower,False
+chargeoffdate,Date SBA charged off loan (if applicable),datetime,datetime,chargeoffdate,Borrower,False
+grosschargeoffamount,Total loan balance charged off (includes guaranteed and non-guaranteed portion of loan),float,numeric,grosschargeoffamount,Borrower,False
+jobssupported,"Total Jobs Created + Jobs Retained as reported by lender on SBA Loan Application.  SBA does not review, audit, or validate these numbers - they are simply self-reported, good faith estimates by the lender.",int,numeric,jobssupported,LenderInformation,False
+collateralind,An indicator whether the SBA lender reported that the loan was backed by collateral,float,numeric,collateralind,Borrower,False
+cdc_name,No description available.,str,categorical,cdc_name,LenderInformation,False
+cdc_street,No description available.,str,categorical,cdc_street,Borrower,True
+cdc_city,No description available.,str,categorical,cdc_city,LoanProgram,True
+cdc_state,No description available.,str,categorical,cdc_state,LoanProgram,True
+cdc_zip,No description available.,int,numeric,cdc_zip,LenderInformation,True
+thirdpartylender_name,No description available.,str,text,thirdpartylender_name,LenderInformation,False
+thirdpartylender_city,No description available.,str,text,thirdpartylender_city,LenderInformation,True
+thirdpartylender_state,No description available.,str,categorical,thirdpartylender_state,LenderInformation,True
+thirdpartydollars,No description available.,float,numeric,thirdpartydollars,LenderInformation,False
