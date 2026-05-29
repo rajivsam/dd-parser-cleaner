@@ -1,8 +1,10 @@
 """Assistant module for generating cleaning recommendations based on data profile and dictionary."""
 
 import json
+import logging
 import pandas as pd
 import yaml
+import httpx
 from pathlib import Path
 from typing import Dict, Any, List
 from rich.console import Console
@@ -11,11 +13,14 @@ class CleaningAssistant:
     """Analyzes dataset physics and semantics to suggest cleaning strategies."""
 
     def __init__(self, config: Dict[str, Any], profile_path: Path, dd_path: Path):
+        self.logger = logging.getLogger(__name__)
         self.config = config
         self.profile_path = profile_path
         self.dd_path = dd_path
         self.console = Console()
         self.recommendations = []
+        self.prompts = self.config.get("cleaner", {}).get("missing_values", {}).get("prompts", {}).get("cleaning_assistant", {})
+        self.model_name = self.config.get("model_name", "llama3.2")
 
     def generate_recommendations(self) -> Dict[str, Any]:
         """Core heuristic engine to map columns to actions."""
@@ -94,7 +99,7 @@ class CleaningAssistant:
                     reason = f"Column contains {null_ratio:.1%} nulls but type is unknown. Strategy required."
 
             if action != "none":
-                processed_recs.append({
+                self.recommendations.append({
                     "attribute_name": col,
                     "logical_type": logical_type,
                     "entity_context": entity,
@@ -103,9 +108,52 @@ class CleaningAssistant:
                     "recommended_action": action,
                     "reason": reason
                 })
+
+        # 🤖 AUGMENTATION: Wire in the externalized LLM prompt logic
+        self.augment_with_llm(profile)
+
+        return {"recommendations": self.recommendations}
+
+    def augment_with_llm(self, profile: Dict[str, Any]) -> None:
+        """Augments heuristic recommendations with LLM insights."""
+        # Assembly Phase
+        prompt = self._assemble_recommendation_prompt(profile)
         
-        self.recommendations = processed_recs
-        return {"recommendations": processed_recs}
+        # Execution Phase
+        try:
+            response = self._call_llm(prompt)
+            llm_recs = self._process_recommendation_result(response)
+            self.recommendations.extend(llm_recs)
+        except Exception as e:
+            self.logger.error(f"❌ LLM Recommendation augmentation failed: {e}")
+
+    def _assemble_recommendation_prompt(self, profile: Dict[str, Any]) -> str:
+        """Handles prompt construction using templates from configuration."""
+        template = self.prompts.get("recommendation_template")
+        system_p = self.prompts.get("system", "You are a data engineering assistant.")
+        
+        # Safety check: ensure the placeholder exists in the externalized string
+        if template and "{profile}" in template:
+            return template.format(profile=json.dumps(profile))
+        elif template:
+            self.logger.warning("⚠️ Externalized prompt template missing '{profile}' placeholder. Appending profile to end.")
+            return f"{template}\n\nDATA PROFILE: {json.dumps(profile)}"
+            
+        return f"{system_p}\n\nAnalyze dataset profile: {json.dumps(profile)}"
+
+    def _process_recommendation_result(self, response: str) -> List[Dict[str, Any]]:
+        """Handles cleaning and parsing of the LLM JSON response."""
+        data = json.loads(response)
+        return data.get("recommendations", [])
+
+    def _call_llm(self, prompt: str) -> str:
+        """Standardized HTTP caller for Ollama."""
+        response = httpx.post(
+            "http://localhost:11434/api/generate",
+            json={"model": self.model_name, "prompt": prompt, "stream": False, "format": "json"},
+            timeout=60.0
+        )
+        return response.json().get("response", "{}")
 
     def write_artifacts(self, output_dir: Path):
         """Generates MD, CSV, and provisional YAML artifacts."""

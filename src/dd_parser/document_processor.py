@@ -9,13 +9,14 @@ import httpx
 class DocumentProcessor:
     """Orchestrates LLM-based extraction of rules from unstructured text documents."""
 
-    def __init__(self, model_name: str = "llama3.2"):
+    def __init__(self, model_name: str = "llama3.2", prompts: Dict[str, Any] = None):
         self.logger = logging.getLogger(__name__)
         self.model_name = model_name
-        self.system_prompt = (
+        self.prompts = prompts or {}
+        self.system_prompt = self.prompts.get("system", 
             "You are a logic extraction engine. Your task is to read domain documentation (SOPs, narratives, or requirements) "
-            "and extract thresholds, magic numbers, and validation rules into a strict JSON format."
-        )
+            "and extract thresholds, magic numbers, and validation rules into a strict JSON format.")
+        self.discovery_template = self.prompts.get("discovery_template")
 
     def extract_policy_manifest(self, doc_path: Path = None, dd_context: str = "") -> Dict[str, Any]:
         """
@@ -32,12 +33,34 @@ class DocumentProcessor:
         else:
             self.logger.info("⚠️ No narrative documentation provided. Discovery limited to Data Dictionary context.")
 
-        # 2. Build the extraction prompt
-        prompt = f"""
+        # 2. Assemble Prompt (Reading Phase)
+        prompt = self._assemble_discovery_prompt(content, dd_context)
+        
+        # 3. Execution and Processing Phase
+        try:
+            result = self._call_llm(prompt)
+            return self._process_discovery_result(result)
+        except Exception as e:
+            self.logger.error(f"❌ Failed to extract policy manifest: {e}")
+            return {}
+
+    def _assemble_discovery_prompt(self, content: str, dd_context: str) -> str:
+        """Handles prompt construction using templates from configuration."""
+        narrative_snippet = content[:4000] if content else "No narrative documentation provided."
+        dd_snippet = dd_context[:2000] if dd_context else "No data dictionary context provided."
+
+        if self.discovery_template:
+            return self.discovery_template.format(
+                system_prompt=self.system_prompt,
+                narrative_context=narrative_snippet,
+                dd_context=dd_snippet
+            )
+        
+        # Fallback to hardcoded template if config is missing or incomplete
+        return f"""
         {self.system_prompt}
 
         TASK: Extract domain-specific logic and rules from the provided context. 
-        You may receive a Narrative Document, a Data Dictionary summary, or both.
 
         Output ONLY a JSON object that follows this structure:
         {{
@@ -51,34 +74,23 @@ class DocumentProcessor:
 
         CONTEXT:
         --- NARRATIVE DOCUMENT ---
-        {content[:4000] if content else "No narrative documentation provided."}
+        {narrative_snippet}
 
         --- DATA DICTIONARY SUMMARY ---
-        {dd_context[:2000] if dd_context else "No data dictionary context provided."}
-
-        Information to extract:
-        - Numerical thresholds, limits, or caps.
-        - Business rules requiring specific ratios or data constraints.
-        - Formatting constants. IMPORTANT: Use the following keys in the "constants" object:
-            1. "FORMATTING_PADDING": A map of column name tokens to their required digit width (e.g., {{"zip": 5, "id": 10}}).
-            2. "FORMATTING_TITLE_CASE": A list of column name tokens that should be title-cased (e.g., ["name", "street", "city"]).
-        - Other business-specific magic numbers should be at the root of the "constants" object.
+        {dd_snippet}
         """
-        # 3. Call Local LLM (Ollama implementation)
-        try:
-            result = self._call_llm(prompt)
-            # Basic JSON cleanup in case the LLM includes markdown backticks
-            if "```json" in result:
-                result = result.split("```json")[1].split("```")[0]
-            elif "```" in result:
-                result = result.split("```")[1].split("```")[0]
-            
-            manifest = json.loads(result.strip())
-            self.logger.info(f"✅ Successfully extracted manifest for domain: {manifest.get('metadata', {}).get('domain')}")
-            return manifest
-        except Exception as e:
-            self.logger.error(f"❌ Failed to extract policy manifest: {e}")
-            return {}
+
+    def _process_discovery_result(self, result: str) -> Dict[str, Any]:
+        """Handles cleaning and parsing of the LLM JSON response."""
+        # Basic JSON cleanup in case the LLM includes markdown backticks
+        if "```json" in result:
+            result = result.split("```json")[1].split("```")[0]
+        elif "```" in result:
+            result = result.split("```")[1].split("```")[0]
+        
+        manifest = json.loads(result.strip())
+        self.logger.info(f"✅ Successfully extracted manifest for domain: {manifest.get('metadata', {}).get('domain')}")
+        return manifest
 
     def _call_llm(self, prompt: str) -> str:
         """Executes a local inference call via Ollama API (HTTP)."""

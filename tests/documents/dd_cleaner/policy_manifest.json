@@ -1,43 +1,36 @@
 {
   "metadata": {
-    "domain": "Provisional Entity Assignment Report",
-    "version": "2026-05-29 06:28:07",
-    "authority_source": "sba_dd.csv",
-    "generation_timestamp": "2026-05-29 06:28:38"
+    "domain": "SBA Loan Data",
+    "version": "1.0",
+    "authority_source": "SBA",
+    "generation_timestamp": "2026-05-29 09:18:35"
   },
   "constants": {
-    "FORMATTING_PADDING": {
-      "zip": 5,
-      "id": 10
-    },
-    "FORMATTING_TITLE_CASE": [
-      "name",
-      "street",
-      "city"
-    ],
-    "CRITICAL_SCHEMA_MISMATCH_EXCLUDED_ATTRIBUTES": [
-      "BankName",
-      "BankFDICNumber",
-      "BankNCUANumber",
-      "BankStreet",
-      "BankCity",
-      "BankState",
-      "BankZip",
-      "SBAGuaranteedApproval",
-      "InitialInterestRate",
-      "FixedorVariableInterestInd",
-      "RevolverStatus",
-      "SoldSecMrktInd"
-    ]
+    "cross-sectional": true,
+    "numeric": "int|float",
+    "datetime": "date|time",
+    "text": "str",
+    "categorical": "str|enum"
   },
   "validation_rules": [
     {
-      "rule_id": "geographic_check",
-      "description": "Check if attribute is geographic",
-      "attribute": "Flag: Geographic",
+      "rule_id": "geographic_flagging",
+      "description": "Flag rows with geographic attributes that are not explicitly marked as such.",
+      "attribute": "borrstreet|borrcity|borrstate|projectcounty|projectstate|sbadistrictoffice|congressionaldistrict|businesstype",
       "operator": "in",
       "value": [
         "True"
+      ],
+      "action": "flag_warning"
+    },
+    {
+      "rule_id": "numeric_check",
+      "description": "Check for numeric values in non-numeric fields.",
+      "attribute": "grossapproval|approvalfy|approvaldate|franchisecode|congressionaldistrict|businesstype",
+      "operator": "in",
+      "value": [
+        "int",
+        "float"
       ],
       "action": "quarantine"
     }

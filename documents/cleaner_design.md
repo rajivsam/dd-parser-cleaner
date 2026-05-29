@@ -108,4 +108,21 @@ Custom code is treated as an "untrusted" layer.
 4.  **Execute**: Run the Cleaner CLI to apply the logic at scale.
 
 ---
+
+## 🧠 LLM Prompt Externalization for Cleaning Assistant
+
+The `CleaningAssistant` now leverages externalized LLM prompts, moving the "intelligence" of recommendation generation from hardcoded logic to declarative configuration. This offers significant advantages:
+
+*   **Flexibility**: Prompts can be easily tuned or updated in `config.yaml` without modifying core Python code, allowing for rapid iteration on recommendation quality.
+*   **Transparency**: The instructions given to the LLM are visible and auditable in the configuration file, making the system's behavior more understandable for both human users and other AI agents.
+*   **Domain Agnosticism**: The core `CleaningAssistant` logic remains generic, while domain-specific nuances for generating recommendations can be injected via the prompts.
+
+### Assembly -> Execution -> Processing Pattern
+
+LLM interactions within the `CleaningAssistant` follow a clear pattern:
+1.  **Assembly**: Prompts are constructed dynamically by reading templates from `config.yaml` and injecting relevant runtime data (e.g., the dataset profile).
+2.  **Execution**: The assembled prompt is sent to the LLM (via `_call_llm`).
+3.  **Processing**: The LLM's JSON response is parsed, validated, and integrated into the overall recommendations.
+
+---
 *This document serves as the authoritative methodology for Task 5.x build-outs.*

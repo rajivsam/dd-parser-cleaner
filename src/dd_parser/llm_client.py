@@ -23,6 +23,7 @@ class LLMEntityClassifier:
         self.parser_config = parser_config if parser_config is not None else {}
         self.model_name = self.global_config.get("model_name", "llama3.2")
         self.system_prompt = self.global_config.get("system_prompt", "Respond strictly in JSON.")
+        self.prompts = self.parser_config.get("prompts", {}).get("entity_classifier", {})
 
     def is_ready(self) -> bool:
         """🧠 INFRASTRUCTURE PROBE: Verifies local Ollama server status endpoint synchronously."""
@@ -59,39 +60,54 @@ class LLMEntityClassifier:
             for a, d in zip(attributes[:sample_size], descriptions[:sample_size])
         ]
 
-        type_prompt = (
-            "Analyze this data dictionary snippet to determine the dataset's structural type.\n"
-            f"Data: {json.dumps(sample_fields)}\n\n"
-            "CRITERIA:\n"
-            "1. 'panel': Schema contains repeating attribute sets for different time periods in one row.\n"
-            "2. 'cross-sectional': Data represents a single snapshot. A single reference date column "
-            "(like 'asOfDate' or 'ReportDate') indicates a snapshot, NOT a panel.\n\n"
-            "Return a strict JSON object:\n"
-            '{"dataset_type": "cross-sectional" | "panel"}'
-        )
+        # Assembly Phase
+        type_prompt = self._assemble_dataset_type_prompt(sample_fields)
 
+        # Execution and Processing Phase
         try:
-            response = httpx.post(
-                "http://localhost:11434/api/generate",
-                json={
-                    "model": self.model_name,
-                    "prompt": f"{self.system_prompt}\n\n{type_prompt}",
-                    "stream": False,
-                    "options": {"temperature": 0.0},
-                    "format": "json"
-                },
-                timeout=15.0
-            )
-            if response.status_code == 200:
-                raw_json = response.json().get("response", "{}")
-                data = json.loads(raw_json)
-                inferred = data.get("dataset_type", "cross-sectional").lower()
-                self.logger.info(f"📊 Structural Assessment: Inferred dataset as '{inferred}'")
-                return inferred
+            response = self._call_llm(type_prompt)
+            return self._process_dataset_type_result(response)
         except Exception as e:
             self.logger.warning(f"⚠️ Dataset type inference failed: {e}")
         
         return "cross-sectional"
+
+    def _assemble_dataset_type_prompt(self, sample_fields: List[Dict[str, str]]) -> str:
+        template = self.prompts.get("dataset_type_template")
+        if template:
+            return template.format(sample_fields=json.dumps(sample_fields))
+        
+        return (
+            "Analyze this data dictionary snippet to determine the dataset's structural type.\n"
+            f"Data: {json.dumps(sample_fields)}\n\n"
+            "CRITERIA:\n"
+            "1. 'panel': Schema contains repeating attribute sets for different time periods in one row.\n"
+            "2. 'cross-sectional': Data represents a single snapshot.\n\n"
+            "Return a strict JSON object: {'dataset_type': 'cross-sectional' | 'panel'}"
+        )
+
+    def _process_dataset_type_result(self, raw_json: str) -> str:
+        data = json.loads(raw_json)
+        inferred = data.get("dataset_type", "cross-sectional").lower()
+        self.logger.info(f"📊 Structural Assessment: Inferred dataset as '{inferred}'")
+        return inferred
+
+    def _call_llm(self, prompt: str, timeout: float = 15.0) -> str:
+        """Standardized HTTP caller for Ollama."""
+        response = httpx.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": self.model_name,
+                "prompt": f"{self.system_prompt}\n\n{prompt}",
+                "stream": False,
+                "options": {"temperature": 0.0},
+                "format": "json"
+            },
+            timeout=timeout
+        )
+        if response.status_code == 200:
+            return response.json().get("response", "{}")
+        raise RuntimeError(f"Ollama API error: {response.text}")
 
     def discover_macro_domain(self, attributes: List[str], descriptions: List[str]) -> List[str]:
         """🧠 PHASE 1: Scans a sampling of the schema to establish global entity categories dynamically."""
@@ -101,44 +117,37 @@ class LLMEntityClassifier:
             for a, d in zip(attributes[:sample_size], descriptions[:sample_size])
         ]
 
-        macro_prompt = (
-            f"You are a master data architect. Scan this snippet of a data dictionary blueprint:\n"
-            f"{json.dumps(sample_fields)}\n\n"
-            f"Identify the macroscopic business domain (e.g., Banking, Healthcare, Insurance).\n"
-            f"Then, generate a list of 4 to 6 coarse-grained logical entity concepts "
-            f"suited to house these attributes.\n\n"
-            f"CRITICAL RULES:\n"
-            f"1. DO NOT lump all attributes into a single catch-all category name.\n"
-            f"2. Separate attributes by their intrinsic structural nature (e.g., distinguish between "
-            f"Demographics, Risk Profiles, Financial metrics, and Spatial/Temporal metadata).\n"
-            f"3. Make sure the entity concepts are granular enough to support target variations.\n\n"
-            f"Return a strict JSON object with a single key 'logical_entities' containing a list of strings.\n"
-            f"Example:\n"
-            f'{{"logical_entities": ["Demographics", "RiskAssessment", "Financials", "Location"]}}'
-        )
+        # Assembly Phase
+        macro_prompt = self._assemble_macro_prompt(sample_fields)
 
+        # Execution and Processing Phase
         try:
-            response = httpx.post(
-                "http://localhost:11434/api/generate",
-                json={
-                    "model": self.model_name,
-                    "prompt": f"{self.system_prompt}\n\n{macro_prompt}",
-                    "stream": False,
-                    "options": {"temperature": 0.0},
-                    "format": "json"
-                },
-                timeout=15.0
-            )
-            if response.status_code == 200:
-                raw_json = response.json().get("response", "{}")
-                data = json.loads(raw_json)
-                discovered = data.get("logical_entities", [])
-                if discovered:
-                    self.logger.info(f"🎯 Dynamic Domain Discovery Successful! Extracted Core Concepts: {discovered}")
-                    return [str(item) for item in discovered]
+            response = self._call_llm(macro_prompt)
+            return self._process_macro_result(response)
         except Exception as e:
             self.logger.warning(f"⚠️ Macro domain onboarding lookup bypassed: {e}")
             
+        return ["unassigned"]
+
+    def _assemble_macro_prompt(self, sample_fields: List[Dict[str, str]]) -> str:
+        template = self.prompts.get("macro_domain_template")
+        if template:
+            return template.format(sample_fields=json.dumps(sample_fields))
+        
+        return (
+            f"You are a master data architect. Scan this snippet of a data dictionary blueprint:\n"
+            f"{json.dumps(sample_fields)}\n\n"
+            f"Identify the macroscopic business domain (e.g., Banking, Healthcare, Insurance).\n"
+            f"Then, generate a list of 4 to 6 coarse-grained logical entity concepts.\n"
+            f"Return a strict JSON object: {{'logical_entities': ['A', 'B']}}"
+        )
+
+    def _process_macro_result(self, raw_json: str) -> List[str]:
+        data = json.loads(raw_json)
+        discovered = data.get("logical_entities", [])
+        if discovered:
+            self.logger.info(f"🎯 Dynamic Domain Discovery Successful! Extracted Core Concepts: {discovered}")
+            return [str(item) for item in discovered]
         return ["unassigned"]
 
     def discover_entities(
@@ -165,40 +174,42 @@ class LLMEntityClassifier:
             stats = grounding_profile.get(attr_norm, {})
             stats_str = json.dumps(stats) if stats else "No physical data profile available."
             
-            user_prompt = (
-                f"Classify this single data schema field:\n"
-                f"Field Name: {attr_str}\n"
-                f"Description: {str(desc)}\n"
-                f"Physical Data Profile (Grounding Context): {stats_str}\n\n"
-                f"Instructions:\n"
-                f"1. Select the best match for 'entity_assignment' from these discovered choices: [{hints_str}].\n"
-                f"2. Evaluate dedicated boolean flags for these explicit semantic targets: {targets_str}.\n\n"
-                f"Return a strict flat JSON object exactly like this example:\n"
-                f'{{"entity_assignment": "YourChoice", "is_geographic": false}}'
-            )
+            # Assembly Phase
+            user_prompt = self._assemble_entity_prompt(attr_str, str(desc), stats_str, hints_str, targets_str)
 
+            # Execution Phase
             try:
-                response = httpx.post(
-                    "http://localhost:11434/api/generate",
-                    json={
-                        "model": self.model_name,
-                        "prompt": f"{self.system_prompt}\n\n{user_prompt}",
-                        "stream": False,
-                        "options": {"temperature": 0.0},
-                        "format": "json"
-                    },
-                    timeout=10.0
-                )
-                if response.status_code == 200:
-                    raw_json = response.json().get("response", "{}")
-                    assignments[attr_str] = json.loads(raw_json)
-                    continue
+                response = self._call_llm(user_prompt, timeout=10.0)
+                assignments[attr_str] = json.loads(response)
+                continue
             except Exception as e:
                 self.logger.error(f"⚠️ Network error or bad payload during atomic parse of '{attr_str}': {e}")
 
-            # 🧠 DOMAIN-AGNOSTIC EMPTY FALLBACK: Zero hardcoded strings or guesswork
+            # Fallback Phase
             assignments[attr_str] = {"entity_assignment": "unassigned"}
             for target in explicit_targets:
                 assignments[attr_str][f"is_{target}"] = False
                 
         return assignments
+
+    def _assemble_entity_prompt(self, attr_str, desc_str, stats_str, hints_str, targets_str) -> str:
+        template = self.prompts.get("entity_discovery_template")
+        if template:
+            return template.format(
+                attr_str=attr_str,
+                desc_str=desc_str,
+                stats_str=stats_str,
+                hints_str=hints_str,
+                targets_str=targets_str
+            )
+        
+        return (
+            f"Classify this single data schema field:\n"
+            f"Field Name: {attr_str}\n"
+            f"Description: {desc_str}\n"
+            f"Physical Data Profile: {stats_str}\n\n"
+            f"Instructions:\n"
+            f"1. Select 'entity_assignment' from [{hints_str}].\n"
+            f"2. Evaluate flags: {targets_str}.\n\n"
+            f"Return a strict flat JSON object."
+        )

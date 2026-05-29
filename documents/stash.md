@@ -29,11 +29,13 @@
 * **Orchestrator**: Executes a two-phase LLM pipeline (Macro Discovery + Atomic Row Assignment) synchronized with physical headers. Handshake Safety Gate is active.
 * **Classification**: Phase 1 establishes logical entities/keywords; Phase 2 executes atomic row assignment via Llama 3.2.
 * **Post-Processor**: Derives prefix stems algorithmically; strips prefixes to validate tags; applies authoritative `overrides`. Generates Handshake with Timestamp.
+* **LLM Prompt Management**: All LLM interactions now follow an **Assembly -> Execution -> Processing** pattern, with prompts externalized to `config.yaml` for declarative control and dynamic tuning.
 * **Integrity Engine**: `IntegrityEngine` enforces a "Bucket Strategy" to validate the bridge between the Data Dictionary and Raw Data.
     * **Bucket A (Operational)**: Matches found. **Bucket B (Orphans)**: In Dictionary but missing from Data. **Bucket C (Ghosts)**: In Data but missing from Dictionary.
 * **Policy Engine**: `UniversalValidator` consumes externalized manifests for domain logic. Legacy hard-coded SBA thresholds ($350k caps) have been retired.
 * **Reporting**: Unified `DS_type` inference; generates MD reports with "Critical Schema Mismatch" warnings and structured CSV matrices (stripped of orphans).
 * **Structural Assessment (Phase 1.5)**: Integrated LLM-based inference in `LLMEntityClassifier` to distinguish between `panel` and `cross-sectional` data structures.
+    * **Prompt Externalization**: The prompts for `LLMEntityClassifier` are now externalized to `config.yaml`, allowing dynamic tuning of dataset type inference.
     * **Logic**: Detects repeating temporal attribute sets vs. single snapshot timestamps (e.g., `asOfDate`). 
     * **Implementation**: The orchestrator persists the inferred `dataset_type` to `config.yaml` with an `(inferred)` tag using absolute path resolution.
 * **Standardized CLI Entry Points**: The project is configured with authoritative CLI commands: `classify-entities` for the Metadata Parser and `clean-dataset` for the Dataset Cleaner. Users should always run these commands instead of direct python calls to ensure consistent path resolution and orchestration.
@@ -41,6 +43,7 @@
 * **Testing Workspace Context**: The `tests/` directory is the primary sandbox for development. **CRITICAL**: When executing CLI tools (e.g., `clean-dataset --workspace ./tests/ --action discovery`), you must point `--workspace` to `./tests/`. This ensures the `PathCoordinator` resolves the simulated KMDS hierarchy correctly.
 * **Cleaning Assistant**: LOCKED 7-point heuristic framework producing segmented reports (`cleaning_recommendations.md`) and `provisional_config.yaml`.
 * **Loan Health & Distress Monitoring**: LOCKED ordinal metric system.
+    * **Prompt Externalization**: The `CleaningAssistant` now leverages externalized LLM prompts from `config.yaml` for augmented cleaning recommendations.
     * **Universe Filter**: Excludes administrative/integrity noise (`CANCLD`, `EXEMPT`, `COMMIT`, `pna`).
     * **Distress Metric**: 3-tier ordinal score (0: Healthy, 1: Under Duress, 2: Written Off) derived via `custom:derive_loan_distress_metric`.
 
@@ -57,6 +60,43 @@ cleaner:
   column_filters:
     drop_attributes: ["firstdisbursementdate", "asofdate", "paidinfulldate"]
   quarantine_dir: quarantine
+  prompts:
+    entity_classifier:
+      dataset_type_template: |
+        Analyze this data dictionary snippet to determine the dataset's structural type.
+        Data: {sample_fields}
+
+        CRITERIA:
+        1. 'panel': Schema contains repeating attribute sets for different time periods in one row.
+        2. 'cross-sectional': Data represents a single snapshot. A single reference date column (like 'asOfDate' or 'ReportDate') indicates a snapshot, NOT a panel.
+
+        Return a strict JSON object:
+        {{"dataset_type": "cross-sectional" | "panel"}}
+      macro_domain_template: |
+        You are a master data architect. Scan this snippet of a data dictionary blueprint:
+        {sample_fields}
+
+        Identify the macroscopic business domain (e.g., Banking, Healthcare, Insurance).
+        Then, generate a list of 4 to 6 coarse-grained logical entity concepts suited to house these attributes.
+
+        CRITICAL RULES:
+        1. DO NOT lump all attributes into a single catch-all category name.
+        2. Separate attributes by their intrinsic structural nature (e.g., distinguish between Demographics, Risk Profiles, Financial metrics, and Spatial/Temporal metadata).
+        3. Make sure the entity concepts are granular enough to support target variations.
+
+        Return a strict JSON object with a single key 'logical_entities' containing a list of strings.
+      entity_discovery_template: |
+        Classify this single data schema field:
+        Field Name: {attr_str}
+        Description: {desc_str}
+        Physical Data Profile (Grounding Context): {stats_str}
+
+        Instructions:
+        1. Select the best match for 'entity_assignment' from these discovered choices: [{hints_str}].
+        2. Evaluate dedicated boolean flags for these explicit semantic targets: {targets_str}.
+
+        Return a strict flat JSON object exactly like this example:
+        {{"entity_assignment": "YourChoice", "is_geographic": false}}
   quarantine_filename: isolated_records.csv
 ```
 
