@@ -90,7 +90,7 @@ The Cleaner operates as an idempotent sequence with a **Consolidated Safety Gate
 3. **Row Filtering**: Execute custom/built-in row exclusion.
 4. **Imputation**: Resolve missing values via Hierarchy.
 5. **Derivation**: Feature engineering (e.g., Datetime-to-Numeric offsets).
-6. **Column Filtering**: Final physical removal of attributes (Deletes original datetimes and user-requested drops).
+6. **Column Filtering (Terminal Action)**: Final physical removal of attributes. This is the last transformation step, ensuring all preceding actions (Impute, Derive, Policy Audit) have access to the full raw feature set.
 
 ## 🛡️ Safety & Error Boundaries
 Custom code is treated as an "untrusted" layer. 

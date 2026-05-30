@@ -8,24 +8,49 @@
 *   **Raw Data Verification**: The agent must strictly verify that every attribute name referenced in code or configuration changes matches an existing column in the raw dataset file to prevent schema drift and runtime errors.
 * **KMDS Handshake Protocol**: The Cleaner enforces the existence of `parser_cleaner_handshake.md` (the "handshake file") in `documents/dd_cleaner/` before execution. This file serves as the fixed "Inbox" artifact produced by the Parser and contains semantic context for discovery.
 *   **Migration Role**: The agent acts as a facilitator for "Tag & Inject" workflows. Users provide legacy code or regulatory docs; the agent translates them into standardized hooks in `scripts/domain_logic.py` or Policy Manifests.
+* **Migration Initialization Protocol (STRICT)**: When entering a Migration Assistant session, the Agent MUST NOT propose code or config changes until the following anchor steps are complete:
+    1.  Request the absolute path of the `working_dir`.
+    2.  Instruct the user to run `prepare_workspace()` to validate the environment.
+    3.  Verify the presence of the `parser_cleaner_handshake.md` via the `PathCoordinator`.
+* **Custom Logic Isolation (STRICT)**: `domain_logic.py` must ONLY be written to the `scripts/` directory under the `working_dir`. The Agent must never place this file in the project root or the `notebooks/` folder. The `PathCoordinator` is the sole source of truth for this location.
+* **Root-Relative Pathing**: All paths injected into `config.yaml` (e.g., `custom_logic_path`) must be root-relative (e.g., `scripts/domain_logic.py`) to maintain domain agnosticism and portability across environments.
+* **The Integration Handshake**: 
+    1. **Agent**: Requests the `working_dir` and confirms initialization.
+    2. **User**: Confirms initialization and provides documentation/code for migration.
+    3. **Agent**: Proposes logic stubs and config updates using only relative paths.
 * **Stash Maintenance**: Consolidate output to ~90% of allowable space. Prioritize active designs, the Resumption Backlog, and the 7-Point Framework.
 * **Single Source of Truth**: This `documents/stash.md` is the sole authoritative record of the project's state. All other historical or redundant stashes have been removed.
 
 ## 🎭 User Experience (UX) Personas & Interaction Paths [LOCKED]
 *   **Path 1: The Agent-Led Workflow**: Intended for quick iterative refinement. The user reviews `cleaning_recommendations.md` and asks the Agent to implement specific handlers. The Agent writes to `domain_logic.py`, updates `config.yaml`, and the user runs `clean-dataset --action full`.
-*   **Path 2: The Notebook-Led Explorer**: Intended for deep domain science (e.g., KNN, ML-based imputation). The user instantiates the `PipelineRunner` in a Jupyter/VSCode Notebook, tests transformations on dataframe slices, and once satisfied, instructs the Agent to "wire in" the finalized logic through Path 1.
+*   **Path 2: The Notebook-Led Explorer**: Formalized via `src.dd_cleaner.notebook_utils`. Users initialize a session with a `working_dir`, giving them a pre-configured `PathCoordinator` and a direct link to the `domain_logic.py` module for live verification.
 *   **Handshake Centricity**: Both paths rely on the `parser_cleaner_handshake.md` to provide semantic context to the Agent/User.
-*   **Safety Gate**: The Cleaner enforces the presence of the Handshake file; discovery and cleaning cannot proceed without Parser metadata.
-
+*   **Safety Gate**: The Cleaner enforces the presence of the Handshake file; discovery and cleaning cannot proceed without Parser metadata. Relies on `PathCoordinator` to resolve KMDS standard directories.
+*   **Cleanup Protocol**: Path 2 requires an explicit "Abort" command from the user to remove experimental code/config from the project if a trial is unsuccessful.
+ 
 ## 🛠️ Active Project State (Last Updated: May 29, 2026 - Session Wrap)
+
+### 🚀 Active Pivot: Migration Packaging & UAT
+* **Objective**: Package the shell and validate the "Migration Assistant" persona using only documented guides.
+* **Status**: `config.yaml` has been purged of custom logic hooks to baseline the discovery phase.
+* **Next Action**: Execute `classify-entities` and `clean-dataset --action discovery` to verify the "Zero-Knowledge" state.
+* **Workflow**: `uv` packaging -> PyPI/Local install -> Migration Shell Init.
 
 ### 1. Core Architecture
 * **Infrastructure**: `PathCoordinator` enforces zero-default path resolution; `logging` (INFO) provides uniform feedback. 
 * **Baseline Status**: Cleaner 'profile', 'discovery', and 'assessment' (recommendations) actions verified in ./tests workspace; system is logically locked and ready for full transformation execution.
-* **Phase 0: Domain Discovery (Design Goal)**: Shifting from hard-coded rules to "Policy-as-Configuration." Ingests supplemental docs (PDF/SOPs) via LLM to generate machine-readable JSON/YAML manifests.
-* **Cleaner Orchestration**: `PipelineRunner` established as an idempotent engine. It performs early type-casting to pivot cleaning logic off the authoritative parser output.
+* **Phase 0: Domain Discovery (Design Goal)**: Shifting from hard-coded rules to "Policy-as-Configuration." Ingests supplemental docs (PDF/SOPs) from KMDS `documents/` via LLM to generate machine-readable JSON/YAML manifests.
+* **Logic Initialization**: `scripts/domain_logic.py` is initialized and verified as the single repository for custom `Transform`, `Filter`, and `Derivation` contracts.
+* **Cleaner Orchestration**: `PipelineRunner` established as an idempotent engine. It enforces **Terminal Column Filtering** as a core heuristic.
+* **Execution Pipeline**:
+    1. Integrity Sync (Bucket Strategy)
+    2. Structural Assessment (Reporting)
+    3. Row Filtering
+    4. Type Casting & Imputation
+    5. Derivation & Policy Validation
+    6. Column Filtering (Terminal Transformation)
 * **Data Quality & Grounding**: `DatasetDataProfiler` generates Markdown reports and JSON metadata sidecars (cardinality, samples) to ground LLM inference in physical reality (Task 4.1).
-* **Project Cleanup**: The `gemini/` directory has been deleted to resolve context drift andtechnical debt. Redundant configurations (`insconfig.yaml`, `mn_traffic.yaml`, `sbaconfig.yaml`) are retained as legitimate counterparts for secondary datasets.
+* **Project Cleanup**: The `gemini/` directory has been deleted to resolve context drift and technical debt. Redundant configurations (`insconfig.yaml`, `mn_traffic.yaml`, `sbaconfig.yaml`) are retained as legitimate counterparts for secondary datasets.
 * **Orchestrator**: Executes a two-phase LLM pipeline (Macro Discovery + Atomic Row Assignment) synchronized with physical headers. Handshake Safety Gate is active.
 * **Classification**: Phase 1 establishes logical entities/keywords; Phase 2 executes atomic row assignment via Llama 3.2.
 * **Post-Processor**: Derives prefix stems algorithmically; strips prefixes to validate tags; applies authoritative `overrides`. Generates Handshake with Timestamp.
@@ -60,6 +85,10 @@ cleaner:
   column_filters:
     drop_attributes: ["firstdisbursementdate", "asofdate", "paidinfulldate"]
   quarantine_dir: quarantine
+  row_filters:
+    attribute_overrides:
+      ActiveHealthUniverse: custom:filter_active_health_universe
+  missing_values: { logical_defaults: {} }
   prompts:
     entity_classifier:
       dataset_type_template: |
@@ -129,6 +158,11 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
 ---
 
 ## 🎯 Resumption Backlog (High Priority Pivot)
+
+0. **Migration Trial (Active Pivot)**:
+    * **Task 7.1**: [IN PROGRESS] Purge custom logic from base config and baseline discovery runs.
+    * **Task 7.2**: Package `dd-parser-cleaner` using `uv` for installation in external migration workspace.
+    * **Task 7.3**: Initialize "Migration Assistant" persona using `agent_user_guide.md` in the new environment.
 
 0. **Phase 0: Domain Discovery & Zero-Hardcoding**:
     * **Task 6.1**: [STABILIZED] Generic **Policy Manifest** schema implemented.

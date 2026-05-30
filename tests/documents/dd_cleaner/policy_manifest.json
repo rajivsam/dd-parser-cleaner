@@ -1,36 +1,30 @@
 {
   "metadata": {
     "domain": "SBA Loan Data",
-    "version": "1.0",
-    "authority_source": "SBA",
-    "generation_timestamp": "2026-05-29 09:18:35"
+    "version": "2026-05-30",
+    "authority_source": "sba_dd.csv",
+    "generation_timestamp": "2026-05-30 07:50:37"
   },
-  "constants": {
-    "cross-sectional": true,
-    "numeric": "int|float",
-    "datetime": "date|time",
-    "text": "str",
-    "categorical": "str|enum"
-  },
+  "constants": {},
   "validation_rules": [
     {
       "rule_id": "geographic_flagging",
-      "description": "Flag rows with geographic attributes that are not explicitly marked as such.",
-      "attribute": "borrstreet|borrcity|borrstate|projectcounty|projectstate|sbadistrictoffice|congressionaldistrict|businesstype",
+      "description": "Flag borrowers with geographic information",
+      "attribute": "borrstreet|borrcity|borrstate|borrzip|naicscode|projectcounty|sbadistrictoffice|congressionaldistrict",
       "operator": "in",
       "value": [
-        "True"
+        "string"
       ],
       "action": "flag_warning"
     },
     {
-      "rule_id": "numeric_check",
-      "description": "Check for numeric values in non-numeric fields.",
-      "attribute": "grossapproval|approvalfy|approvaldate|franchisecode|congressionaldistrict|businesstype",
-      "operator": "in",
+      "rule_id": "numeric_validation",
+      "description": "Validate numeric fields",
+      "attribute": "grossapproval|approvalfy|terminmonths|franchisecode|congressionaldistrict",
+      "operator": "gt|lt|ge|le|eq|ne",
       "value": [
-        "int",
-        "float"
+        0,
+        1000000
       ],
       "action": "quarantine"
     }

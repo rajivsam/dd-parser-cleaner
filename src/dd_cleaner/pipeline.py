@@ -78,8 +78,10 @@ class PipelineRunner:
 
         if action == "derive": return df
 
-        # 8. Step: Column Filtering (Physically drop attributes marked in config)
-        # Executed last to allow previous steps to utilize raw data before removal.
+        # 8. Step: Column Filtering (Terminal Transformation)
+        # HEURISTIC: This is the final transformation step. It is executed last to ensure 
+        # that all preceding steps (imputation, derivation, policy audit) have access 
+        # to all available attributes before they are physically purged.
         df = self._execute_column_filtering(df)
 
         if action == "column_filter": return df

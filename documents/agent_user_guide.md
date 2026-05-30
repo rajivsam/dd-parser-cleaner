@@ -1,27 +1,72 @@
 # 🤖 Agent User Guide: Extending the Cleaner
 
-This guide provides the absolute technical constraints and operational patterns required for an AI Agent to extend the `dd-parser-cleaner`. If you are an AI, follow this guide to produce code and configurations that are 100% compatible with the core engine.
+This guide provides the absolute technical constraints and operational patterns required for an AI Agent to extend the `dd-parser-cleaner`, including specialized workflows like **Migration Assistant Mode**.
 
 ## 1. The Agent's Mission
 Your objective is to transform raw data into a clean state based on a **Data Dictionary**. You do this by:
 1.  Identifying columns that need cleaning (Missing values, bad formatting, outliers).
 2.  Determining if a **Built-in Action** exists or if a **Custom Hook** is required.
-3.  Implementing the logic in `scripts/domain_logic.py`.
+3.  Implementing the logic STRICTLY in `scripts/domain_logic.py`.
 4.  Registering the logic in `config.yaml`.
 
 ## 1.1 The Two Interaction Paths
-*   **Path 1 (Chat-to-Pipeline)**: You implement the logic directly based on user instructions and update the config.
-*   **Path 2 (Notebook-to-Pipeline)**: You provide the user with code snippets to test in a Notebook. Once the user confirms the results are correct, you "wire" those snippets into Path 1.
+
+### Path 1: The Agent-Led Workflow (Direct)
+Best for simple built-ins or straightforward transformations.
+1. User describes intent.
+2. Agent updates `scripts/domain_logic.py` and `config.yaml`.
+3. User runs CLI: `clean-dataset --action full`.
+
+### Path 2: The Notebook-Led Explorer (Sandbox)
+Best for complex domain science or exploratory logic.
+1. **The Hand-off**: User creates the workspace directory and provides the path.
+2. **Initialization**: User runs the `prepare_workspace()` snippet. This authorizes the Agent to begin integrating code into `scripts/`.
+3. **Implementation**: User describes intent; Agent writes code to `domain_logic.py` and configuration to `config.yaml`.
+4. **Verification**: User imports the logic and verifies it in the notebook.
+5. **Acceptance**: If successful, the logic is "locked in."
+6. **Abort/Cleanup**: If the experiment fails, user instructs Agent to "Abort," which triggers a revert of the integrated code.
+
+## 1.2 Migration Assistant Mode (Incremental Extension)
+This mode is active when the Agent helps migrate existing code or incrementally add new features. 
+
+### Initialization Pattern
+When starting a session in a notebook, use this standard snippet. It ensures the `PathCoordinator` resolves KMDS directories correctly even if the notebook is running from the `notebooks/` folder.
+
+```python
+from dd_cleaner.notebook_utils import prepare_workspace, init_notebook_session
+
+# 1. Prepare & Initialize (Detects root, ensures scripts/ exists)
+prepare_workspace() 
+coord, df = init_notebook_session()
+
+# 2. Import logic (MUST happen after init adds scripts to path)
+import domain_logic
+
+print(f"✅ Session initialized for: {coord.base_dir}")
+
+# 3. Test the specific Agent-implemented function
+# Example: testing a transform function
+target_col = "LoanAmount"
+df[target_col] = domain_logic.your_function_name(df, target_col)
+
+# 4. Review Results
+print(df[target_col].head())
+```
 
 ## 2. Project File Structure
 Expect the following layout. Never use absolute paths in your code; use relative paths from the workspace root.
 ```text
 workspace/
-├── config.yaml          # Your primary control plane
+├── src/
+│   └── path_coordinator.py # Resource Routing
+│   └── dd_cleaner/notebook_utils.py # Session Helper
+├── config.yaml          # Authoritative Single Source of Truth
 ├── scripts/
 │   └── domain_logic.py  # Where you write your Python code
-├── documents/           # Where Data Dictionaries and Profiles live
-└── data/                # Where the raw and clean CSVs live
+├── notebooks/           # KMDS: Experimental code (.ipynb)
+├── data_dictionary/     # KMDS: Data dictionary assets
+├── documents/           # KMDS: Project documentation (.pdf, .txt)
+└── data/                # KMDS: Physical data assets (CSVs)
 ```
 
 ## 3. The Decision Tree (Resolution Hierarchy)
@@ -44,7 +89,7 @@ Before writing custom code, check if a built-in vectorized action exists:
 | **Column Filter** | `drop-list` (in config) | `drop_attributes: ["ColA", "ColB"]` |
 
 ## 5. Writing Custom Logic (`scripts/domain_logic.py`)
-If built-ins are insufficient, write a function in the logic script. **You must use one of these three exact signatures.**
+If built-ins are insufficient, write a function in the logic script located at `scripts/domain_logic.py`. **You must use one of these three exact signatures.**
 
 ### A. The Transform Contract
 **Use for:** Imputing, Recoding, Scaling (Modifying data within a column).
