@@ -1,9 +1,20 @@
 [project]
-name = "dd-parser-cleaner"   # This renames the overall workspace project
-version = "0.1.0"
+name = "dd-parser-cleaner"
+version = "0.2.0"
 description = "A private, local LLM-powered data dictionary parser and entity mapper with automated cleaning."
 readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Rajiv", email = "rajiv@example.com" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Intended Audience :: Developers",
+]
 dependencies = [
     "pandas>=2.2.0",
     "pydantic>=2.6.0",
@@ -14,12 +25,20 @@ dependencies = [
     "rich>=13.7.0",
     "httpx>=0.27.0",
     "requests>=2.34.2",
-    "pytest>=9.0.3",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/user/dd-parser-cleaner"
+Repository = "https://github.com/user/dd-parser-cleaner"
+
 [project.scripts]
-classify-entities = "dd_parser.cli:main"  # Reverted back to your original folder string
-clean-dataset     = "dd_cleaner.cli:main"   # Remains completely stable
+classify-entities = "dd_parser.cli:main"
+clean-dataset     = "dd_cleaner.cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -27,6 +46,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_parser", "src/dd_cleaner"]
-include = [
-    "src/path_coordinator.py"
-]
+
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
+
+[tool.hatch.build]
+include = ["src/**/*.py"]

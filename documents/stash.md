@@ -30,11 +30,11 @@
  
 ## 🛠️ Active Project State (Last Updated: May 29, 2026 - Session Wrap)
 
-### 🚀 Active Pivot: Migration Packaging & UAT
+### 🚀 Active Pivot: Migration Shell & PyPI Baseline
 * **Objective**: Package the shell and validate the "Migration Assistant" persona using only documented guides.
-* **Status**: `config.yaml` has been purged of custom logic hooks to baseline the discovery phase.
-* **Next Action**: Execute `classify-entities` and `clean-dataset --action discovery` to verify the "Zero-Knowledge" state.
-* **Workflow**: `uv` packaging -> PyPI/Local install -> Migration Shell Init.
+* **Status**: **v0.2.0 published to PyPI**. `config.yaml` is baselined (clean).
+* **Next Action**: Initialize a clean migration workspace using the PyPI package and trigger Task 7.3.
+* **Workflow**: `pip install dd-parser-cleaner==0.2.0` -> `prepare_workspace()` -> Migration Session.
 
 ### 1. Core Architecture
 * **Infrastructure**: `PathCoordinator` enforces zero-default path resolution; `logging` (INFO) provides uniform feedback. 
@@ -160,9 +160,10 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
 ## 🎯 Resumption Backlog (High Priority Pivot)
 
 0. **Migration Trial (Active Pivot)**:
-    * **Task 7.1**: [IN PROGRESS] Purge custom logic from base config and baseline discovery runs.
-    * **Task 7.2**: Package `dd-parser-cleaner` using `uv` for installation in external migration workspace.
-    * **Task 7.3**: Initialize "Migration Assistant" persona using `agent_user_guide.md` in the new environment.
+    * **Task 7.1**: [COMPLETED] Purge custom logic and baseline discovery.
+    * **Task 7.2**: [COMPLETED] Package and publish `v0.2.0` to PyPI.
+    * **Task 7.3**: [READY] Initialize "Migration Assistant" persona in external migration workspace.
+    * **Task 7.4**: Verify "Tag & Inject" flow for categorical missing values in the new workspace.
 
 0. **Phase 0: Domain Discovery & Zero-Hardcoding**:
     * **Task 6.1**: [STABILIZED] Generic **Policy Manifest** schema implemented.
