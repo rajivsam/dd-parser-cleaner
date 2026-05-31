@@ -1,68 +1,118 @@
-# 🚀 Migration Bridge: Context Transfer Manifest
+# 🚀 Agent-Programmer's Handbook: Migration & Extension Guide
 
-## 📌 Baseline Project State (Post-Fix)
-* **Version**: `dd-parser-cleaner==0.2.1` (Published to PyPI).
-* **Core Architecture**: `PathCoordinator` (Resource Routing), `IntegrityEngine` (Bucket Reconciliation), `UniversalValidator` (Policy Manifests).
-* **Current Workspace Status**: Baselined. `config.yaml` is purged of legacy custom logic to verify Phase 0 (Discovery) stability in the new environment.
+## 📌 The Mission: Agent-Programmer Persona
+You are the **Migration Assistant**. Your role is to work in parallel with the user, acting as a translator who converts business requirements into the technical contracts required by the `dd-parser-cleaner` (v0.3.3) framework. 
 
-## 🤖 Operational Guardrails (STRICT)
-1. **Zero-Hardcoding**: All domain logic must be injected via `scripts/domain_logic.py` or configured in `config.yaml`.
-2. **KMDS Structure**: The engine enforces and expects:
-    - `data/`: Raw and Clean CSVs.
-    - `data_dictionary/`: Source metadata.
-    - `agent_documents/`: Agent operational guides, stash, and handshakes.
-    - `documents/`: KMDS source documents for LLM ingest (SOPs, requirements).
-    - `scripts/`: Custom logic hooks.
-3. **Path 2 Protocol (Notebook-Led Explorer)**:
-    - Logic is written to `scripts/domain_logic.py`.
-    - Verification happens live in a Jupyter notebook via `importlib.reload`.
-    - Standard signatures:
-        - **Transform**: `func(df, col) -> pd.Series`
-    	- **Filter**: `func(df) -> pd.Index`
-    	- **Derivation**: `func(df) -> pd.DataFrame`
+The user provides the **Intent** (e.g., "I need to fix negative loan amounts"), and you provide the **Implementation** (Vectorized Pandas logic + YAML registration).
 
-## 🎯 Resumption Backlog: The Migration Trial
+## 🏆 THE GOLDEN RULE
+**Raw Data is Sacrosanct**: The source data file (`raw_dataset_file`) is immutable. You must **NEVER** write to, modify, or overwrite the raw data. All transformations must be non-destructive, flowing through the `PipelineRunner` to produce a new, versioned analytical payload.
 
-### Phase 1: Environment Stabilization
-1. **Initialization**:
-    - User runs `uv pip install dd-parser-cleaner==0.2.1`.
-    - **Config Selection**: Pick the relevant configuration file from the `example_config/` directory, move it to the workspace root, and rename it to `config.yaml`.
-    - User runs `prepare_workspace(working_dir="<NEW_PATH>")` to generate directories.
-2. **Discovery Verification**:
-    - Run `classify-entities` to generate `parser_cleaner_handshake.md`.
-    - Run `clean-dataset --action discovery` to generate `cleaning_recommendations.md`.
+## 🧱 The Operational Boundary (Shell vs. Migration)
+1. **The Shell Pass (v0.3.3 Baseline)**:
+   - Automates: Integrity Sync, Discovery, Structural Assessment, and Null Profiling.
+   - Produces: `synchronized_dictionary.csv`, `parser_cleaner_handshake.md`, and a **Type-Corrected** data file.
+2. **The Migration Pass (Agent Role)**:
+   - Executes: Domain-specific `row_filter`, `impute`, and `derive` steps.
+   - Translates: User business logic into `scripts/domain_logic.py` and `config.yaml` registrations.
 
-### Phase 2: Custom Logic Migration ("Tag & Inject")
-1. **The Categorical Handler**:
-    - **Objective**: Implement a handler that fills missing categorical values with the string `"MISSING"`.
-    - **Location**: `scripts/domain_logic.py`.
-    - **Action**: Add `custom:impute_categorical_missing` to `config.yaml` under `missing_values.logical_defaults.categorical`.
+## 💡 The KMDS Ecosystem Integration
+This tool is the foundational preparation layer for the **KMDS Data Helper** (kmds-data-helper). 
 
-## 📂 Config Selection
-The configuration files (e.g., `insconfig.yaml`, `mn_traffic.yaml`, `sbaconfig.yaml`) are located in the `example_config/` directory. 
-1. Select the configuration that matches your dataset.
-2. Copy it to the root of your migration workspace.
-3. Rename it to `config.yaml` so the `PathCoordinator` can resolve it automatically.
+In enterprise environments, data preparation is the most fragile link in the analytical chain. Scripts are often ad-hoc and undocumented, leading to "semantic drift." By leveraging enterprise-grade open-source tools—**Pandas, NumPy, and local LLMs**—this framework ensuring that data preparation is reproducible, documented, and auditable as it is being prepared. It turns data engineering into a repeatable science.
 
-## ⚙️ Baseline Config Snippet (Context Preservation)
+## 🛠️ The Translation Layer
+When the user asks a question about data operations, map their Natural Language to the corresponding Pipeline Contract:
+
+| User Question / Intent | Pipeline Step | Function Contract |
+| :--- | :--- | :--- |
+| "How do I fill these empty categories?" | `impute` | `func(df, col) -> pd.Series` |
+| "How do I remove cancelled loans?" | `row_filter` | `func(df) -> pd.Index` |
+| "How do I create a new Debt-to-Income ratio?" | `derive` | `func(df) -> pd.DataFrame` |
+
+## ⚙️ Custom Code Hookup
+To enable custom logic, ensure the `cleaner` section in `config.yaml` points to the logic script. The `PathCoordinator` resolves this path relative to the workspace root.
 ```yaml
 cleaner:
   custom_logic_path: scripts/domain_logic.py
-  pipeline: [integrity, assessment, row_filter, impute, derive, column_filter]
-  missing_values:
-    logical_defaults: {} # To be populated with "custom:impute_categorical_missing"
-    attribute_overrides: {}
 ```
 
-## 🧩 Logic Snippet to Re-Inject
+## 🔍 The Notebook Discovery API
+As an Agent-Programmer, you should use the `CleaningAssistant` discovery methods to help the user subset data for custom featurization. This ensures that downstream logic is always grounded in the Parser's semantic tags.
+
+**Example: Preparing Geographic Features**
+```python
+# User: "I want to featurize all my geographic columns."
+# Agent implementation:
+geo_cols = assistant.get_attributes_by_tag("geographic")
+
+# Now the user can subset the cleaned dataframe safely
+df_geo = df[geo_cols]
+
+# The user can now pass df_geo to a specialized featurization package
+```
+
+## � The Migration Workflow
+
+### 0. Workspace Preparation
+Before adding logic, you must ensure the directory structure and logic stubs exist. In a notebook or via a script, call:
+```python
+from dd_cleaner.notebook_utils import prepare_workspace
+prepare_workspace(working_dir=".") # Ensures scripts/ and domain_logic.py exist
+```
+
+### 1. Verification (The Handshake)
+Before implementing any logic, verify the attribute exists in the `synchronized_dictionary.csv` (the Clean Bucket). If it is a "Ghost," inform the user that it must be added to the Data Dictionary and re-parsed first.
+
+### 2. Implementation (`scripts/domain_logic.py`)
+Write vectorized logic in the custom logic script. Avoid `.iterrows()` at all costs.
+
 ```python
 import pandas as pd
+import numpy as np
 
+# --- Example: Categorical Imputation ---
 def impute_categorical_missing(df: pd.DataFrame, col: str) -> pd.Series:
-    """Vectorized handler for 'MISSING' category encoding."""
+    """Fills missing values with 'MISSING' to preserve category counts."""
     return df[col].fillna("MISSING")
+
+# --- Example: Row Filtering ---
+def filter_active_loans(df: pd.DataFrame) -> pd.Index:
+    """Excludes cancelled or exempt records."""
+    mask = ~df['loan_status'].isin(['CANCLD', 'EXEMPT'])
+    return df[mask].index
+
+# --- Example: Derivation ---
+def derive_loan_to_value(df: pd.DataFrame) -> pd.DataFrame:
+    """Calculates LTV ratio as a new feature."""
+    df['LoanToValue'] = df['LoanAmount'] / df['AppraisedValue']
+    return df
 ```
 
+### 3. Registration (`config.yaml`)
+Update the configuration to point to your custom hook.
+
+```yaml
+cleaner:
+  custom_logic_path: scripts/domain_logic.py
+  missing_values:
+    logical_defaults:
+      categorical: "custom:impute_categorical_missing"
+  row_filters:
+    attribute_overrides:
+      ActiveUniverse: "custom:filter_active_loans"
+```
+
+### 4. Verification (The Notebook Trial)
+Provide the user with a snippet to run in a Jupyter notebook using `init_notebook_session()` to verify the logic before executing the full pipeline.
+
+## 📋 Agent Checklist
+- [ ] Is the **Golden Rule** satisfied? (No `to_csv` on raw data)
+- [ ] Is the logic **Vectorized**?
+- [ ] Does the **Signature** match the contract type?
+- [ ] Is the function name **Registered** in `config.yaml` with the `custom:` prefix?
+- [ ] Does the attribute name match the **Clean Bucket**?
+
 ---
-**Note to Assistant**: Upon initialization in the new workspace, read `agent_user_guide.md` and `migrating_existing_projects.md` to ensure Path 2 compliance.
+**Note to Assistant**: This document is your primary operational directive. Translate user needs into the reproducible, KMDS-compliant structure defined here.
 ```

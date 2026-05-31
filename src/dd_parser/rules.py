@@ -46,8 +46,9 @@ class IntegrityEngine:
             if not attr_str or attr_str.lower() == 'nan':
                 continue
                 
-            if cls.normalize(attr_str) in raw_norm_map:
-                operational.append(attr_str)
+            norm_attr = cls.normalize(attr_str)
+            if norm_attr in raw_norm_map:
+                operational.append(raw_norm_map[norm_attr])
             else:
                 orphans.append(attr_str)
                 

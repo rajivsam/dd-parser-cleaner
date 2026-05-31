@@ -62,14 +62,12 @@ class CleaningAssistant:
 
         null_threshold = self.config.get('cleaner', {}).get('structural_assessment', {}).get('null_threshold', 0.95)
         
-        processed_recs = []
         for col, stats in column_stats.items():
             if not isinstance(stats, dict): continue # Skip non-column metadata entries
             
             # LINKAGE: Fetch the consolidated metadata factoring for this column from the parser stage
             meta = dd_lookup.get(col, {})
             logical_type = str(meta.get("logical_type", "unknown")).lower()
-            is_geo = meta.get("is_geographic", False)
             entity = meta.get("provisional_entity_assignment", "Unknown")
 
             null_ratio = stats.get("null_ratio", 0)
@@ -99,7 +97,6 @@ class CleaningAssistant:
             elif logical_type == "datetime":
                 action = "custom:datetime_to_numeric"
                 reason = "This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."
-                # Note: This implies a subsequent drop-attribute in user config
 
             # 4. Standardized Imputation
             if action == "none":
@@ -131,17 +128,69 @@ class CleaningAssistant:
 
         return {"recommendations": self.recommendations}
 
+    def get_attributes_by_tag(self, tag_name: str) -> List[str]:
+        """
+        Discovery API: Retrieves attributes matching a specific semantic tag.
+        
+        Queries the Data Dictionary to find all columns where the specified 
+        boolean flag (e.g., 'is_geographic') is True. This is primarily used 
+        in notebooks to subset cleaned dataframes for specialized featurization.
+
+        Args:
+            tag_name (str): The semantic tag to filter by (e.g., 'geographic').
+
+        Returns:
+            List[str]: A list of attribute names possessing the requested tag.
+        """
+        df_dd = pd.read_csv(self.dd_path)
+        attr_col = "attribute_name" if "attribute_name" in df_dd.columns else df_dd.columns[0]
+        flag_col = f"is_{tag_name.lower().strip()}"
+
+        if flag_col not in df_dd.columns:
+            self.logger.warning(f"⚠️ Semantic tag '{tag_name}' not found in registry (Column '{flag_col}' missing).")
+            return []
+
+        subset = df_dd[df_dd[flag_col] == True][attr_col].tolist()
+        return [str(a) for a in subset]
+
+    def get_attributes_by_entity(self, entity_name: str) -> List[str]:
+        """
+        Discovery API: Retrieves attributes assigned to a specific business entity.
+        
+        Queries the metadata registry to find all attributes mapped to a 
+        coarse-grained business concept (e.g., 'Borrower', 'Loan') discovered 
+        during the Parser phase.
+
+        Args:
+            entity_name (str): The entity concept name to filter by.
+
+        Returns:
+            List[str]: A list of attribute names belonging to the specified entity.
+        """
+        df_dd = pd.read_csv(self.dd_path)
+        attr_col = "attribute_name" if "attribute_name" in df_dd.columns else df_dd.columns[0]
+        entity_col = "provisional_entity_assignment"
+
+        if entity_col not in df_dd.columns:
+            self.logger.warning(f"⚠️ Entity assignments not found in dictionary at {self.dd_path}")
+            return []
+
+        mask = df_dd[entity_col].astype(str).str.lower() == entity_name.lower().strip()
+        subset = df_dd[mask][attr_col].tolist()
+        return [str(a) for a in subset]
+
     def augment_with_llm(self, profile: Dict[str, Any]) -> None:
         """
         Augments heuristic recommendations with LLM insights.
+        
+        Assembles a specialized prompt containing the data quality profile 
+        and queries the local LLM to identify edge cases or domain-specific 
+        anomalies that rule-based heuristics might miss.
 
         Args:
-            profile (dict): Data quality statistics.
+            profile (Dict[str, Any]): The physical data quality profile.
         """
-        # Assembly Phase
         prompt = self._assemble_recommendation_prompt(profile)
-        
-        # Execution Phase
         try:
             response = self._call_llm(prompt)
             llm_recs = self._process_recommendation_result(response)
@@ -154,7 +203,7 @@ class CleaningAssistant:
         Handles prompt construction using templates from configuration.
 
         Args:
-            profile (dict): Data quality statistics.
+            profile (Dict[str, Any]): The data quality stats to inject.
 
         Returns:
             str: Formatted LLM prompt.
@@ -162,11 +211,9 @@ class CleaningAssistant:
         template = self.prompts.get("recommendation_template")
         system_p = self.prompts.get("system", "You are a data engineering assistant.")
         
-        # Safety check: ensure the placeholder exists in the externalized string
         if template and "{profile}" in template:
             return template.format(profile=json.dumps(profile))
         elif template:
-            self.logger.warning("⚠️ Externalized prompt template missing '{profile}' placeholder. Appending profile to end.")
             return f"{template}\n\nDATA PROFILE: {json.dumps(profile)}"
             
         return f"{system_p}\n\nAnalyze dataset profile: {json.dumps(profile)}"
@@ -176,40 +223,44 @@ class CleaningAssistant:
         Handles cleaning and parsing of the LLM JSON response.
 
         Args:
-            response (str): Raw JSON string from the LLM.
+            response (str): The raw JSON string returned by the model.
 
         Returns:
-            List[dict]: List of recommendation objects.
+            List[Dict[str, Any]]: A list of structured recommendation objects.
         """
         data = json.loads(response)
         return data.get("recommendations", [])
 
     def _call_llm(self, prompt: str) -> str:
         """
-        Standardized HTTP caller for Ollama.
+        Standardized HTTP caller for the local Ollama instance.
 
         Args:
-            prompt (str): Prompt to send.
+            prompt (str): The prompt to send to the model.
 
         Returns:
-            str: LLM response body.
+            str: The raw model response.
+
+        Raises:
+            RuntimeError: If the API returns a non-200 status code.
         """
         response = httpx.post(
             "http://localhost:11434/api/generate",
             json={"model": self.model_name, "prompt": prompt, "stream": False, "format": "json"},
             timeout=60.0
         )
+        if response.status_code != 200:
+            raise RuntimeError(f"Ollama API error: {response.text}")
         return response.json().get("response", "{}")
 
     def write_artifacts(self, output_dir: Path):
         """
-        Generates MD, CSV, and provisional YAML artifacts.
+        Generates Markdown, CSV, and provisional YAML configuration artifacts.
 
         Args:
-            output_dir (Path): Destination for reports and config.
+            output_dir (Path): Destination directory for the generated files.
         """
         if not self.recommendations:
-            # Message already printed in generate_recommendations
             return
 
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -219,12 +270,12 @@ class CleaningAssistant:
         md_path = output_dir / "cleaning_recommendations.md"
         with open(md_path, "w") as f:
             f.write("# 🤖 Cleaning Assistant Report\n\n")
-            f.write("This report provides automated recommendations based on data profile physics (nulls, cardinality) and semantic metadata.\n\n")
+            f.write("This report provides automated recommendations based on data profile physics and semantic metadata.\n\n")
             
             f.write("## 🛡️ User Responsibilities\n")
-            f.write("- **Domain Logic**: User must capture domain-specific row filters (exclusions/inclusions) in `config.yaml` or `domain_logic.py`.\n")
-            f.write("- **Domain Deletions**: User must identify and tag columns requiring deletion based on business rules rather than physical stats.\n")
-            f.write("- **Strategy Validation**: While we suggest mean/MISSING defaults, the user is responsible for determining the final imputation strategy per attribute.\n\n")
+            f.write("- **Domain Logic**: User must capture domain-specific row filters in `config.yaml` or `domain_logic.py`.\n")
+            f.write("- **Domain Deletions**: User must identify columns requiring deletion based on business rules.\n")
+            f.write("- **Strategy Validation**: While we suggest mean/MISSING defaults, the user determines the final strategy.\n\n")
 
             f.write("## 📊 Summary of Actions\n")
             if not df.empty:
@@ -238,7 +289,6 @@ class CleaningAssistant:
                 if filtered_df.empty:
                     return
                 f.write(f"\n{'#' * level} {title}\n\n")
-                # Human-friendly headers for the usability review
                 display_df = filtered_df.rename(columns={
                     "attribute_name": "Attribute",
                     "logical_type": "Type",
@@ -249,15 +299,12 @@ class CleaningAssistant:
                 f.write(display_df.to_markdown(index=False))
                 f.write("\n")
 
-            # 1. Deletion Section
             df_del = df[df["recommended_action"] == "drop-attribute"]
             write_section("Deletion is recommended for the following attributes", df_del, level=2)
 
-            # 2. Derived Attributes Section
             df_der = df[df["recommended_action"] == "custom:datetime_to_numeric"]
-            write_section("Derived attribute definition or deletion is recommended for the following attributes", df_der, level=2)
+            write_section("Derived attribute definition or deletion is recommended", df_der, level=2)
 
-            # 3. Missing Values Section
             df_impute = df[
                 (df["null_ratio"] > 0) & 
                 (~df["recommended_action"].isin(["drop-attribute", "custom:datetime_to_numeric"]))
@@ -265,16 +312,12 @@ class CleaningAssistant:
             
             if not df_impute.empty:
                 f.write("\n## Missing value definition is recommended for the following attributes\n")
-                # Sub-list: Numeric
                 write_section("Numeric Attributes (Standard: Mean Imputation)", df_impute[df_impute["recommended_action"] == "mean-imputation"], level=3)
-                # Sub-list: Categorical (Includes Text)
                 write_section("Categorical Attributes (Standard: 'MISSING' Category)", df_impute[df_impute["recommended_action"] == "constant:MISSING"], level=3)
-                # Sub-list: Manual Review (Any remaining nulls where type was unknown)
                 write_section("Other Attributes with Missing Values (Strategy Required)", df_impute[df_impute["recommended_action"] == "user-review"], level=3)
 
-            # 4. Mixed Data / General Review Section (Exclude attributes already listed in missing values)
             df_rev = df[(df["recommended_action"] == "user-review") & (df["null_ratio"] == 0)]
-            write_section("Manual review is required for the following attributes (Mixed or Unknown types)", df_rev, level=2)
+            write_section("Manual review is required for the following attributes", df_rev, level=2)
             
             f.write("\n\n---\n*Generated by CleaningAssistant engine.*")
         
@@ -283,22 +326,18 @@ class CleaningAssistant:
         df.to_csv(csv_path, index=False)
 
         # 3. Provisional Config YAML
-        # We only generate overrides for columns that actually need changes
         yaml_path = output_dir / "provisional_config.yaml"
         recommendation_map = {
             rec["attribute_name"]: rec["recommended_action"]
             for rec in self.recommendations
         }
         
-        # Rule 4: Datetime attributes are mapped to numeric in derivation then physically dropped
         drops = [col for col, action in recommendation_map.items() 
                  if action == "drop-attribute" or action == "custom:datetime_to_numeric"]
         
-        # Rule 2: Standardized Imputation (Mean/MISSING)
         imputes = {col: action for col, action in recommendation_map.items() 
                    if action not in ["drop-attribute", "custom:datetime_to_numeric", "user-review"]}
         
-        # Rule 4: Datetime numeric offsets are derivations
         derivations = {col: action for col, action in recommendation_map.items() 
                        if action == "custom:datetime_to_numeric"}
 

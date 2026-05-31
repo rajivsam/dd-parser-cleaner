@@ -109,13 +109,50 @@ class PipelineRunner:
         self.profiler.generate_null_quality_report(df, metadata_lookup=metadata_lookup)
 
         # 10. Step: Save Results
+        # 🎯 SEMANTIC FLOW: Prepend entity tags to headers for analytical readiness
+        df = self._apply_semantic_tagging(df, dict_df)
+        
         self.reporter.write_cleaned_dataset(df)
+        self.logger.info(f"💾 Cleaned dataset produced at: {self.paths.clean_dataset_output_path}")
 
         self.logger.info("🏁 Pipeline core increment (Integrity & Profiling) complete.")
         return df
 
+    def _apply_semantic_tagging(self, df: pd.DataFrame, dict_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Applies semantic prefixes to column headers to ensure 'entity_tag' flow-through.
+        
+        Renames the columns of the cleaned dataset by prepending the 
+        provisional entity assignment (e.g., 'Borrower_', 'Loan_') 
+        discovered by the Parser. This ensures semantic context is preserved 
+        in the physical file for analytical readiness.
+
+        Args:
+            df (pd.DataFrame): The transformed dataset.
+            dict_df (pd.DataFrame): The synchronized operational matrix containing assignments.
+
+        Returns:
+            pd.DataFrame: Dataset with prefixed semantic headers.
+        """
+        attr_col = "attribute_name" if "attribute_name" in dict_df.columns else dict_df.columns[0]
+        # 🚀 PERFORMANCE: Utilize vectorized lookup instead of .iterrows()
+        tag_map = dict_df.set_index(attr_col)["provisional_entity_assignment"].to_dict()
+        
+        # Rename headers while preserving validation flags (warn_ columns)
+        new_cols = {
+            col: f"{tag_map.get(col, 'unassigned')}_{col}" 
+            if not col.startswith('warn_') else col 
+            for col in df.columns
+        }
+        return df.rename(columns=new_cols)
+
     def _load_policy_manifest(self) -> Dict[str, Any]:
-        """Loads the domain manifest from the documents directory."""
+        """
+        Loads the domain manifest from the documents directory.
+
+        Returns:
+            Dict[str, Any]: The loaded policy manifest or an empty dictionary if missing.
+        """
         manifest_file = self.cleaner_config.get("policy_manifest_file", "policy_manifest.json")
         
         # Resolving via PathCoordinator authoritative routing
@@ -177,7 +214,12 @@ class PipelineRunner:
         return df_out
 
     def _write_quarantine_records(self, df: pd.DataFrame) -> None:
-        """Persists isolated records to the configured quarantine directory."""
+        """
+        Persists isolated records to the configured quarantine directory.
+
+        Args:
+            df (pd.DataFrame): The records failing validation to be quarantined.
+        """
         q_path = self.paths.quarantine_path
         q_path.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(q_path, index=False)

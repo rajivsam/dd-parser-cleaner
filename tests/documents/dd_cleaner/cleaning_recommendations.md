@@ -1,11 +1,11 @@
 # 🤖 Cleaning Assistant Report
 
-This report provides automated recommendations based on data profile physics (nulls, cardinality) and semantic metadata.
+This report provides automated recommendations based on data profile physics and semantic metadata.
 
 ## 🛡️ User Responsibilities
-- **Domain Logic**: User must capture domain-specific row filters (exclusions/inclusions) in `config.yaml` or `domain_logic.py`.
-- **Domain Deletions**: User must identify and tag columns requiring deletion based on business rules rather than physical stats.
-- **Strategy Validation**: While we suggest mean/MISSING defaults, the user is responsible for determining the final imputation strategy per attribute.
+- **Domain Logic**: User must capture domain-specific row filters in `config.yaml` or `domain_logic.py`.
+- **Domain Deletions**: User must identify columns requiring deletion based on business rules.
+- **Strategy Validation**: While we suggest mean/MISSING defaults, the user determines the final strategy.
 
 ## 📊 Summary of Actions
 - **drop-attribute**: 5 columns
@@ -22,7 +22,7 @@ This report provides automated recommendations based on data profile physics (nu
 | franchisecode | numeric  | Location | Extreme sparsity (95.2%): Exceeds null threshold of 95.0% | drop-attribute    |
 | program       | numeric  | Program  | Constant value / Zero variance                            | drop-attribute    |
 
-## Derived attribute definition or deletion is recommended for the following attributes
+## Derived attribute definition or deletion is recommended
 
 | Attribute             | Type     | Entity   | What Needs Fixing                                                                                                                                    | Recommended Fix            |
 |:----------------------|:---------|:---------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------|

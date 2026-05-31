@@ -1,6 +1,6 @@
 [project]
 name = "dd-parser-cleaner"
-version = "0.2.0"
+version = "0.4.0"
 description = "A private, local LLM-powered data dictionary parser and entity mapper with automated cleaning."
 readme = "README.md"
 requires-python = ">=3.10"

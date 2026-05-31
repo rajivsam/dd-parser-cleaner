@@ -199,6 +199,14 @@ class CleanerOrchestrator:
         self.logger.info(f"Applying full pipeline to raw dataset: {raw_path.name}")
         runner.run(action=action)
 
+        if action == "full":
+            self.console.print(f"\n[bold green]✅ Success:[/bold green] Cleaned dataset produced at [cyan]{self.paths.clean_dataset_output_path}[/cyan]")
+            
+            # 🌍 SEMANTIC DISCOVERY REPORT: Provide visibility into tagged attributes
+            geo_cols = self.assistant.get_attributes_by_tag("geographic")
+            if geo_cols:
+                self.console.print(f"🌍 [bold cyan]Semantic Discovery:[/bold cyan] Found {len(geo_cols)} attributes tagged as '[yellow]geographic[/yellow]'.")
+
     def _execute_domain_discovery(self) -> None:
         """
         Orchestrates LLM-based extraction of policy rules into a Manifest.

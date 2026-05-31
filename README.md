@@ -16,6 +16,7 @@ In enterprise data science, data preparation is often the most fragile link. Scr
 2. **Semantic Type Enforcement**: It automatically casts raw strings into high-precision, nullable physical types (e.g., `Int64`, `float`, `datetime`) grounded in verified logical metadata, eliminating type-related crashes downstream.
 3. **Deterministic Pipe Sequencing**: It executes an idempotent, vectorized transformation sequence (Sync → Assessment → Filter → Impute → Derive) that prevents data contamination and ensures reproducible results.
 4. **Audit-Ready Traceability**: It generates a signed, synchronized operational matrix and a "Handshake" report, providing a 100% traceable link between source metadata and the final analytical payload.
+5. **Metadata Discovery API**: Provides a programmatic interface for notebooks to query semantic tags (e.g., Geographic, Financial) and entities, enabling seamless integration with downstream featurization and ML pipelines.
 
 ## 🚀 Quick Start
 
