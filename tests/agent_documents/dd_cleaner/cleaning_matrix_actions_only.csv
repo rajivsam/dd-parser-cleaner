@@ -1,0 +1,4 @@
+attribute_name,logical_type,entity_context,null_ratio,cardinality,recommended_action,reason
+gross_approval_amount,numeric,Loan,,0,drop-attribute,Constant value / Zero variance
+loan_program,categorical,Program,,0,drop-attribute,Constant value / Zero variance
+naics_code,numeric,Business,,0,drop-attribute,Constant value / Zero variance

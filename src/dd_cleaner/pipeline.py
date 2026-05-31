@@ -6,7 +6,7 @@ import json
 import pandas as pd
 from pathlib import Path
 from typing import Tuple, Any, Dict, List
-from path_coordinator import PathCoordinator
+from dd_common.path_coordinator import PathCoordinator
 from .null_profiler import DatasetDataProfiler
 from .reporter import CleaningReportManager
 from .imputation_engine import MissingValueHandler
@@ -35,8 +35,24 @@ class PipelineRunner:
         self.validator = UniversalValidator(self.manifest)
 
     def run(self, action: str = "full") -> pd.DataFrame:
-        """Executes the sequence of cleaning steps defined in the authoritative config."""
+        """
+        Executes the sequence of cleaning steps defined in the authoritative config.
+
+        Args:
+            action (str): The specific pipeline stage to execute or 'full' for the entire sequence.
+
+        Returns:
+            pd.DataFrame: The transformed (cleaned) dataset.
+
+        Raises:
+            FileNotFoundError: If the raw dataset or data dictionary is missing from the resolved paths.
+        """
         self.logger.info("🚀 Initializing Cleaner Pipeline Runner...")
+
+        # 📊 STRUCTURAL ASSESSMENT: Output the inferred or confirmed dataset type
+        sa_cfg = self.cleaner_config.get("structural_assessment", {})
+        ds_type = sa_cfg.get("dataset_type", "unknown")
+        self.logger.info(f"📊 Structural Context: [Dataset Type: {ds_type}]")
 
         # 1. Load Data
         raw_path = self.paths.raw_dataset_path
@@ -54,11 +70,12 @@ class PipelineRunner:
         # We synchronize the dictionary to the data to ensure we only process columns that exist.
         df, dict_df = self._integrity_sync(df, dict_df)
 
-        # 4. Step: Type Casting (Alignment with Parser Metadata)
-        df = self._apply_type_casting(df, dict_df)
-
-        # 4.5 Step: Vectorized Cleaning (Manifest-driven formatting)
+        # 4. Step: Vectorized Cleaning (Manifest-driven formatting)
+        # HEURISTIC: Formatting happens while data is in string/object state.
         df = self._execute_vectorized_cleaning(df, dict_df)
+
+        # 4.5 Step: Type Casting (Alignment with Parser Metadata)
+        df = self._apply_type_casting(df, dict_df)
 
         # 5. Step: Row Filtering (Custom Logic Bridge)
         df = self._execute_row_filtering(df)
@@ -87,7 +104,9 @@ class PipelineRunner:
         if action == "column_filter": return df
 
         # 9. Step: Null Profiling (Always performed for visibility)
-        self.profiler.generate_null_quality_report(df)
+        attr_col = "attribute_name" if "attribute_name" in dict_df.columns else dict_df.columns[0]
+        metadata_lookup = dict_df.set_index(attr_col)["logical_type"].to_dict()
+        self.profiler.generate_null_quality_report(df, metadata_lookup=metadata_lookup)
 
         # 10. Step: Save Results
         self.reporter.write_cleaned_dataset(df)
@@ -113,7 +132,16 @@ class PipelineRunner:
         return {}
 
     def _execute_vectorized_cleaning(self, df: pd.DataFrame, dict_df: pd.DataFrame) -> pd.DataFrame:
-        """Applies formatting rules (padding, casing) driven by the manifest."""
+        """
+        Applies formatting rules (padding, casing) driven by the policy manifest.
+
+        Args:
+            df (pd.DataFrame): The operational dataset.
+            dict_df (pd.DataFrame): The synchronized operational dictionary.
+
+        Returns:
+            pd.DataFrame: Data with manifest-driven string formatting applied.
+        """
         # Derive active prefixes from the dictionary entity assignments
         prefixes = []
         if "provisional_entity_assignment" in dict_df.columns:
@@ -125,7 +153,15 @@ class PipelineRunner:
         return engine.execute_transformations(df)
 
     def _execute_policy_validation(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Executes regulatory audit rules and isolates violations."""
+        """
+        Executes regulatory audit rules and isolates violations based on the Policy Manifest.
+
+        Args:
+            df (pd.DataFrame): The dataset to validate.
+
+        Returns:
+            pd.DataFrame: The dataset stripped of quarantined records, containing validation flags.
+        """
         df_out, quarantine_indices = self.validator.execute_validation(df)
         
         if quarantine_indices:
@@ -148,7 +184,15 @@ class PipelineRunner:
         self.logger.info(f"📁 Isolated records saved to: {q_path}")
 
     def _execute_column_filtering(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Physically removes attributes specified in the configuration."""
+        """
+        Physically removes attributes specified in the configuration as a terminal step.
+
+        Args:
+            df (pd.DataFrame): The dataset being cleaned.
+
+        Returns:
+            pd.DataFrame: Dataset with dropped columns removed.
+        """
         drop_cols = self.cleaner_config.get("column_filters", {}).get("drop_attributes", [])
         if not drop_cols:
             return df
@@ -162,7 +206,15 @@ class PipelineRunner:
         return df
 
     def _execute_row_filtering(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Applies row exclusion logic based on config overrides."""
+        """
+        Applies row exclusion logic based on config overrides and custom logic hooks.
+
+        Args:
+            df (pd.DataFrame): The dataset being cleaned.
+
+        Returns:
+            pd.DataFrame: Dataset with excluded rows removed.
+        """
         filters = self.cleaner_config.get("row_filters", {}).get("attribute_overrides", {})
         if not filters:
             return df
@@ -195,13 +247,22 @@ class PipelineRunner:
         return df
 
     def _execute_imputation(self, df: pd.DataFrame, dict_df: pd.DataFrame) -> pd.DataFrame:
-        """Task 5.3: Implements the Resolution Hierarchy for missing values."""
+        """
+        Implements the Resolution Hierarchy for missing values across the operational pool.
+
+        Args:
+            df (pd.DataFrame): The dataset containing missing values.
+            dict_df (pd.DataFrame): Operational dictionary containing logical types for strategy resolution.
+
+        Returns:
+            pd.DataFrame: Dataset with missing values resolved.
+        """
         # Identify columns with nulls
         null_cols = df.columns[df.isna().any()].tolist()
         if not null_cols:
             return df
             
-        self.logger.info(f"🩹 Imputation: Processing {len(null_cols)} columns with missing data.")
+        self.logger.info(f"🩹 Imputation: Inspecting {len(null_cols)} columns with missing data for strategies...")
         # Use authoritative base_dir from coordinator
         handler = MissingValueHandler(self.paths.config, self.paths.base_dir)
 
@@ -217,7 +278,15 @@ class PipelineRunner:
         return df
 
     def _execute_derivation(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Task 5.4: Custom Code Bridge for feature derivations."""
+        """
+        Executes custom feature derivations defined in the Custom Code Bridge.
+
+        Args:
+            df (pd.DataFrame): The dataset being cleaned.
+
+        Returns:
+            pd.DataFrame: Dataset with new derived attributes appended.
+        """
         derivations = self.cleaner_config.get("derivation", {}).get("attribute_overrides", {})
         if not derivations:
             return df
@@ -237,7 +306,12 @@ class PipelineRunner:
         return df
 
     def _load_custom_logic(self) -> Any:
-        """Dynamically loads the python module containing domain-specific logic."""
+        """
+        Dynamically loads the python module containing domain-specific logic from scripts/.
+
+        Returns:
+            Optional[Module]: The loaded python module or None if not defined/found.
+        """
         logic_path_str = self.cleaner_config.get("custom_logic_path")
         if not logic_path_str:
             return None
@@ -259,7 +333,16 @@ class PipelineRunner:
             return None
 
     def _apply_type_casting(self, df: pd.DataFrame, dict_df: pd.DataFrame) -> pd.DataFrame:
-        """Casts DataFrame columns to their intended physical types based on the dictionary."""
+        """
+        Casts DataFrame columns to their intended physical types based on Parser metadata.
+
+        Args:
+            df (pd.DataFrame): The raw dataset.
+            dict_df (pd.DataFrame): The operational dictionary containing type mappings.
+
+        Returns:
+            pd.DataFrame: Dataset with standardized physical types.
+        """
         self.logger.info("🎭 Applying physical type casting based on dictionary metadata...")
         
         # Resolve the attribute name column in the dictionary
@@ -291,40 +374,48 @@ class PipelineRunner:
 
     def _integrity_sync(self, df: pd.DataFrame, dict_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """
-        Reconciles the Data Dictionary against physical file headers.
-        
-        Bucket A (Operational): Common to both.
-        Bucket B (Orphans): In Dictionary but missing from Data (Stripped).
-        Bucket C (Ghosts): In Data but missing from Dictionary (Logged).
+        Synchronizes the raw dataset headers with the Parser's Operational Matrix.
+
+        Args:
+            df (pd.DataFrame): The raw dataset headers.
+            dict_df (pd.DataFrame): The provisional dictionary produced by the parser.
+
+        Returns:
+            Tuple[pd.DataFrame, pd.DataFrame]: A subsetted DataFrame containing only 'Clean Bucket' 
+                                              columns and its corresponding dictionary mapping.
+
+        SELECTION LOGIC (Clean Bucket Filtering):
+        The cleaner treats the loaded dictionary as an authoritative filter mask.
+        1. Only attributes present in the 'Clean Bucket' (Parser Output) are permitted.
+        2. 'Ghost' columns (Data columns with no dictionary entry) are physically purged.
+        3. 'Orphans' are stripped to ensure metadata-data alignment for the current file.
         """
-        self.logger.info("⚖️ Executing Integrity Sync (Bucket Strategy)...")
+        self.logger.info("⚖️ Executing Integrity Sync (Operational Bucket Subsetting)...")
         
-        # We assume 'attribute_name' is the key column in the parser's output CSV
         attr_col = "attribute_name"
         if attr_col not in dict_df.columns:
-            self.logger.warning(f"Column '{attr_col}' not found in dictionary. Attempting index 0.")
             attr_col = dict_df.columns[0]
 
-        data_cols = set(df.columns)
-        dict_cols = set(dict_df[attr_col].astype(str))
+        # 🎯 INTERSECTION ENFORCEMENT: Pick up only the 'Clean Bucket'
+        operational_attributes = set(dict_df[attr_col].astype(str))
+        physical_headers = set(df.columns)
+        clean_bucket = sorted(list(physical_headers & operational_attributes))
 
-        bucket_a = data_cols & dict_cols
-        bucket_b = dict_cols - data_cols
-        bucket_c = data_cols - dict_cols
-
-        self.logger.info(f"  - Bucket A (Matches): {len(bucket_a)}")
-        
-        if bucket_b:
-            self.logger.warning(f"  - Bucket B (Orphans detected): {len(bucket_b)} attributes in dictionary are missing from raw data.")
-            for orphan in sorted(list(bucket_b)):
-                self.logger.debug(f"    [ORPHAN]: {orphan}")
-            # Strip orphans from the dictionary to prevent processing errors
-            dict_df = dict_df[dict_df[attr_col].isin(bucket_a)].reset_index(drop=True)
-
-        if bucket_c:
-            self.logger.warning(f"  - Bucket C (Ghosts detected): {len(bucket_c)} columns in data have no dictionary entry.")
-            for ghost in sorted(list(bucket_c)):
+        # 🛡️ GHOST REMOVAL: Drop any physical column that wasn't semantically qualified by the parser
+        ghosts = physical_headers - operational_attributes
+        if ghosts:
+            self.logger.warning(f"👻 Ghost Removal: Purging {len(ghosts)} unmapped columns from raw data.")
+            for ghost in sorted(list(ghosts)):
                 self.logger.debug(f"    [GHOST]: {ghost}")
+
+        # Apply the filter to both Data and Dictionary
+        df = df[clean_bucket].copy()
+        dict_df = dict_df[dict_df[attr_col].isin(clean_bucket)].reset_index(drop=True)
+
+        # 🛡️ DEDUPLICATION: Ensure the dictionary has unique attribute mappings to prevent index collisions
+        if not dict_df[attr_col].is_unique:
+            self.logger.warning("⚠️ Non-unique attributes found in Data Dictionary. Deduplicating operational matrix.")
+            dict_df = dict_df.drop_duplicates(subset=[attr_col]).reset_index(drop=True)
 
         # Optional: Save the synchronized 'Bucket A' dictionary to narrative directory for traceability
         sync_path = self.paths.cleaner_narrative_directory / "synchronized_dictionary.csv"

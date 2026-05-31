@@ -1,23 +1,17 @@
 # 📑 Project Stash: Data Dictionary Parser & Cleaner State
 
+## 🏆 THE GOLDEN RULE
+* **NO MOCKING**: All testing and development must be performed using the actual data files and configuration within the project. No temporary sandboxes, fakes, or `unittest.mock` objects for project resources.
+
 ## 🤖 Agent Operational Directives
 * **Domain Agnosticism**: Strict requirement. Zero hardcoded domain-specific items, magic numbers, or regulatory assumptions. All domain logic must be injected via config or discovered via the "Domain Discovery" phase.
 * **Communication Style**: Brief, direct answers by default. Explanations provided only on request. (Refined: Conversational but concise).
-* **Config Management**: The agent must never modify `config.yaml` directly. If a configuration update is required (e.g., adding `tag_heuristics`), the agent must request the user to update the file and provide the intended YAML snippet.
+* **Config Management (STRICT)**: Neither the Agent nor the automated Orchestrators may modify `config.yaml` or data files directly. Any inferred metadata (e.g., `dataset_type`) must be reported to the user or written to a separate `provisional_config.yaml`, never overwriting the baseline.
 *   **Behavioral Change Awareness**: Before suggesting changes that modify existing logic in `domain_logic.py` or functional settings in `config.yaml`, the agent must explicitly notify the user of the expected change in behavior.
 *   **Raw Data Verification**: The agent must strictly verify that every attribute name referenced in code or configuration changes matches an existing column in the raw dataset file to prevent schema drift and runtime errors.
 * **KMDS Handshake Protocol**: The Cleaner enforces the existence of `parser_cleaner_handshake.md` (the "handshake file") in `documents/dd_cleaner/` before execution. This file serves as the fixed "Inbox" artifact produced by the Parser and contains semantic context for discovery.
-*   **Migration Role**: The agent acts as a facilitator for "Tag & Inject" workflows. Users provide legacy code or regulatory docs; the agent translates them into standardized hooks in `scripts/domain_logic.py` or Policy Manifests.
-* **Migration Initialization Protocol (STRICT)**: When entering a Migration Assistant session, the Agent MUST NOT propose code or config changes until the following anchor steps are complete:
-    1.  Request the absolute path of the `working_dir`.
-    2.  Instruct the user to run `prepare_workspace()` to validate the environment.
-    3.  Verify the presence of the `parser_cleaner_handshake.md` via the `PathCoordinator`.
 * **Custom Logic Isolation (STRICT)**: `domain_logic.py` must ONLY be written to the `scripts/` directory under the `working_dir`. The Agent must never place this file in the project root or the `notebooks/` folder. The `PathCoordinator` is the sole source of truth for this location.
 * **Root-Relative Pathing**: All paths injected into `config.yaml` (e.g., `custom_logic_path`) must be root-relative (e.g., `scripts/domain_logic.py`) to maintain domain agnosticism and portability across environments.
-* **The Integration Handshake**: 
-    1. **Agent**: Requests the `working_dir` and confirms initialization.
-    2. **User**: Confirms initialization and provides documentation/code for migration.
-    3. **Agent**: Proposes logic stubs and config updates using only relative paths.
 * **Stash Maintenance**: Consolidate output to ~90% of allowable space. Prioritize active designs, the Resumption Backlog, and the 7-Point Framework.
 * **Single Source of Truth**: This `documents/stash.md` is the sole authoritative record of the project's state. All other historical or redundant stashes have been removed.
 
@@ -28,13 +22,13 @@
 *   **Safety Gate**: The Cleaner enforces the presence of the Handshake file; discovery and cleaning cannot proceed without Parser metadata. Relies on `PathCoordinator` to resolve KMDS standard directories.
 *   **Cleanup Protocol**: Path 2 requires an explicit "Abort" command from the user to remove experimental code/config from the project if a trial is unsuccessful.
  
-## 🛠️ Active Project State (Last Updated: May 29, 2026 - Session Wrap)
+## 🛠️ Active Project State (Last Updated: May 30, 2026 - Initialization)
 
 ### 🚀 Active Pivot: Migration Shell & PyPI Baseline
 * **Objective**: Package the shell and validate the "Migration Assistant" persona using only documented guides.
-* **Status**: **v0.2.0 published to PyPI**. `config.yaml` is baselined (clean).
+* **Status**: **v0.2.1 published to PyPI**. `config.yaml` is baselined (clean).
 * **Next Action**: Initialize a clean migration workspace using the PyPI package and trigger Task 7.3.
-* **Workflow**: `pip install dd-parser-cleaner==0.2.0` -> `prepare_workspace()` -> Migration Session.
+* **Workflow**: `pip install dd-parser-cleaner==0.2.1` -> `prepare_workspace()` -> Migration Session.
 
 ### 1. Core Architecture
 * **Infrastructure**: `PathCoordinator` enforces zero-default path resolution; `logging` (INFO) provides uniform feedback. 
@@ -62,7 +56,7 @@
 * **Structural Assessment (Phase 1.5)**: Integrated LLM-based inference in `LLMEntityClassifier` to distinguish between `panel` and `cross-sectional` data structures.
     * **Prompt Externalization**: The prompts for `LLMEntityClassifier` are now externalized to `config.yaml`, allowing dynamic tuning of dataset type inference.
     * **Logic**: Detects repeating temporal attribute sets vs. single snapshot timestamps (e.g., `asOfDate`). 
-    * **Implementation**: The orchestrator persists the inferred `dataset_type` to `config.yaml` with an `(inferred)` tag using absolute path resolution.
+    * **Implementation**: The orchestrator reports the inferred `dataset_type` to the console/logs. It is FORBIDDEN from persisting this change to `config.yaml` to prevent baseline corruption.
 * **Standardized CLI Entry Points**: The project is configured with authoritative CLI commands: `classify-entities` for the Metadata Parser and `clean-dataset` for the Dataset Cleaner. Users should always run these commands instead of direct python calls to ensure consistent path resolution and orchestration.
 * **Installation Protocol**: This project strictly uses `uv`. To register CLI entry points in the local environment, use `uv pip install -e .`. Standard `pip` commands are deprecated for this workspace.
 * **Testing Workspace Context**: The `tests/` directory is the primary sandbox for development. **CRITICAL**: When executing CLI tools (e.g., `clean-dataset --workspace ./tests/ --action discovery`), you must point `--workspace` to `./tests/`. This ensures the `PathCoordinator` resolves the simulated KMDS hierarchy correctly.
@@ -83,7 +77,7 @@ parser:
   overrides: {LocationID: {is_geographic: false, provisional_entity_assignment: Lender}}
 cleaner:
   column_filters:
-    drop_attributes: ["firstdisbursementdate", "asofdate", "paidinfulldate"]
+    drop_attributes: ["nan"]
   quarantine_dir: quarantine
   row_filters:
     attribute_overrides:
@@ -159,16 +153,10 @@ def _apply_name_heuristics(self, df, target, keywords, prefixes):
 
 ## 🎯 Resumption Backlog (High Priority Pivot)
 
-0. **Migration Trial (Active Pivot)**:
-    * **Task 7.1**: [COMPLETED] Purge custom logic and baseline discovery.
-    * **Task 7.2**: [COMPLETED] Package and publish `v0.2.0` to PyPI.
-    * **Task 7.3**: [READY] Initialize "Migration Assistant" persona in external migration workspace.
-    * **Task 7.4**: Verify "Tag & Inject" flow for categorical missing values in the new workspace.
-
 0. **Phase 0: Domain Discovery & Zero-Hardcoding**:
     * **Task 6.1**: [STABILIZED] Generic **Policy Manifest** schema implemented.
     * **Task 6.2**: [STABILIZED] `DocumentProcessor` integrated into CLI for automated rule extraction.
-    * **Task 6.3**: [STABILIZED] `UniversalValidator` implemented and wired into the pipeline; legacy SBA engine retired.
+    * **Task 6.3**: [COMPLETED] `UniversalValidator` implemented and wired into the pipeline; legacy SBA engine retired.
 
 1. **Grounded Inference & Data Quality**: 
     * **Task 4.1**: [STABILIZED] `null_profiler.py` generates JSON metadata sidecar (cardinality, top 5 samples, normalized types).

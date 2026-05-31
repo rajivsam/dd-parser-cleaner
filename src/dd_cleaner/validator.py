@@ -8,9 +8,19 @@ class UniversalValidator:
     """
     Executes validation logic defined in external JSON manifests.
     Supports dynamic operators and configurable actions (flag vs quarantine).
+
+    Attributes:
+        rules (list): Collection of rule definitions from the manifest.
+        _operators (dict): Implementation of comparison logic via lambdas.
     """
 
     def __init__(self, policy_manifest: Dict[str, Any] = None):
+        """
+        Initializes the validator.
+
+        Args:
+            policy_manifest (dict, optional): Domain rules JSON.
+        """
         self.logger = logging.getLogger(__name__)
         self.manifest = policy_manifest or {}
         self.rules = self.manifest.get("validation_rules", [])
@@ -30,7 +40,13 @@ class UniversalValidator:
     def execute_validation(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, List[int]]:
         """
         Applies all manifest rules to the dataframe.
-        Returns the modified dataframe (with flags) and a list of indices to quarantine.
+
+        Args:
+            df (pd.DataFrame): Data to validate.
+
+        Returns:
+            Tuple[pd.DataFrame, List[int]]: Modified data with flags, and 
+                                          indices marked for quarantine.
         """
         if not self.rules:
             self.logger.info("No validation rules found in manifest. Skipping.")

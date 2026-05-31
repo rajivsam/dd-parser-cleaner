@@ -34,7 +34,7 @@ cleaner:
   row_filters:
     attribute_overrides: {}
   structural_assessment:
-    auto_drop_constant: true
+    auto_drop_constant: false
     dataset_type: cross-sectional (inferred)
     null_threshold: 0.95
 documents_dir: documents

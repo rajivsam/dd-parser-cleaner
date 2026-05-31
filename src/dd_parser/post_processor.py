@@ -8,12 +8,20 @@ from datetime import datetime
 import pandas as pd
 from pathlib import Path
 from typing import Dict, Any, Tuple, List, Set
-from path_coordinator import PathCoordinator
+from dd_common.path_coordinator import PathCoordinator
 from .rules import IntegrityEngine
 
 
 class MetadataPostProcessor:
-    """Structures extracted entity values and manages hard disk storage rules without hardcoded keywords."""
+    """
+    Structures extracted entity values and manages storage rules.
+
+    Attributes:
+        paths (PathCoordinator): resource routing manager.
+        parser_config (dict): Parser-specific configuration.
+        all_keywords (dict): Cache of tag-identifying keywords.
+        known_prefixes (list): Stems discovered for prefix-stripping logic.
+    """
 
     def __init__(self, path_coordinator: PathCoordinator, parser_config: Dict[str, Any]) -> None:
         """Initializes the processor layers."""
@@ -23,7 +31,13 @@ class MetadataPostProcessor:
         self.update_config(path_coordinator, parser_config)
 
     def update_config(self, path_coordinator: PathCoordinator, parser_config: Dict[str, Any]) -> None:
-        """Refreshes operational configurations and targets dynamically."""
+        """
+        Refreshes operational configurations and targets dynamically.
+
+        Args:
+            path_coordinator (PathCoordinator): Resource manager.
+            parser_config (dict): Configuration block.
+        """
         self.paths = path_coordinator
         self.parser_config = parser_config if parser_config is not None else {}
         # 🧠 EARLY HYDRATION: Populate keywords from config immediately to support 
@@ -35,7 +49,15 @@ class MetadataPostProcessor:
         return IntegrityEngine.normalize(s)
 
     def infer_schema_columns(self, df: pd.DataFrame) -> Tuple[pd.Series, pd.Series]:
-        """Extracts structural parts from messy input columns dynamically using header names or indices."""
+        """
+        Extracts attribute names and descriptions from dictionary data dynamically.
+
+        Args:
+            df (pd.DataFrame): The raw data dictionary file.
+
+        Returns:
+            Tuple[pd.Series, pd.Series]: (Attribute names, Description strings).
+        """
         target_col_name = self.paths.data_dictionary_attribute_col_name
         attr_idx = 0
 
@@ -68,7 +90,16 @@ class MetadataPostProcessor:
         return attr_series, desc_series
 
     def synchronize_with_raw_headers(self, df_dict: pd.DataFrame, df_raw_sample: pd.DataFrame) -> pd.DataFrame:
-        """Replaces attributes with authoritative headers and performs Early Binding of data types."""
+        """
+        Replaces attributes with authoritative headers and performs Early Binding of data types.
+
+        Args:
+            df_dict (pd.DataFrame): The processed data dictionary.
+            df_raw_sample (pd.DataFrame): A sample of the raw dataset for type probing.
+
+        Returns:
+            pd.DataFrame: Dictionary with headers aligned to the raw data file.
+        """
         raw_headers = list(df_raw_sample.columns)
         raw_header_map = {self._normalize(h): h for h in raw_headers}
         
@@ -93,32 +124,41 @@ class MetadataPostProcessor:
             matched_header = raw_header_map.get(dict_attr_norm)
             
             if matched_header:
+                # 🛡️ DEDUPLICATION GATE: Prevents multiple dictionary entries from mapping 
+                # to the same physical header (e.g., due to aggressive normalization).
+                if matched_header in matched_raw_headers:
+                    self.logger.warning(
+                        f"⚠️ Duplicate entry for header '{matched_header}' in Data Dictionary. Skipping redundant definition."
+                    )
+                    continue
                 row_dict[target_col_name] = matched_header
                 # 🎯 AUTHORITATIVE GATEWAY: Assign types early while the bridge is active
                 p_type, l_type = self.convert_to_DS_type(df_raw_sample[matched_header])
                 row_dict["physical_type"] = p_type
                 row_dict["logical_type"] = l_type
                 matched_raw_headers.add(matched_header)
+                updated_rows.append(row_dict)
             else:
-                row_dict["physical_type"] = "unknown"
-                row_dict["logical_type"] = "unknown"
-                
-            updated_rows.append(row_dict)
-
-        for raw_h in raw_headers:
-            if raw_h not in matched_raw_headers:
-                new_row = {col: "" for col in df_dict.columns}
-                new_row[target_col_name] = raw_h
-                new_row[desc_col_name] = "No description available."
-                p_type, l_type = self.convert_to_DS_type(df_raw_sample[raw_h])
-                new_row["physical_type"] = p_type
-                new_row["logical_type"] = l_type
-                updated_rows.append(new_row)
+                # 🕵️ DEBUG: Log mismatches to identify naming drift
+                self.logger.debug(
+                    f"🔍 Bridge Sync Miss: Dictionary attribute '{dict_attr_val}' (norm: '{dict_attr_norm}') "
+                    "not found in raw headers.")
 
         return pd.DataFrame(updated_rows)
 
     def _derive_prefix_stems(self, assigned_attributes: List[str]) -> List[str]:
-        """Algorithmatically computes common structural token sub-stems from assigned attribute names."""
+        """
+        Algorithmatically computes common structural tokens from attributes.
+
+        Identifies common prefix candidates (e.g., 'borr', 'bank') to facilitate 
+        accurate heuristic stripping in semantic classification.
+
+        Args:
+            assigned_attributes (List[str]): Attributes already classified by the LLM.
+
+        Returns:
+            List[str]: Sorted list of unique prefix stems.
+        """
         stems = set()
         for attr in assigned_attributes:
             clean_attr = str(attr).strip().lower()
@@ -145,15 +185,30 @@ class MetadataPostProcessor:
         llm_assignments: Dict[str, Dict[str, Any]],
         grounding_profile: Dict[str, Any] = None,
         df_raw_sample: pd.DataFrame = None,
-        dataset_type: str = "cross-sectional"
+        dataset_type: str = "cross-sectional",
+        bridge_report: Dict[str, Any] = None
     ) -> pd.DataFrame:
-        """Assembles data matrix, resolves configuration overrides, and saves output data blocks."""
+        """
+        Assembles data matrix and resolves configuration overrides.
+
+        Args:
+            df (pd.DataFrame): Operational dictionary matrix.
+            attributes (pd.Series): Synchronized field names.
+            descriptions (pd.Series): Definitions.
+            llm_assignments (Dict[str, dict]): LLM classification payload.
+            grounding_profile (dict, optional): Physical data stats.
+            df_raw_sample (pd.DataFrame, optional): Sample raw data for type probing.
+            dataset_type (str, optional): Inferred structural nature.
+            bridge_report (dict, optional): Integrity check results.
+
+        Returns:
+            pd.DataFrame: Finalized metadata matrix for cleaner ingestion.
+        """
         provisional_df = df.copy()
         
-        # 🛡️ INTEGRITY CHECK: Evaluate the bridge before proceeding
-        raw_headers = list(df_raw_sample.columns) if df_raw_sample is not None else []
-        bridge_report = IntegrityEngine.evaluate_bridge(attributes.tolist(), raw_headers)
-        orphans = set(bridge_report["orphans"])
+        # 🛡️ INTEGRITY LOGGING: The bridge has already been synchronized in the orchestrator.
+        # We simply log the active operational count for the session.
+        self.logger.info(f"🚀 Processing {len(provisional_df)} matched attributes in the operational pool.")
 
         # 1. Initialize Columns
         provisional_df["attribute_name"] = attributes
@@ -229,18 +284,28 @@ class MetadataPostProcessor:
         # 🛡️ GROUNDING VALIDATION: Flag obvious mismatches between LLM and Physical reality
         self._validate_grounding_consistency(provisional_df, grounding_profile)
 
-        # 🧼 QUARANTINE & STRIP: Remove orphans from the operational matrix (CSV)
-        # We keep them in a separate df just for the human report warnings
-        operational_df = provisional_df[~provisional_df["attribute_name"].isin(orphans)].copy()
-        orphan_df = provisional_df[provisional_df["attribute_name"].isin(orphans)].copy()
+        # 🛡️ INTEGRITY GATE: Force deduplication of the operational matrix before artifact generation
+        provisional_df = provisional_df.drop_duplicates(subset=["attribute_name"]).reset_index(drop=True)
 
-        self._write_pipeline_artifacts(operational_df)
-        self._write_provisional_report(operational_df, grounding_profile, orphan_df, dataset_type=dataset_type)
+        # � PERSISTENCE: Save the finalized matrix and generate report
+        self._write_pipeline_artifacts(provisional_df)
+        self._write_provisional_report(provisional_df, grounding_profile, dataset_type=dataset_type, bridge_report=bridge_report)
         
         return provisional_df
 
     def _apply_name_heuristics(self, df: pd.DataFrame, target: str, keywords: Set[str], prefixes: List[str]) -> pd.DataFrame:
-        """Applies name-based suffix heuristics using dynamic prefix-stripping logic."""
+        """
+        Applies name-based suffix heuristics using dynamic prefix-stripping.
+
+        Args:
+            df (pd.DataFrame): Operational matrix.
+            target (str): Target semantic flag (e.g., 'geographic').
+            keywords (Set[str]): Tokens defining the target.
+            prefixes (List[str]): Discovered stems to strip.
+
+        Returns:
+            pd.DataFrame: Matrix with updated boolean flags.
+        """
         col_name = f"is_{target}"
         keywords_lower = {str(k).lower().strip() for k in keywords}
         if col_name not in df.columns:
@@ -268,7 +333,13 @@ class MetadataPostProcessor:
         return df
 
     def _validate_grounding_consistency(self, df: pd.DataFrame, profile: Dict[str, Any]) -> None:
-        """Checks for semantic hallucinations (e.g., tagging an empty or numeric column as 'geographic')."""
+        """
+        Checks for semantic hallucinations.
+
+        Args:
+            df (pd.DataFrame): Operational matrix.
+            profile (dict): Physical data stats.
+        """
         if not profile:
             return
 
@@ -285,7 +356,12 @@ class MetadataPostProcessor:
                     )
 
     def _write_pipeline_artifacts(self, df: pd.DataFrame) -> None:
-        """Writes matrix result tables and cryptographic metadata signatures to the output targets."""
+        """
+        Writes matrix result tables and cryptographic metadata signatures.
+
+        Args:
+            df (pd.DataFrame): Finalized metadata matrix.
+        """
         output_csv_path = Path(self.paths.data_dictionary_csv_path)
         
         # 1. Save the primary metadata matrix
@@ -304,7 +380,15 @@ class MetadataPostProcessor:
         self.logger.info(f"🔑 Metadata signature generated at: {sig_path}")
     
     def convert_to_DS_type(self, series: pd.Series) -> Tuple[str, str]:
-        """Infers the native Python type and logical category for a given data series."""
+        """
+        Infers the native Python type and logical category for a series.
+
+        Args:
+            series (pd.Series): Raw data column.
+
+        Returns:
+            Tuple[str, str]: (Physical type string, Logical type string).
+        """
         dtype = series.dtype
         
         if pd.api.types.is_numeric_dtype(dtype):
@@ -352,7 +436,13 @@ class MetadataPostProcessor:
         return t_name, l_name
 
 
-    def _write_provisional_report(self, df: pd.DataFrame, grounding_profile: Dict[str, Any] = None, orphan_df: pd.DataFrame = None, dataset_type: str = "cross-sectional") -> None:
+    def _write_provisional_report(
+        self, 
+        df: pd.DataFrame, 
+        grounding_profile: Dict[str, Any] = None, 
+        dataset_type: str = "cross-sectional",
+        bridge_report: Dict[str, Any] = None
+    ) -> None:
         """Generates a human-readable markdown report summarizing entity assignments and types."""
         # 🧠 DYNAMIC PATH RESOLUTION: Fetch the report path from the coordinator
         report_path = self.paths.parser_provisional_report_path
@@ -398,14 +488,21 @@ class MetadataPostProcessor:
             for entity, count in summary_stats.items():
                 f.write(f"- **{entity}**: {count} fields\n")
             
-            # 🚩 CRITICAL SCHEMA MISMATCH: Highlight Bucket B (Orphans)
-            if orphan_df is not None and not orphan_df.empty:
-                f.write(f"\n### ⚠️ CRITICAL SCHEMA MISMATCH (Orphaned Attributes)\n")
-                f.write("> The following attributes were found in your Data Dictionary but are missing from the raw data file. ")
-                f.write("They have been **excluded** from the operational cleaning matrix.\n\n")
-                for attr in orphan_df["attribute_name"].tolist():
-                    f.write(f"- `{attr}`\n")
-                f.write("\n")
+            # 🚩 INTEGRITY REPORTING: Explicit mismatch sections
+            if bridge_report:
+                orphans = bridge_report.get("orphans", [])
+                if orphans:
+                    f.write("\n### ⚠️ Orphans in Data Dictionary\n")
+                    f.write("> These attributes exist in the dictionary but were **not found** in the raw data file. They have been excluded from the assignments below.\n\n")
+                    for item in orphans:
+                        f.write(f"- `{item}`\n")
+                
+                ghosts = bridge_report.get("ghosts", [])
+                if ghosts:
+                    f.write("\n### 👻 Orphans in Data (Ghosts)\n")
+                    f.write("> These headers exist in the raw data file but have **no corresponding entry** in the data dictionary.\n\n")
+                    for item in ghosts:
+                        f.write(f"- `{item}`\n")
 
             f.write(f"\n---\n\n### 📋 Detailed Assignments\n")
             f.write(md_display_df.to_markdown(index=False, tablefmt="github"))

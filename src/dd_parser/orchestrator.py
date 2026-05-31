@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List
 from rich.console import Console
 from rich.prompt import Confirm
-from path_coordinator import PathCoordinator
+from dd_common.path_coordinator import PathCoordinator
 
 from .llm_client import LLMEntityClassifier
 from .post_processor import MetadataPostProcessor
@@ -15,10 +15,25 @@ from .rules import IntegrityEngine
 
 
 class PipelineOrchestrator:
-    """Entry point architecture that choreographs the domain discovery workflow."""
+    """
+    Entry point architecture that choreographs the domain discovery workflow.
+
+    Attributes:
+        paths (PathCoordinator): Authorized routing contract for project resources.
+        global_config (dict): Root configuration settings.
+        parser_config (dict): Isolated parser-specific settings.
+        llm_classifier (LLMEntityClassifier): Client for semantic categorization.
+        post_processor (MetadataPostProcessor): Logic for matrix assembly and export.
+        console (Console): Rich terminal interface for user feedback.
+    """
 
     def __init__(self, path_coordinator: PathCoordinator) -> None:
-        """Injects dependencies and hydrates framework configuration boundaries."""
+        """
+        Injects dependencies and hydrates framework configuration boundaries.
+
+        Args:
+            path_coordinator (PathCoordinator): Initialized resource manager.
+        """
         if path_coordinator is None:
             raise TypeError("PipelineOrchestrator requires a valid PathCoordinator instance.")
             
@@ -48,37 +63,26 @@ class PipelineOrchestrator:
         self._verify_infrastructure_availability()
 
     def _verify_infrastructure_availability(self) -> None:
-        """Verifies that the core inference model client infrastructure is reachable before execution."""
+        """
+        Verifies that the core inference model client infrastructure is reachable.
+        
+        Checks the connectivity to the local Ollama instance. If unreachable, 
+        terminates execution to prevent pipeline failure.
+        """
         if not hasattr(self.llm_classifier, "is_ready") or not self.llm_classifier.is_ready():
             self.logger.critical("❌ Background inference model (Ollama) is offline. Please start your local service engine instance and re-run this tool.")
             sys.exit(1)
 
-    def set_working_config(self, working_dir: str, config_path: str) -> None:
-        """Resets the internal environment boundaries with runtime parameters."""
-        self.paths = self.paths.__class__(config_path=config_path, working_dir=working_dir)
-        self.global_config = self.paths.config
-        self.parser_config = self.global_config.get("parser", self.global_config)
-        
-        # Refresh configurations across downstream dependencies
-        self.llm_classifier.update_config(self.global_config, self.parser_config)
-        self.post_processor.update_config(self.paths, self.parser_config)
-        
-        # Re-verify infrastructure capabilities following environmental layout adjustments
-        self._verify_infrastructure_availability()
-
-    def extract_inventory_attributes(self) -> List[str]:
-        """Safely extracts native attribute strings from the configured source."""
-        target_path = Path(self.paths.data_dictionary_path)
-        if not target_path.exists():
-            return []
-            
-        df_dict = pd.read_csv(target_path, sep=None, engine='python', skipinitialspace=True)
-        attr_series, _ = self.post_processor.infer_schema_columns(df_dict)
-        clean_series = attr_series.dropna().astype(str).str.strip()
-        return clean_series[clean_series != ""].tolist()
-
     def process_pipeline(self) -> pd.DataFrame:
-        """Executes LLM domain discovery and passes artifacts to post-processing."""
+        """
+        Executes LLM domain discovery and passes artifacts to post-processing.
+
+        Returns:
+            pd.DataFrame: The final synchronized metadata matrix.
+
+        Raises:
+            FileNotFoundError: If the Data Dictionary source file is missing.
+        """
         target_path = Path(self.paths.data_dictionary_path)
         if not target_path.exists():
             raise FileNotFoundError(f"Data Dictionary blueprint missing at: {target_path}")
@@ -88,6 +92,7 @@ class PipelineOrchestrator:
         # 📊 GROUNDED INFERENCE: Synchronize schema and generate data profile
         grounding_profile = {}
         df_raw_sample = None
+        bridge = None
         raw_dataset_path = Path(self.paths.raw_dataset_path)
         if raw_dataset_path.exists():
             cleaner_cfg = self.global_config.get("cleaner", {})
@@ -104,13 +109,19 @@ class PipelineOrchestrator:
             # Task 4.1: Request the LLM client to generate the metadata bundle
             grounding_profile = self.llm_classifier.generate_grounding_profile(df_raw_sample)
 
-            # 📊 HEADER SYNCHRONIZATION: Align dictionary attributes with authoritative raw headers
-            df_dict = self.post_processor.synchronize_with_raw_headers(df_dict, df_raw_sample)
-
-            # 🛡️ INTEGRITY SYNC: Reconcile Dictionary vs Raw (Bucket Strategy)
+            # 🛡️ INTEGRITY EVALUATION: Reconcile Dictionary vs Raw BEFORE synchronization
+            # This ensures that 'Orphans' are captured before they are filtered out of the operational pool.
             attr_series, _ = self.post_processor.infer_schema_columns(df_dict)
             bridge = IntegrityEngine.evaluate_bridge(attr_series.tolist(), list(df_raw_sample.columns))
             self.logger.info(f"🌉 Bridge Evaluation: {len(bridge['operational'])} Operational, {len(bridge['orphans'])} Orphans, {len(bridge['ghosts'])} Ghosts")
+            
+            if bridge['orphans']:
+                self.logger.warning(f"⚠️  Orphans Detected (Dictionary entries with no data match): {bridge['orphans'][:5]}...")
+            if bridge['ghosts']:
+                self.logger.info(f"👻 Ghosts Detected (Raw headers without dictionary entry): {bridge['ghosts'][:5]}...")
+
+            # 📊 HEADER SYNCHRONIZATION: Align dictionary attributes with authoritative raw headers
+            df_dict = self.post_processor.synchronize_with_raw_headers(df_dict, df_raw_sample)
             
             # Synchronize the dictionary to exclude manual drops before LLM classification
             if manual_drops:
@@ -143,12 +154,22 @@ class PipelineOrchestrator:
         parsed_matrix = self.post_processor.execute(
             df_dict, attr_series, desc_series, llm_assignments,
             grounding_profile=grounding_profile, df_raw_sample=df_raw_sample,
-            dataset_type=dataset_type
+            dataset_type=dataset_type,
+            bridge_report=bridge
         )
         return parsed_matrix
 
     def _execute_filtering(self, df: pd.DataFrame, drop_cols: List[str]) -> pd.DataFrame:
-        """Physically removes attributes specified in the configuration."""
+        """
+        Physically removes attributes specified in the configuration.
+
+        Args:
+            df (pd.DataFrame): Data sample to filter.
+            drop_cols (List[str]): Column names to exclude.
+
+        Returns:
+            pd.DataFrame: Filtered sample.
+        """
         if not drop_cols:
             return df
         existing_drops = [c for c in drop_cols if c in df.columns]

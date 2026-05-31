@@ -8,10 +8,21 @@ class CleaningRulesEngine:
     """
     Applies transformation rules driven by the Policy Manifest.
     Eliminates hardcoded domain assumptions in favor of manifest-defined constants.
+
+    Attributes:
+        active_prefixes (list): Semantic prefixes for title-casing identification.
+        padding_rules (dict): Mapping of column tokens to digit widths.
+        title_case_tokens (list): Explicit list of tokens for title-casing.
     """
 
     def __init__(self, active_prefixes: List[str], policy_manifest: Dict[str, Any] = None) -> None:
-        """Initializes the engine with dynamic prefixes and the domain policy manifest."""
+        """
+        Initializes the rules engine.
+
+        Args:
+            active_prefixes (list): List of stems for heuristic matching.
+            policy_manifest (dict, optional): Parsed JSON rules from discovery.
+        """
         self.active_prefixes = active_prefixes
         self.manifest = policy_manifest or {}
         
@@ -20,28 +31,16 @@ class CleaningRulesEngine:
         self.padding_rules = self.constants.get("FORMATTING_PADDING", {})  # e.g., {"zip": 5, "id": 10}
         self.title_case_tokens = self.constants.get("FORMATTING_TITLE_CASE", [])
 
-    def identify_mixed_value_indices(self, df: pd.DataFrame) -> List[int]:
-        """Identifies row indices containing values that deviate from the dominant type in their column."""
-        quarantine_indices: Set[int] = set()
-        
-        for col in df.columns:
-            # Isolate non-null values to determine the statistical dominant type
-            non_null_series = df[col].dropna()
-            if non_null_series.empty:
-                continue
-                
-            # 🕵️ PANDAS INFERENCE: Leverage built-in type detection
-            inferred = pd.api.types.infer_dtype(non_null_series)
-            if "mixed" in inferred:
-                dominant_type = non_null_series.map(type).value_counts().idxmax()
-                # Collect indices where the value is present but its type is an outlier
-                mixed_mask = df[col].apply(lambda x: x is not None and not pd.isna(x) and type(x) != dominant_type)
-                quarantine_indices.update(df.index[mixed_mask].tolist())
-                
-        return sorted(list(quarantine_indices))
-
     def execute_transformations(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Applies zero-padding and vectorized title-casing to data cells defensively."""
+        """
+        Applies zero-padding and vectorized title-casing to data cells.
+
+        Args:
+            df (pd.DataFrame): Data to transform.
+
+        Returns:
+            pd.DataFrame: Formatted dataset.
+        """
         df_out = df.copy()
         
         for col in df_out.columns:

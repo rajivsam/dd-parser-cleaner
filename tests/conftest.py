@@ -9,6 +9,7 @@ def managed_test_config():
     """
     Dynamically maps to the single authoritative config.yaml at the VSCode workspace root.
     Eliminates duplicated config payloads across production and testing states.
+    GOLDEN RULE: This points to the REAL file. No mocking or sandboxing.
     """
     # 🛠️ LOGGING INITIALIZATION: Ensure logs appear during test runs
     logging.basicConfig(

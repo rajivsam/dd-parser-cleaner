@@ -1,44 +1,35 @@
 # dd-parser-cleaner
 
-A private, local LLM-powered data dictionary parser, entity mapper, and case-preserving data transformation pipeline. This package crawls raw dataset structures, classifies attributes through local inference, and executes deterministic data cleaning routines while protecting case variations and file formats.
+A modular data engineering framework designed to bridge the gap between messy data dictionaries and production-ready datasets using local LLMs (Llama 3.2) and vectorized deterministic rules.
+
+## 💡 Why use this tool?
+
+In enterprise data science, data preparation is often the most fragile link. Scripts are frequently undocumented, and "semantic drift" occurs when the logic used to clean data no longer aligns with the business's Data Dictionary. This leads to non-reproducible results and high technical debt.
+
+`dd-parser-cleaner` solves this by creating a deterministic, auditable link between your documentation and your data. It is specifically designed to support the **KMDS Data Helper** ecosystem—leveraging enterprise-grade open-source tools like Pandas and local LLM runtimes to ensure every step of your data journey is documented, reproducible, and ready for production.
+
+## 🎯 Our Guarantee
+
+`dd_parser_cleaner` ensures that your data is ready for analytics or ML applications because:
+
+1. **Strict Schema Integrity**: It enforces a "Clean Bucket" policy via the Integrity Sync, purging undocumented "Ghost" columns to ensure every feature is semantically mapped to a Data Dictionary entry.
+2. **Semantic Type Enforcement**: It automatically casts raw strings into high-precision, nullable physical types (e.g., `Int64`, `float`, `datetime`) grounded in verified logical metadata, eliminating type-related crashes downstream.
+3. **Deterministic Pipe Sequencing**: It executes an idempotent, vectorized transformation sequence (Sync → Assessment → Filter → Impute → Derive) that prevents data contamination and ensures reproducible results.
+4. **Audit-Ready Traceability**: It generates a signed, synchronized operational matrix and a "Handshake" report, providing a 100% traceable link between source metadata and the final analytical payload.
 
 ## 🚀 Quick Start
 
-### 1. Installation
-
-This repository uses `uv` for environment management and dependency tracking.
-
+### 1. Classification (The Handshake)
+Run the parser to align your data dictionary with your physical data headers and perform semantic classification:
 ```bash
-# Clone the repository and sync the local virtual environment
-cd dd_parser_cleaner
-uv sync
-
-# Install package command entry points in editable mode
-uv pip install -e .
+uv run classify-entities --workspace ./tests
 ```
 
-### 2. Run the Pipeline CLI
-
+### 2. Cleaning (The Pipeline)
+Run the cleaner to apply types, filters, and transformations grounded in the parser's metadata:
 ```bash
-# Step 1: Ingest layout and classify data dictionary entities
-classify-entities --workspace . --config config.yaml
-
-# Step 2: Validate signatures and execute geographic scrubbing routines
-clean-dataset --workspace . --config config.yaml
-```
-
-### 3. Run Automated Tests (`pytest`)
-
-All integration tests run inside an isolated folder context to ensure production directories are never contaminated.
-
-```bash
-uv run pytest -v tests/
+uv run clean-dataset --action full --workspace ./tests
 ```
 
 ---
-
-## 📑 Core Documentation Index
-
-For deep-dive architectural specifications, path coordinator details, and pipeline handshake rules, please consult the full documentation suite:
-
-* 👉 **[USER_GUIDE.md](USER_GUIDE.md)**: Exhaustive manual detailing hardened engineering constraints, file-routing abstraction schemas, data transformation algorithms, and structural testing profiles.
+*For detailed documentation and custom logic implementation, see the `documents/` directory and `USER_GUIDE.md`.*

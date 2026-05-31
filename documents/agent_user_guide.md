@@ -58,7 +58,7 @@ Expect the following layout. Never use absolute paths in your code; use relative
 ```text
 workspace/
 ├── src/
-│   └── path_coordinator.py # Resource Routing
+│   └── dd_common/path_coordinator.py # Resource Routing
 │   └── dd_cleaner/notebook_utils.py # Session Helper
 ├── config.yaml          # Authoritative Single Source of Truth
 ├── scripts/

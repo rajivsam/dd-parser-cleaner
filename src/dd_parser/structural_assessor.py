@@ -63,23 +63,3 @@ class StructuralAssessor:
         null_ratios = df.isnull().mean()
         sparse = null_ratios[null_ratios > self.null_threshold]
         return sparse.to_dict()
-
-    def _validate_pks(self, df: pd.DataFrame, keys: List[str]) -> Dict[str, Any]:
-        """Checks if the proposed Primary Keys are unique and valid."""
-        results = {"is_valid": True, "issues": []}
-        
-        missing = [k for k in keys if k not in df.columns]
-        if missing:
-            results["is_valid"] = False
-            results["issues"].append(f"Primary keys missing from columns: {missing}")
-            return results
-
-        if df[keys].isnull().any().any():
-            results["is_valid"] = False
-            results["issues"].append("Primary keys contain null values.")
-
-        if df.duplicated(subset=keys).any():
-            results["is_valid"] = False
-            results["issues"].append("Primary keys are not unique (duplicates found).")
-
-        return results

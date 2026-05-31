@@ -40,6 +40,22 @@ If you are modifying a single module and want to run focused, isolated validatio
 
 ---
 
+## 🛠️ Diagnostic Tools
+
+### Integrity Bridge Check
+To debug mismatches between your Data Dictionary and Raw Data headers without running a full pipeline pass, use the standalone diagnostic tool. This tool is dataset-agnostic and resolves paths dynamically via the `PathCoordinator`.
+
+```bash
+uv run python tests/check_integrity_bridge.py --workspace . --config config.yaml
+```
+
+**Output Summary:**
+- **Operational Fields**: Attributes successfully mapped between both sources.
+- **Orphans**: Fields defined in the dictionary but missing from the raw data.
+- **Ghosts**: Headers found in the raw data with no corresponding dictionary definition.
+
+---
+
 ## 🎯 Wrap-Up Project State
 
 All foundational pieces are successfully locked down:

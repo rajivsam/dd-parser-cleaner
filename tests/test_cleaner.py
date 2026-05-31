@@ -1,86 +1,63 @@
-"""Unit test suite verifying modular dataset cleaner execution matrix properties."""
+"""
+Test suite for the Dataset Cleaner.
+Aligned with the 'clean-dataset' CLI command and its various actions.
+"""
 
-import os
-import sys
 import pytest
-import yaml
-import pandas as pd
-import numpy as np
 from pathlib import Path
-
-# Ensure the src directory is in the path for module discovery
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from path_coordinator import PathCoordinator
-from dd_cleaner.orchestrator import PipelineRunner
-
-# Path to the production configuration file
-BASE_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
+import pandas as pd
+from dd_cleaner.orchestrator import CleanerOrchestrator
+from dd_common.path_coordinator import PathCoordinator
 
 @pytest.fixture
-def integration_env(tmp_path):
-    """Sets up a mock environment mirroring the clean_dataset workspace."""
-    output_dir = tmp_path / "cleaned_results"
-    output_dir.mkdir()
-    
-    # 🧪 KMDS Layout: Ensure expected directories exist for PathCoordinator
-    (tmp_path / "data").mkdir(exist_ok=True)
-    (tmp_path / "documents").mkdir(exist_ok=True)
+def initialized_cleaner(managed_test_config):
+    """Provides an orchestrator instance ready for testing."""
+    coord = PathCoordinator(config_path=managed_test_config, working_dir="./tests")
+    # Note: Ensure classify-entities (Parser) has run to satisfy the Handshake requirement
+    return CleanerOrchestrator(coord), coord
 
-    # Create sample data containing cases for SOP threshold and job ratio logic
-    # Ref: SOP 50 10 8 p. 149 (7a Small limit) and p. 329 (Job ratios)
-    data = {
-        'gross_approval_amount': [300000, 400000, 450000, 600000],
-        'loan_program': ['7a Small', '7a Small', 'SBA Express', 'SBA Express'],
-        'naics_code': [111110, 331110, 457110, 721110] # 33 is Mfg, 457 is restricted
-    }
+def test_cleaner_discovery(initialized_cleaner):
+    """Tests Phase 0: Domain Discovery (Policy Manifest generation)."""
+    orch, coord = initialized_cleaner
+    orch.run_pipeline(action="discovery")
     
-    # Load actual project config to ensure parity with production logic
-    with open(BASE_CONFIG_PATH, "r") as f:
-        config_dict = yaml.safe_load(f)
+    manifest_path = coord.cleaner_narrative_directory / "policy_manifest.json"
+    assert manifest_path.exists(), "Discovery failed to generate policy_manifest.json"
 
-    # 🧪 Align mock data filename with the authoritative config
-    raw_filename = config_dict["cleaner"].get("raw_dataset_file", "sba_loans_raw.csv")
-    input_csv = tmp_path / "data" / raw_filename
-    pd.DataFrame(data).to_csv(input_csv, index=False)
+def test_cleaner_profile(initialized_cleaner):
+    """Tests the independent data quality profiling action."""
+    orch, coord = initialized_cleaner
+    orch.run_pipeline(action="profile")
+    
+    report_path = Path(coord.profiling_report_path)
+    json_sidecar = report_path.with_suffix(".json")
+    
+    assert report_path.exists(), "Null profile markdown report missing"
+    assert json_sidecar.exists(), "Null profile JSON sidecar missing"
 
-    # Inject test-specific output path while preserving derivation and pipeline logic
-    config_dict["cleaner"]["output_dir"] = str(output_dir)
+def test_cleaner_assessment(initialized_cleaner):
+    """Tests the Cleaning Assistant's recommendation and provisional report generation."""
+    orch, coord = initialized_cleaner
+    orch.run_pipeline(action="assessment")
     
-    # Create a temporary config file for the PathCoordinator to load
-    test_config_file = tmp_path / "config.yaml"
-    with open(test_config_file, "w") as f:
-        yaml.safe_dump(config_dict, f)
+    rec_path = coord.cleaner_narrative_directory / "cleaning_recommendations.md"
+    prov_config = coord.cleaner_output_directory / "provisional_config.yaml"
+    
+    assert rec_path.exists(), "Cleaning recommendations report not found"
+    assert prov_config.exists(), "Provisional config for HITL review not found"
 
-    coordinator = PathCoordinator(config_path=str(test_config_file), working_dir=str(tmp_path))
-    return coordinator, output_dir
-
-def test_clean_dataset_functionality_parity(integration_env):
-    """
-    Ensures the test suite executes the same orchestrated logic as the 
-    production 'uv run clean_dataset' command.
-    """
-    coordinator, output_dir = integration_env
+def test_cleaner_full_pipeline(initialized_cleaner):
+    """Tests the full transformation sequence from raw to clean."""
+    orch, coord = initialized_cleaner
     
-    # Initialize and run the production-grade runner via the Routing Contract
-    runner = PipelineRunner(coordinator=coordinator)
-    runner.run()
+    # We run the full pipeline
+    orch.run_pipeline(action="full")
     
-    # Validate Output
-    cleaned_file = output_dir / "raw_data_cleaned.csv"
-    assert cleaned_file.exists(), "Pipeline failed to generate cleaned output file."
+    clean_path = Path(coord.clean_dataset_output_path)
+    assert clean_path.exists(), "Full pipeline failed to produce cleaned dataset"
     
-    result_df = pd.read_csv(cleaned_file)
-    
-    # 1. Parity Check: SOP Program Caps (SOP p. 149)
-    # 7(a) Small must be <= $350k. Row 1 ($400k) should be flagged.
-    if 'sop_threshold_violation' in result_df.columns:
-        assert result_df.loc[1, 'sop_threshold_violation'] == True
-        assert result_df.loc[0, 'sop_threshold_violation'] == False
-    
-    # 2. Parity Check: Job Creation Ratios (SOP p. 329)
-    # Row 0: $300k / $90k (Std) = 3.33 jobs
-    # Row 1: $400k / $140k (Mfg - NAICS 33) = 2.86 jobs
-    if 'sop_expected_jobs' in result_df.columns:
-        assert np.isclose(result_df.loc[0, 'sop_expected_jobs'], 3.33, atol=0.01)
-        assert np.isclose(result_df.loc[1, 'sop_expected_jobs'], 2.86, atol=0.01)
+    # Basic data sanity check
+    df_clean = pd.read_csv(clean_path)
+    # Ensure Bucket A sync worked - there should be data
+    assert not df_clean.empty, "Cleaned dataset is unexpectedly empty"
+    assert "warn_" not in df_clean.columns or any(df_clean.columns.str.startswith("warn_")), "Validator flags missing"

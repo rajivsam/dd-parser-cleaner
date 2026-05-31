@@ -10,9 +10,18 @@ from typing import Dict, Any, List
 from rich.console import Console
 
 class CleaningAssistant:
-    """Analyzes dataset physics and semantics to suggest cleaning strategies."""
+    """
+    Analyzes dataset physics and semantics to suggest cleaning strategies.
+
+    Attributes:
+        config (dict): Project configuration.
+        profile_path (Path): Source profile data.
+        dd_path (Path): Source dictionary data.
+        recommendations (list): Compiled suggested actions.
+    """
 
     def __init__(self, config: Dict[str, Any], profile_path: Path, dd_path: Path):
+        """Initializes the Assistant with required data sources."""
         self.logger = logging.getLogger(__name__)
         self.config = config
         self.profile_path = profile_path
@@ -23,7 +32,12 @@ class CleaningAssistant:
         self.model_name = self.config.get("model_name", "llama3.2")
 
     def generate_recommendations(self) -> Dict[str, Any]:
-        """Core heuristic engine to map columns to actions."""
+        """
+        Core heuristic engine to map columns to actions.
+
+        Returns:
+            Dict[str, Any]: Mapping of attributes to recommended strategies.
+        """
         if not self.profile_path.exists() or not self.dd_path.exists():
             if not self.profile_path.exists():
                 self.console.print(f"[yellow]⚠️ Profile report not found at: {self.profile_path}. Recommendations require a profile.[/yellow]")
@@ -41,7 +55,10 @@ class CleaningAssistant:
         # FACTORING: Consolidate all parser-stage metadata (logical types, geo-flags, entity assignments)
         # We resolve the authoritative attribute mapping to link parser metadata with physical stats.
         attr_col = "attribute_name" if "attribute_name" in df_dd.columns else df_dd.columns[0]
-        dd_lookup = df_dd.set_index(attr_col).to_dict(orient="index")
+        
+        # 🛡️ DEDUPLICATION: Ensure the dictionary has unique attribute mappings to prevent orient='index' collisions
+        df_dd_clean = df_dd.drop_duplicates(subset=[attr_col])
+        dd_lookup = df_dd_clean.set_index(attr_col).to_dict(orient="index")
 
         null_threshold = self.config.get('cleaner', {}).get('structural_assessment', {}).get('null_threshold', 0.95)
         
@@ -115,7 +132,12 @@ class CleaningAssistant:
         return {"recommendations": self.recommendations}
 
     def augment_with_llm(self, profile: Dict[str, Any]) -> None:
-        """Augments heuristic recommendations with LLM insights."""
+        """
+        Augments heuristic recommendations with LLM insights.
+
+        Args:
+            profile (dict): Data quality statistics.
+        """
         # Assembly Phase
         prompt = self._assemble_recommendation_prompt(profile)
         
@@ -128,7 +150,15 @@ class CleaningAssistant:
             self.logger.error(f"❌ LLM Recommendation augmentation failed: {e}")
 
     def _assemble_recommendation_prompt(self, profile: Dict[str, Any]) -> str:
-        """Handles prompt construction using templates from configuration."""
+        """
+        Handles prompt construction using templates from configuration.
+
+        Args:
+            profile (dict): Data quality statistics.
+
+        Returns:
+            str: Formatted LLM prompt.
+        """
         template = self.prompts.get("recommendation_template")
         system_p = self.prompts.get("system", "You are a data engineering assistant.")
         
@@ -142,12 +172,28 @@ class CleaningAssistant:
         return f"{system_p}\n\nAnalyze dataset profile: {json.dumps(profile)}"
 
     def _process_recommendation_result(self, response: str) -> List[Dict[str, Any]]:
-        """Handles cleaning and parsing of the LLM JSON response."""
+        """
+        Handles cleaning and parsing of the LLM JSON response.
+
+        Args:
+            response (str): Raw JSON string from the LLM.
+
+        Returns:
+            List[dict]: List of recommendation objects.
+        """
         data = json.loads(response)
         return data.get("recommendations", [])
 
     def _call_llm(self, prompt: str) -> str:
-        """Standardized HTTP caller for Ollama."""
+        """
+        Standardized HTTP caller for Ollama.
+
+        Args:
+            prompt (str): Prompt to send.
+
+        Returns:
+            str: LLM response body.
+        """
         response = httpx.post(
             "http://localhost:11434/api/generate",
             json={"model": self.model_name, "prompt": prompt, "stream": False, "format": "json"},
@@ -156,7 +202,12 @@ class CleaningAssistant:
         return response.json().get("response", "{}")
 
     def write_artifacts(self, output_dir: Path):
-        """Generates MD, CSV, and provisional YAML artifacts."""
+        """
+        Generates MD, CSV, and provisional YAML artifacts.
+
+        Args:
+            output_dir (Path): Destination for reports and config.
+        """
         if not self.recommendations:
             # Message already printed in generate_recommendations
             return

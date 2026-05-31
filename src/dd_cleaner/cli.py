@@ -5,7 +5,7 @@ import logging
 import sys
 from pathlib import Path
 from dd_cleaner.orchestrator import CleanerOrchestrator
-from path_coordinator import PathCoordinator
+from dd_common.path_coordinator import PathCoordinator
 
 
 def main():

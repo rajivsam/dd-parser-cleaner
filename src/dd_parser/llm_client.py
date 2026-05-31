@@ -10,15 +10,28 @@ from .rules import IntegrityEngine
 
 
 class LLMEntityClassifier:
-    """Manages Ollama API contexts and matches fallback heuristics semantically."""
+    """
+    Manages Ollama API contexts and matches fallback heuristics semantically.
+
+    Attributes:
+        model_name (str): The specific local model to invoke.
+        system_prompt (str): Global behavior instructions for the LLM.
+        prompts (dict): Collection of dynamic templates from configuration.
+    """
 
     def __init__(self, global_config: Dict[str, Any], parser_config: Dict[str, Any]) -> None:
-        """Hydrates runtime configurations for model routing queries."""
+        """Initializes the client with configuration contexts."""
         self.logger = logging.getLogger(__name__)
         self.update_config(global_config, parser_config)
 
     def update_config(self, global_config: Dict[str, Any], parser_config: Dict[str, Any]) -> None:
-        """Dynamically refreshes active structural settings fields."""
+        """
+        Dynamically refreshes active structural settings fields.
+
+        Args:
+            global_config (dict): Shared project settings.
+            parser_config (dict): Parser-specific settings.
+        """
         self.global_config = global_config
         self.parser_config = parser_config if parser_config is not None else {}
         self.model_name = self.global_config.get("model_name", "llama3.2")
@@ -26,7 +39,12 @@ class LLMEntityClassifier:
         self.prompts = self.parser_config.get("prompts", {}).get("entity_classifier", {})
 
     def is_ready(self) -> bool:
-        """🧠 INFRASTRUCTURE PROBE: Verifies local Ollama server status endpoint synchronously."""
+        """
+        Verifies local Ollama server status endpoint synchronously.
+
+        Returns:
+            bool: True if the model engine is reachable.
+        """
         try:
             response = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
             return response.status_code == 200
@@ -34,7 +52,15 @@ class LLMEntityClassifier:
             return False
 
     def generate_grounding_profile(self, df_sample: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
-        """Generates a physical metadata profile (cardinality, types, samples) to ground LLM inference."""
+        """
+        Generates a physical metadata profile to ground LLM inference.
+
+        Args:
+            df_sample (pd.DataFrame): Representative sample of raw data.
+
+        Returns:
+            Dict[str, dict]: Metadata stats (types, cardinality, samples) per column.
+        """
         profile = {}
         for col in df_sample.columns:
             series = df_sample[col]
@@ -53,7 +79,16 @@ class LLMEntityClassifier:
         return profile
 
     def infer_dataset_type(self, attributes: List[str], descriptions: List[str]) -> str:
-        """🧠 PHASE 1.5: Infers structural nature (Cross-sectional vs Panel) via temporal cues."""
+        """
+        Infers structural nature (Cross-sectional vs Panel) via temporal cues.
+
+        Args:
+            attributes (List[str]): Field names.
+            descriptions (List[str]): Definitions.
+
+        Returns:
+            str: 'cross-sectional' or 'panel'.
+        """
         sample_size = min(30, len(attributes))
         sample_fields = [
             {"attr": str(a), "desc": str(d)} 
@@ -73,6 +108,15 @@ class LLMEntityClassifier:
         return "cross-sectional"
 
     def _assemble_dataset_type_prompt(self, sample_fields: List[Dict[str, str]]) -> str:
+        """
+        Constructs the structural assessment prompt.
+
+        Args:
+            sample_fields (List[dict]): Sample of the schema.
+
+        Returns:
+            str: Formatted prompt.
+        """
         template = self.prompts.get("dataset_type_template")
         if template:
             return template.format(sample_fields=json.dumps(sample_fields))
@@ -110,7 +154,16 @@ class LLMEntityClassifier:
         raise RuntimeError(f"Ollama API error: {response.text}")
 
     def discover_macro_domain(self, attributes: List[str], descriptions: List[str]) -> List[str]:
-        """🧠 PHASE 1: Scans a sampling of the schema to establish global entity categories dynamically."""
+        """
+        Scans the schema to establish global entity categories dynamically.
+
+        Args:
+            attributes (List[str]): Field names.
+            descriptions (List[str]): Definitions.
+
+        Returns:
+            List[str]: Discovered entity concept names.
+        """
         sample_size = min(15, len(attributes))
         sample_fields = [
             {"attr": str(a), "desc": str(d)} 
@@ -130,6 +183,15 @@ class LLMEntityClassifier:
         return ["unassigned"]
 
     def _assemble_macro_prompt(self, sample_fields: List[Dict[str, str]]) -> str:
+        """
+        Constructs the macro domain discovery prompt.
+
+        Args:
+            sample_fields (List[dict]): Sample of the schema.
+
+        Returns:
+            str: Formatted prompt.
+        """
         template = self.prompts.get("macro_domain_template")
         if template:
             return template.format(sample_fields=json.dumps(sample_fields))
@@ -158,7 +220,19 @@ class LLMEntityClassifier:
         generated_hints: List[str] = None,
         grounding_profile: Dict[str, Any] = None
     ) -> Dict[str, Dict[str, Any]]:
-        """Queries local Llama 3.2 model atomically per attribute row to guarantee classification stability."""
+        """
+        Queries local model atomically per attribute to guarantee classification stability.
+
+        Args:
+            attributes (pd.Series): Column names.
+            descriptions (pd.Series): Definitions.
+            explicit_targets (List[str]): Semantic tags to evaluate.
+            generated_hints (List[str], optional): Discovery context from Phase 1.
+            grounding_profile (dict, optional): Physical data stats.
+
+        Returns:
+            Dict[str, Dict[str, Any]]: Mapping of attribute to entity assignment and tags.
+        """
         assignments = {}
         active_hints = generated_hints if generated_hints else []
         hints_str = ", ".join(str(h) for h in active_hints) if active_hints else "Logical Categories"
@@ -193,6 +267,19 @@ class LLMEntityClassifier:
         return assignments
 
     def _assemble_entity_prompt(self, attr_str, desc_str, stats_str, hints_str, targets_str) -> str:
+        """
+        Constructs the atomic entity classification prompt.
+
+        Args:
+            attr_str (str): Field name.
+            desc_str (str): Definition.
+            stats_str (str): Grounding stats JSON.
+            hints_str (str): Available entity choices.
+            targets_str (str): Semantic tags requested.
+
+        Returns:
+            str: Formatted prompt.
+        """
         template = self.prompts.get("entity_discovery_template")
         if template:
             return template.format(

@@ -5,7 +5,7 @@ import sys
 import logging
 from pathlib import Path
 from typing import Tuple
-from path_coordinator import PathCoordinator
+from dd_common.path_coordinator import PathCoordinator
 
 logger = logging.getLogger(__name__)
 

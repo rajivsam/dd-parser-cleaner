@@ -10,7 +10,7 @@ from pathlib import Path
 import importlib.util
 from typing import Dict, Any, List
 from rich.console import Console
-from path_coordinator import PathCoordinator
+from dd_common.path_coordinator import PathCoordinator
 
 from .assistant import CleaningAssistant
 from dd_parser.document_processor import DocumentProcessor
@@ -22,10 +22,25 @@ from .null_profiler import DatasetDataProfiler
 class CleanerOrchestrator:
     """
     Manages the idempotent execution of data cleaning transformations.
-    Implements the Phase 3 pipeline: Integrity -> Assessment -> etc.
+    
+    Implements the Phase 3 pipeline, coordinating between structural 
+    assessment, AI-powered recommendations, and the transformation runner.
+
+    Attributes:
+        paths (PathCoordinator): Manages workspace resource routing.
+        config (dict): The global project configuration.
+        cleaner_cfg (dict): Cleaner-specific settings.
+        structural_assessor (StructuralAssessor): Logic for data integrity audits.
+        doc_processor (DocumentProcessor): Extracts policy rules from text.
     """
 
     def __init__(self, path_coordinator: PathCoordinator) -> None:
+        """
+        Initializes the orchestrator.
+
+        Args:
+            path_coordinator (PathCoordinator): Authorized resource manager.
+        """
         self.logger = logging.getLogger(__name__)
         self.paths = path_coordinator
         self.config = self.paths.config
@@ -36,7 +51,12 @@ class CleanerOrchestrator:
         self.doc_processor = DocumentProcessor(model_name=self.config.get("model_name", "llama3.2"))
 
     def run_pipeline(self, action: str = "full") -> None:
-        """Executes the sequence of cleaning gates and transformations."""
+        """
+        Executes the sequence of cleaning gates and transformations.
+
+        Args:
+            action (str): Specific pipeline stage or 'full'.
+        """
         self.logger.info("🚀 Starting Cleaner Pipeline...")
 
         # 🛡️ HANDSHAKE CHECK: Verify the parser-cleaner protocol file exists
@@ -63,6 +83,8 @@ class CleanerOrchestrator:
         df = pd.read_csv(raw_path, sep=None, engine='python')
         
         df_dict = None
+        metadata_lookup = {}
+
         # 1.5 Integrity Sync (Bucket Strategy): Reconcile Dictionary vs Raw
         dd_path = Path(self.paths.data_dictionary_csv_path)
         if dd_path.exists():
@@ -71,6 +93,14 @@ class CleanerOrchestrator:
             dd_attributes = df_dict["attribute_name"].dropna().tolist()
             bridge = IntegrityEngine.evaluate_bridge(dd_attributes, list(df.columns))
             self.logger.info(f"🌉 Bridge Evaluation: {len(bridge['operational'])} Operational, {len(bridge['orphans'])} Orphans")
+
+            # 🎯 SYNC POINT: Immediately subset the data to the 'Clean Bucket'
+            # This ensures profiles and recommendations only reflect semantically mapped attributes.
+            df = df[bridge['operational']].copy()
+
+            # 🧠 METADATA LOOKUP: Build the lookup map for logical types to support grounded profiling
+            attr_col = "attribute_name" if "attribute_name" in df_dict.columns else df_dict.columns[0]
+            metadata_lookup = df_dict.set_index(attr_col)["logical_type"].to_dict()
         
         if action == "integrity":
             return
@@ -79,7 +109,7 @@ class CleanerOrchestrator:
         if action == "profile":
             self.console.print("\n[bold yellow]📊 Generating independent data quality profile...[/bold yellow]")
             profiler = DatasetDataProfiler(Path(self.paths.profiling_report_path))
-            profiler.generate_null_quality_report(df)
+            profiler.generate_null_quality_report(df, metadata_lookup=metadata_lookup)
             self.console.print(f"[bold green]✅ Null Profile Generated![/bold green] See: [cyan]{self.paths.profiling_report_path}[/cyan]")
             return
 
@@ -109,6 +139,8 @@ class CleanerOrchestrator:
             self._persist_config()
             self.console.print(f"\n[bold yellow]🛠️  CONFIG UPDATED:[/bold yellow] Dataset type set to '[cyan]{tagged_type}[/cyan]'. Review in config.yaml.")
 
+        self.console.print(f"📊 [bold cyan]Structural Context:[/bold cyan] [yellow]{sa_cfg.get('dataset_type', 'unknown')}[/yellow]")
+
         # 🤖 Assistant: Generate smart recommendations
         # Ensure df_dict is available for the assistant, even if it didn't exist initially
         if df_dict is None and dd_path.exists():
@@ -125,7 +157,7 @@ class CleanerOrchestrator:
             self.console.print("\n[bold yellow]📊 Generating initial data profile for Cleaning Assistant...[/bold yellow]")
             # Ensure we pass a Path object to the profiler
             profiler = DatasetDataProfiler(Path(self.paths.profiling_report_path))
-            profiler.generate_null_quality_report(df)
+            profiler.generate_null_quality_report(df, metadata_lookup=metadata_lookup)
 
         self.assistant = CleaningAssistant(self.config, profile_json, dd_path)
         self.assistant.generate_recommendations()
@@ -168,7 +200,12 @@ class CleanerOrchestrator:
         runner.run(action=action)
 
     def _execute_domain_discovery(self) -> None:
-        """Orchestrates LLM-based extraction of policy rules into a Manifest."""
+        """
+        Orchestrates LLM-based extraction of policy rules into a Manifest.
+        
+        Loads the handshake protocol and any available Data Dictionary context 
+        to produce a machine-readable JSON manifest of business rules.
+        """
         # 1. Use the authoritative handshake path established by the parser
         doc_path = self.paths.handshake_path
         self.logger.info(f"🔎 KMDS Discovery: Loading handshake protocol from {doc_path.name}")
@@ -198,7 +235,13 @@ class CleanerOrchestrator:
             self.logger.error(f"Discovery phase failed: {e}")
 
     def _display_imputation_candidates(self, profile_json: Path, exclusions: List[str]) -> None:
-        """Reads the null profile and displays columns that require imputation strategies."""
+        """
+        Displays columns requiring imputation strategies based on the null profile.
+
+        Args:
+            profile_json (Path): Path to the generated JSON profile.
+            exclusions (List[str]): Attributes already handled in config.
+        """
         if not profile_json.exists():
             return
 
@@ -218,7 +261,12 @@ class CleanerOrchestrator:
             self.logger.warning(f"Could not parse profile for candidates: {e}")
 
     def _report_structural_findings(self, report: Dict[str, Any]) -> None:
-        """Reports structural recommendations to the console without halting execution."""
+        """
+        Reports structural recommendations to the console.
+
+        Args:
+            report (dict): Structural audit report from the assessor.
+        """
         self.console.print("\n[bold cyan]📋 Cleaner: Structural Assessment Report[/bold cyan]")
         self.console.print(f"Structural Hash: [yellow]{report['structural_hash']}[/yellow]")
 
@@ -245,7 +293,12 @@ class CleanerOrchestrator:
             self.console.print("\n[green]✅ No unhandled structural issues detected.[/green]")
             
     def _get_config_path(self) -> Path:
-        """Resolves the authoritative config path from the coordinator."""
+        """
+        Resolves the authoritative config path from the coordinator.
+
+        Returns:
+            Path: Absolute path to the active config.yaml.
+        """
         # Prioritize config_path set in cli.py, then fallback to common coordinator attributes
         config_path = getattr(self.paths, "config_path", None) or \
                       getattr(self.paths, "_config_path", None) or \
@@ -257,7 +310,12 @@ class CleanerOrchestrator:
         return Path(config_path).resolve()
 
     def _reload_config(self) -> None:
-        """Reloads the configuration from the physical file into the orchestrator and coordinator."""
+        """
+        Reloads the configuration from the physical file.
+        
+        Synchronizes internal state with any manual edits performed by the 
+        user during the assessment phase.
+        """
         try:
             target = self._get_config_path()
             with open(target, 'r') as f:
@@ -285,5 +343,10 @@ class CleanerOrchestrator:
             self.logger.error(f"❌ Failed to persist configuration: {e}")
 
     def update_config(self, config: Dict[str, Any]) -> None:
-        """Refreshes sub-component settings."""
+        """
+        Refreshes sub-component settings.
+
+        Args:
+            config (dict): New configuration object.
+        """
         self.structural_assessor.update_config(config)

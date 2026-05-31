@@ -1,5 +1,5 @@
 # 📑 Data Dictionary: Provisional Entity Assignment Report
-**Generation Timestamp:** `2026-05-30 07:49:36`
+**Generation Timestamp:** `2026-05-31 06:40:58`
 **Source Blueprint:** `sba_dd.csv`
 
 ### 🏗️ Structural Assessment
@@ -7,15 +7,14 @@
 > ⚠️ **Note:** This inference is an automated suggestion based on schema patterns and may be incorrect. The `dataset_type` must be explicitly confirmed or defined in `config.yaml` before the Cleaner phase begins.
 
 ### 📊 Classification Summary
-- **BorrowerInformation**: 16 fields
-- **LocationMetadata**: 16 fields
-- **LoanApplication**: 4 fields
-- **SBAProgramIndicator**: 3 fields
+- **Borrower**: 11 fields
+- **Location**: 10 fields
+- **Loan**: 6 fields
+- **Program**: 3 fields
 - **Lender**: 1 fields
-- **BankDetails**: 1 fields
 
-### ⚠️ CRITICAL SCHEMA MISMATCH (Orphaned Attributes)
-> The following attributes were found in your Data Dictionary but are missing from the raw data file. They have been **excluded** from the operational cleaning matrix.
+### ⚠️ Orphans in Data Dictionary
+> These attributes exist in the dictionary but were **not found** in the raw data file. They have been excluded from the assignments below.
 
 - `BankName`
 - `BankFDICNumber`
@@ -30,53 +29,55 @@
 - `RevolverStatus`
 - `SoldSecMrktInd`
 
+### 👻 Orphans in Data (Ghosts)
+> These headers exist in the raw data file but have **no corresponding entry** in the data dictionary.
+
+- `cdc_name`
+- `cdc_street`
+- `cdc_city`
+- `cdc_state`
+- `cdc_zip`
+- `thirdpartylender_name`
+- `thirdpartylender_city`
+- `thirdpartylender_state`
+- `thirdpartydollars`
 
 ---
 
 ### 📋 Detailed Assignments
-| Attribute                | Assignment            | Logical Type   | Physical Type   | Flag: Geographic   |
-|--------------------------|-----------------------|----------------|-----------------|--------------------|
-| `asofdate`               | `BorrowerInformation` | `datetime`     | `datetime`      | `False`            |
-| `program`                | `SBAProgramIndicator` | `numeric`      | `int`           | `False`            |
-| `locationid`             | `Lender`              | `numeric`      | `int`           | `False`            |
-| `borrname`               | `BorrowerInformation` | `text`         | `str`           | `False`            |
-| `borrstreet`             | `BorrowerInformation` | `text`         | `str`           | `True`             |
-| `borrcity`               | `LocationMetadata`    | `text`         | `str`           | `True`             |
-| `borrstate`              | `BorrowerInformation` | `categorical`  | `str`           | `True`             |
-| `borrzip`                | `BorrowerInformation` | `numeric`      | `int`           | `True`             |
-| `grossapproval`          | `LoanApplication`     | `numeric`      | `int`           | `False`            |
-| `approvaldate`           | `LoanApplication`     | `datetime`     | `datetime`      | `False`            |
-| `approvalfy`             | `LoanApplication`     | `numeric`      | `int`           | `False`            |
-| `firstdisbursementdate`  | `BorrowerInformation` | `datetime`     | `datetime`      | `False`            |
-| `processingmethod`       | `LoanApplication`     | `categorical`  | `str`           | `False`            |
-| `nan`                    | `BorrowerInformation` | `unknown`      | `unknown`       | `False`            |
-| `subprogram`             | `BorrowerInformation` | `categorical`  | `str`           | `False`            |
-| `terminmonths`           | `BorrowerInformation` | `numeric`      | `int`           | `False`            |
-| `naicscode`              | `LocationMetadata`    | `numeric`      | `int`           | `True`             |
-| `naicsdescription`       | `LocationMetadata`    | `text`         | `str`           | `True`             |
-| `franchisecode`          | `LocationMetadata`    | `numeric`      | `float`         | `True`             |
-| `franchisename`          | `LocationMetadata`    | `categorical`  | `str`           | `True`             |
-| `projectcounty`          | `LocationMetadata`    | `text`         | `str`           | `True`             |
-| `projectstate`           | `LocationMetadata`    | `categorical`  | `str`           | `True`             |
-| `sbadistrictoffice`      | `LocationMetadata`    | `categorical`  | `str`           | `True`             |
-| `congressionaldistrict`  | `LocationMetadata`    | `numeric`      | `int`           | `True`             |
-| `businesstype`           | `BorrowerInformation` | `categorical`  | `str`           | `False`            |
-| `businessage`            | `BorrowerInformation` | `categorical`  | `str`           | `False`            |
-| `loanstatus`             | `BorrowerInformation` | `categorical`  | `str`           | `False`            |
-| `paidinfulldate`         | `BorrowerInformation` | `datetime`     | `datetime`      | `False`            |
-| `chargeoffdate`          | `SBAProgramIndicator` | `datetime`     | `datetime`      | `False`            |
-| `grosschargeoffamount`   | `BorrowerInformation` | `numeric`      | `float`         | `False`            |
-| `jobssupported`          | `BorrowerInformation` | `numeric`      | `int`           | `False`            |
-| `collateralind`          | `SBAProgramIndicator` | `numeric`      | `float`         | `False`            |
-| `cdc_name`               | `LocationMetadata`    | `categorical`  | `str`           | `True`             |
-| `cdc_street`             | `LocationMetadata`    | `categorical`  | `str`           | `True`             |
-| `cdc_city`               | `LocationMetadata`    | `categorical`  | `str`           | `True`             |
-| `cdc_state`              | `LocationMetadata`    | `categorical`  | `str`           | `True`             |
-| `cdc_zip`                | `LocationMetadata`    | `numeric`      | `int`           | `True`             |
-| `thirdpartylender_name`  | `BankDetails`         | `text`         | `str`           | `False`            |
-| `thirdpartylender_city`  | `LocationMetadata`    | `text`         | `str`           | `True`             |
-| `thirdpartylender_state` | `LocationMetadata`    | `categorical`  | `str`           | `True`             |
-| `thirdpartydollars`      | `BorrowerInformation` | `numeric`      | `float`         | `False`            |
+| Attribute               | Assignment   | Logical Type   | Physical Type   | Flag: Geographic   |
+|-------------------------|--------------|----------------|-----------------|--------------------|
+| `asofdate`              | `Borrower`   | `datetime`     | `datetime`      | `False`            |
+| `program`               | `Program`    | `numeric`      | `int`           | `False`            |
+| `locationid`            | `Lender`     | `numeric`      | `int`           | `False`            |
+| `borrname`              | `Borrower`   | `text`         | `str`           | `False`            |
+| `borrstreet`            | `Borrower`   | `text`         | `str`           | `True`             |
+| `borrcity`              | `Location`   | `text`         | `str`           | `True`             |
+| `borrstate`             | `Borrower`   | `categorical`  | `str`           | `True`             |
+| `borrzip`               | `Borrower`   | `numeric`      | `int`           | `True`             |
+| `grossapproval`         | `Loan`       | `numeric`      | `int`           | `False`            |
+| `approvaldate`          | `Loan`       | `datetime`     | `datetime`      | `False`            |
+| `approvalfy`            | `Loan`       | `numeric`      | `int`           | `False`            |
+| `firstdisbursementdate` | `Borrower`   | `datetime`     | `datetime`      | `False`            |
+| `processingmethod`      | `Program`    | `categorical`  | `str`           | `False`            |
+| `subprogram`            | `Program`    | `categorical`  | `str`           | `False`            |
+| `terminmonths`          | `Loan`       | `numeric`      | `int`           | `False`            |
+| `naicscode`             | `Location`   | `numeric`      | `int`           | `True`             |
+| `naicsdescription`      | `Location`   | `text`         | `str`           | `True`             |
+| `franchisecode`         | `Location`   | `numeric`      | `float`         | `True`             |
+| `franchisename`         | `Location`   | `categorical`  | `str`           | `True`             |
+| `projectcounty`         | `Location`   | `text`         | `str`           | `True`             |
+| `projectstate`          | `Location`   | `categorical`  | `str`           | `True`             |
+| `sbadistrictoffice`     | `Location`   | `categorical`  | `str`           | `True`             |
+| `congressionaldistrict` | `Location`   | `numeric`      | `int`           | `True`             |
+| `businesstype`          | `Borrower`   | `categorical`  | `str`           | `False`            |
+| `businessage`           | `Location`   | `categorical`  | `str`           | `True`             |
+| `loanstatus`            | `Borrower`   | `categorical`  | `str`           | `False`            |
+| `paidinfulldate`        | `Borrower`   | `datetime`     | `datetime`      | `False`            |
+| `chargeoffdate`         | `Borrower`   | `datetime`     | `datetime`      | `False`            |
+| `grosschargeoffamount`  | `Loan`       | `numeric`      | `float`         | `False`            |
+| `jobssupported`         | `Borrower`   | `numeric`      | `int`           | `False`            |
+| `collateralind`         | `Loan`       | `numeric`      | `float`         | `False`            |
 
 ---
 *Report generated via automated dd-parser post-processing.*

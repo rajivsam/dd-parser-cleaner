@@ -12,9 +12,20 @@ class MissingValueHandler:
     1. Attribute Overrides (Specific columns)
     2. Logical Type Defaults (Data classes)
     3. System Fallback (NaN + Warning)
+
+    Attributes:
+        mv_cfg (dict): Missing value configuration block.
+        workspace_root (Path): Base directory for custom script resolution.
     """
 
     def __init__(self, config: Dict[str, Any], workspace_root: Path):
+        """
+        Initializes the handler.
+
+        Args:
+            config (dict): Global configuration.
+            workspace_root (Path): Base directory for script relative pathing.
+        """
         self.logger = logging.getLogger(__name__)
         self.cleaner_cfg = config.get("cleaner", {})
         self.mv_cfg = self.cleaner_cfg.get("missing_values", {})
@@ -22,7 +33,12 @@ class MissingValueHandler:
         self._custom_module = self._load_custom_logic()
 
     def _load_custom_logic(self):
-        """Dynamically loads the custom logic script if defined."""
+        """
+        Dynamically loads the custom logic script.
+
+        Returns:
+            Module: The imported python module or None.
+        """
         logic_path = self.cleaner_cfg.get("custom_logic_path")
         if not logic_path:
             return None
@@ -38,7 +54,17 @@ class MissingValueHandler:
         return module
 
     def resolve(self, df: pd.DataFrame, col: str, logical_type: str) -> pd.Series:
-        """Resolves the cleaning action for a specific column."""
+        """
+        Resolves the cleaning action for a specific column via the hierarchy.
+
+        Args:
+            df (pd.DataFrame): The parent dataset.
+            col (str): Target column name.
+            logical_type (str): The semantically inferred type (e.g., numeric, categorical).
+
+        Returns:
+            pd.Series: The transformed data series.
+        """
         # 1. Attribute Override
         strategy = self.mv_cfg.get("attribute_overrides", {}).get(col)
         
@@ -53,7 +79,17 @@ class MissingValueHandler:
         return self._execute_strategy(df, col, strategy)
 
     def _execute_strategy(self, df: pd.DataFrame, col: str, strategy: str) -> pd.Series:
-        """Dispatches to built-in or custom transformation logic."""
+        """
+        Dispatches to built-in or custom transformation logic.
+
+        Args:
+            df (pd.DataFrame): Operational dataset.
+            col (str): Target column.
+            strategy (str): Strategy identifier.
+
+        Returns:
+            pd.Series: Imputed data series.
+        """
         if strategy.startswith("custom:"):
             return self._dispatch_custom(df, col, strategy.replace("custom:", ""))
         
@@ -84,7 +120,17 @@ class MissingValueHandler:
         return df[col]
 
     def _dispatch_custom(self, df: pd.DataFrame, col: str, func_name: str) -> pd.Series:
-        """Calls the custom Python function defined in domain_logic.py."""
+        """
+        Calls a custom Python function defined in domain_logic.py.
+
+        Args:
+            df (pd.DataFrame): Operational dataset.
+            col (str): Target column.
+            func_name (str): Function name in the script.
+
+        Returns:
+            pd.Series: Resulting series from the custom hook.
+        """
         if not self._custom_module or not hasattr(self._custom_module, func_name):
             self.logger.error(f"Custom function {func_name} not found in logic script.")
             return df[col]

@@ -3,17 +3,36 @@
 import pandas as pd
 import json
 import logging
+from datetime import datetime
 from pathlib import Path
+from typing import Dict, Optional
 
 class DatasetDataProfiler:
-    """Generates quality metrics and markdown reports for the dataset being cleaned."""
+    """
+    Generates quality metrics and markdown reports for the dataset being cleaned.
+
+    Attributes:
+        output_path (Path): Destination for the markdown report.
+    """
 
     def __init__(self, output_report_path: Path) -> None:
+        """
+        Initializes the profiler.
+
+        Args:
+            output_report_path (Path): Absolute path for report generation.
+        """
         self.logger = logging.getLogger(__name__)
         self.output_path = output_report_path
 
-    def generate_null_quality_report(self, df: pd.DataFrame) -> None:
-        """Generates the profile stats and writes a markdown report to the workspace."""
+    def generate_null_quality_report(self, df: pd.DataFrame, metadata_lookup: Optional[Dict[str, str]] = None) -> None:
+        """
+        Generates the profile stats and writes a markdown report to the workspace.
+
+        Args:
+            df (pd.DataFrame): The operational dataset to profile.
+            metadata_lookup (dict, optional): Mapping of attribute names to logical types.
+        """
         self.logger.info(f"📊 Generating Null Profile Report: {self.output_path.name}")
         
         stats = []
@@ -36,6 +55,9 @@ class DatasetDataProfiler:
                 dtype = "numeric"
             else:
                 dtype = "str"
+                
+            # 🎯 RESOLUTION: Use the logical type from the parser metadata if available
+            logical_type = metadata_lookup.get(col, dtype) if metadata_lookup else dtype
             
             # Task 4.1: Capture top 5 samples for Grounded Inference
             samples = [str(s) for s in series.dropna().unique()[:5]]
@@ -43,9 +65,9 @@ class DatasetDataProfiler:
 
             stats.append({
                 "Attribute": col,
+                "Logical Type": logical_type,
                 "Null Count": null_count,
                 "Null %": f"{null_ratio:.2%}",
-                "Type": dtype,
                 "Unique": cardinality,
                 "Samples": samples_str
             })
@@ -54,28 +76,33 @@ class DatasetDataProfiler:
                 "null_count": null_count,
                 "null_ratio": null_ratio,
                 "cardinality": cardinality,
-                "dtype": dtype,
+                "logical_type": logical_type,
                 "is_mixed_type": is_mixed,
                 "samples": samples
             }
 
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         profile_df = pd.DataFrame(stats)
-        self._write_markdown_report(profile_df)
+        self._write_markdown_report(profile_df, ts)
         
         # Wrap bundle in a structured format for the Assistant
         self._write_json_bundle({
             "columns": json_bundle,
-            "row_count": len(df)
+            "row_count": len(df),
+            "timestamp": ts
         })
 
-    def execute(self, df: pd.DataFrame) -> None:
-        """Backward compatible alias for the pipeline runner."""
-        self.generate_null_quality_report(df)
+    def _write_markdown_report(self, stats_df: pd.DataFrame, timestamp: str) -> None:
+        """
+        Persists the profile to the documents directory.
 
-    def _write_markdown_report(self, stats_df: pd.DataFrame) -> None:
-        """Persists the profile to the documents directory."""
+        Args:
+            stats_df (pd.DataFrame): Tabular summary of null statistics.
+            timestamp (str): Formatted generation time.
+        """
         md_content = [
             "# 📊 Data Quality Profile & Null Analysis",
+            f"**Report Generated**: `{timestamp}`",
             f"\n**Total Attributes Profiled**: {len(stats_df.index)}\n",
             "## Attribute Completeness Matrix",
             stats_df.to_markdown(index=False),
@@ -92,7 +119,12 @@ class DatasetDataProfiler:
             self.logger.error(f"❌ Failed to write profile report: {e}")
 
     def _write_json_bundle(self, data: dict) -> None:
-        """Writes a lightweight JSON bundle for Grounded Inference (Task 4.1)."""
+        """
+        Writes a lightweight JSON bundle for Grounded Inference.
+
+        Args:
+            data (dict): Structured metadata profile.
+        """
         json_path = self.output_path.with_suffix(".json")
         try:
             with open(json_path, "w") as f:
