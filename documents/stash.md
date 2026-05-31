@@ -16,17 +16,17 @@
 *   **Phase 2: Migration Assistant**: User bootstraps the Agent with the produced recommendations and guides. The Agent then generates `domain_logic.py` and `config.yaml` overrides.
 *   **Safety Gate**: The Cleaner enforces the presence of the Handshake file produced by the Parser.
  
-## 🛠️ Active Project State (Last Updated: May 31, 2026 - Baseline v0.3.3)
+## 🛠️ Active Project State (Last Updated: May 31, 2026 - Baseline v0.4.2)
 
-### 🚀 Active Pivot: Migration Shell & PyPI Baseline
-* **Objective**: Package the shell and validate the "Migration Assistant" persona using only documented guides.
-* **Status**: **v0.3.3 Baseline Locked**. Structural-only shell (logic-free). Metadata Discovery API integrated for notebook featurization workflows.
-* **Next Action**: Initialize a clean migration workspace using the PyPI package and trigger Task 7.3.
-* **Workflow**: `pip install dd-parser-cleaner==0.3.3` -> `prepare_workspace()` -> Migration Session.
+### ✅ Baseline Complete: Feature Implementation & Testing Finished
+* **Status**: **v0.4.2 Published to PyPI**. All core diagnostic, parsing, and cleaning orchestration features are implemented and validated.
+* **Backlogs**: None. The project has moved out of active feature development.
+* **Next Action**: Maintenance and bug fixes as required.
+* **Workflow**: `pip install dd-parser-cleaner` -> Standard Diagnostic/Migration flow.
 
 ### 1. Core Architecture
 * **Infrastructure**: `PathCoordinator` enforces zero-default path resolution via `config.yaml`.
-* **Baseline Status**: v0.3.3 Diagnostic Baseline Locked. The tool provides semantic intelligence and data quality baselines.
+* **Baseline Status**: v0.4.2 Production Baseline Locked. The tool provides semantic intelligence and data quality baselines.
 * **Cleaner Orchestration**: Simplified 3-step Diagnostic Sequence:
     1. **Integrity Sync**: Reconcile Dictionary vs Raw (Intersection subsetting/Clean Bucket).
     2. **Null Profiling**: Generate MD and JSON quality baselines.

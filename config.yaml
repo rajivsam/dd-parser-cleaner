@@ -23,11 +23,12 @@ cleaner:
     attribute_overrides: {}
   pipeline:
   - integrity
-  - assessment
-  - row_filter
-  - impute
-  - derive
-  - column_filter
+  - profile      # Generates physical stats
+  - assessment   # Generates cleaning_recommendations.md
+  - row_filter   # Hook for custom: filter functions in domain_logic.py
+  - impute       # Hook for custom: or built-in imputation
+  - derive       # Hook for custom: feature engineering
+  - column_filter # Terminal step: Drops unwanted attributes
   profiling_report_filename: sba_loans_profiling_report.md
   quarantine_dir: quarantine
   quarantine_filename: sba_loans_quarantine.csv

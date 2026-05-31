@@ -8,6 +8,12 @@ This system is built under strict architectural constraints to ensure stability 
 * **Deterministic Execution:** Operates as a stateless execution wrapper over data ingestion blocks.
 * **No Telemetry Leakage:** All metadata parsing, validation, and serialization occur entirely within your closed local or cloud perimeter.
 
+## 📑 Documentation Strategy (Agent-First)
+This project utilizes a **Markdown-Native documentation architecture** instead of traditional external sites like ReadTheDocs.
+
+*   **Rationale:** By keeping all technical specifications, design contracts, and implementation guides as structured Markdown files within the repository, we maximize the grounding performance of AI Coding Assistants. This "Agent-First" approach ensures that Migration Assistants can reason about your specific data pipelines with zero external latency or context drift.
+*   **Where to look:** Human users seeking authoritative technical methodology should consult the `documents/` directory. For operational workflows and quick-start tutorials, refer to `USER_GUIDE.md`.
+
 ## Executive Summary
 dd-parser-cleaner eliminates pipeline technical debt by intercepting batch data transfers and programmatically locking down data state, lineage, and structural metadata. It converts runtime data execution into audit-ready JSON/Markdown documentation, guaranteeing absolute reproducibility for downstream batch optimization matrices. This architecture provides **significant time savings for Data Science and ML teams** by automating the most fragile link in the analytical chain: data preparation and semantic alignment.
 
