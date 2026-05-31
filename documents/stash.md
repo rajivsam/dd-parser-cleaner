@@ -22,42 +22,45 @@
 *   **Safety Gate**: The Cleaner enforces the presence of the Handshake file; discovery and cleaning cannot proceed without Parser metadata. Relies on `PathCoordinator` to resolve KMDS standard directories.
 *   **Cleanup Protocol**: Path 2 requires an explicit "Abort" command from the user to remove experimental code/config from the project if a trial is unsuccessful.
  
-## 🛠️ Active Project State (Last Updated: May 30, 2026 - Initialization)
+## 🛠️ Active Project State (Last Updated: May 31, 2026 - Baseline Finalized)
 
 ### 🚀 Active Pivot: Migration Shell & PyPI Baseline
 * **Objective**: Package the shell and validate the "Migration Assistant" persona using only documented guides.
-* **Status**: **v0.2.1 published to PyPI**. `config.yaml` is baselined (clean).
+* **Status**: **v0.3.0 Baseline Finalized**. `config.yaml` is baselined (clean). Dead code removed and core modules documented.
 * **Next Action**: Initialize a clean migration workspace using the PyPI package and trigger Task 7.3.
-* **Workflow**: `pip install dd-parser-cleaner==0.2.1` -> `prepare_workspace()` -> Migration Session.
+* **Workflow**: `pip install dd-parser-cleaner==0.3.0` -> `prepare_workspace()` -> Migration Session.
 
 ### 1. Core Architecture
 * **Infrastructure**: `PathCoordinator` enforces zero-default path resolution; `logging` (INFO) provides uniform feedback. 
 * **Baseline Status**: Cleaner 'profile', 'discovery', and 'assessment' (recommendations) actions verified in ./tests workspace; system is logically locked and ready for full transformation execution.
 * **Phase 0: Domain Discovery (Design Goal)**: Shifting from hard-coded rules to "Policy-as-Configuration." Ingests supplemental docs (PDF/SOPs) from KMDS `documents/` via LLM to generate machine-readable JSON/YAML manifests.
+* **Baseline Documentation**: All core components (`PipelineRunner`, `Orchestrators`, `LLMClient`) updated with granular method-level docstrings for production transparency.
 * **Logic Initialization**: `scripts/domain_logic.py` is initialized and verified as the single repository for custom `Transform`, `Filter`, and `Derivation` contracts.
 * **Cleaner Orchestration**: `PipelineRunner` established as an idempotent engine. It enforces **Terminal Column Filtering** as a core heuristic.
 * **Execution Pipeline**:
-    1. Integrity Sync (Bucket Strategy)
+    1. Integrity Sync (Clean Bucket Subsetting)
     2. Structural Assessment (Reporting)
     3. Row Filtering
     4. Type Casting & Imputation
     5. Derivation & Policy Validation
     6. Column Filtering (Terminal Transformation)
-* **Data Quality & Grounding**: `DatasetDataProfiler` generates Markdown reports and JSON metadata sidecars (cardinality, samples) to ground LLM inference in physical reality (Task 4.1).
+* **Data Quality & Grounding**: `DatasetDataProfiler` generates timestamped Markdown reports and JSON metadata sidecars including `logical_type` to ground LLM inference (Task 4.1).
 * **Project Cleanup**: The `gemini/` directory has been deleted to resolve context drift and technical debt. Redundant configurations (`insconfig.yaml`, `mn_traffic.yaml`, `sbaconfig.yaml`) are retained as legitimate counterparts for secondary datasets.
 * **Orchestrator**: Executes a two-phase LLM pipeline (Macro Discovery + Atomic Row Assignment) synchronized with physical headers. Handshake Safety Gate is active.
 * **Classification**: Phase 1 establishes logical entities/keywords; Phase 2 executes atomic row assignment via Llama 3.2.
 * **Post-Processor**: Derives prefix stems algorithmically; strips prefixes to validate tags; applies authoritative `overrides`. Generates Handshake with Timestamp.
 * **LLM Prompt Management**: All LLM interactions now follow an **Assembly -> Execution -> Processing** pattern, with prompts externalized to `config.yaml` for declarative control and dynamic tuning.
 * **Integrity Engine**: `IntegrityEngine` enforces a "Bucket Strategy" to validate the bridge between the Data Dictionary and Raw Data.
-    * **Bucket A (Operational)**: Matches found. **Bucket B (Orphans)**: In Dictionary but missing from Data. **Bucket C (Ghosts)**: In Data but missing from Dictionary.
+    * **Normalization**: Reverted to alphanumeric-only (`[a-z0-9]`) to preserve semantic distinctions like `Code` vs `Description`.
+    * **Operational Sync**: Streamlined to use an intersection "Clean Bucket" mask.
 * **Policy Engine**: `UniversalValidator` consumes externalized manifests for domain logic. Legacy hard-coded SBA thresholds ($350k caps) have been retired.
 * **Reporting**: Unified `DS_type` inference; generates MD reports with "Critical Schema Mismatch" warnings and structured CSV matrices (stripped of orphans).
 * **Structural Assessment (Phase 1.5)**: Integrated LLM-based inference in `LLMEntityClassifier` to distinguish between `panel` and `cross-sectional` data structures.
     * **Prompt Externalization**: The prompts for `LLMEntityClassifier` are now externalized to `config.yaml`, allowing dynamic tuning of dataset type inference.
     * **Logic**: Detects repeating temporal attribute sets vs. single snapshot timestamps (e.g., `asOfDate`). 
     * **Implementation**: The orchestrator reports the inferred `dataset_type` to the console/logs. It is FORBIDDEN from persisting this change to `config.yaml` to prevent baseline corruption.
-* **Standardized CLI Entry Points**: The project is configured with authoritative CLI commands: `classify-entities` for the Metadata Parser and `clean-dataset` for the Dataset Cleaner. Users should always run these commands instead of direct python calls to ensure consistent path resolution and orchestration.
+* **Standardized CLI Entry Points**: Commands `classify-entities` and `clean-dataset` are the authoritative entry points. Aligned `pytest` suite (`test_parser.py`, `test_cleaner.py`) to mirror these entry points exactly.
+* **Diagnostic Tools**: `check_integrity_bridge.py` established as a dataset-agnostic standalone tool for bridge validation.
 * **Installation Protocol**: This project strictly uses `uv`. To register CLI entry points in the local environment, use `uv pip install -e .`. Standard `pip` commands are deprecated for this workspace.
 * **Testing Workspace Context**: The `tests/` directory is the primary sandbox for development. **CRITICAL**: When executing CLI tools (e.g., `clean-dataset --workspace ./tests/ --action discovery`), you must point `--workspace` to `./tests/`. This ensures the `PathCoordinator` resolves the simulated KMDS hierarchy correctly.
 * **Cleaning Assistant**: LOCKED 7-point heuristic framework producing segmented reports (`cleaning_recommendations.md`) and `provisional_config.yaml`.
