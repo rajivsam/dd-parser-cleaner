@@ -87,7 +87,11 @@ class PipelineOrchestrator:
         if not target_path.exists():
             raise FileNotFoundError(f"Data Dictionary blueprint missing at: {target_path}")
             
-        df_dict = pd.read_csv(target_path, sep=None, engine='python', skipinitialspace=True)
+        try:
+            df_dict = pd.read_csv(target_path, engine='c', low_memory=False)
+        except Exception:
+            df_dict = pd.read_csv(target_path, sep=None, engine='python', skipinitialspace=True)
+
 
         # 📊 GROUNDED INFERENCE: Synchronize schema and generate data profile
         grounding_profile = {}
@@ -103,7 +107,13 @@ class PipelineOrchestrator:
 
             self.logger.info(f"📊 Generating grounding profile from sample of: {raw_dataset_path.name}")
             # Read a 500-row sample and immediately filter out manual drops
-            df_raw_sample = pd.read_csv(raw_dataset_path, sep=None, engine='python', nrows=500)
+            try:
+                df_raw_sample = pd.read_csv(raw_dataset_path, engine='c', nrows=500)
+                self.logger.info(f"Loaded sample from {raw_dataset_path.name} using C engine.")
+            except Exception:
+                self.logger.warning("C engine failed for sample. Falling back to Python engine for sniffing...")
+                df_raw_sample = pd.read_csv(raw_dataset_path, sep=None, engine='python', nrows=500)
+
             df_raw_sample = self._execute_filtering(df_raw_sample, manual_drops)
             
             # Task 4.1: Request the LLM client to generate the metadata bundle

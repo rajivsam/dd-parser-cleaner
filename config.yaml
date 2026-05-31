@@ -1,3 +1,4 @@
+working_dir: "/home/rajiv/programming/dd_parser_cleaner/tests"
 batch_size: 10
 cleaner:
   clean_output_filename: sba_loans_clean.csv

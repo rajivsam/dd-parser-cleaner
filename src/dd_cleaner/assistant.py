@@ -51,7 +51,11 @@ class CleaningAssistant:
         # Robust Resolution: Handle both nested 'columns' key and flat dictionary structure
         column_stats = profile.get("columns", profile)
         
-        df_dd = pd.read_csv(self.dd_path)
+        try:
+            df_dd = pd.read_csv(self.dd_path, engine='c', low_memory=False)
+        except Exception:
+            df_dd = pd.read_csv(self.dd_path, sep=None, engine='python')
+
         # FACTORING: Consolidate all parser-stage metadata (logical types, geo-flags, entity assignments)
         # We resolve the authoritative attribute mapping to link parser metadata with physical stats.
         attr_col = "attribute_name" if "attribute_name" in df_dd.columns else df_dd.columns[0]
@@ -142,7 +146,11 @@ class CleaningAssistant:
         Returns:
             List[str]: A list of attribute names possessing the requested tag.
         """
-        df_dd = pd.read_csv(self.dd_path)
+        try:
+            df_dd = pd.read_csv(self.dd_path, engine='c', low_memory=False)
+        except Exception:
+            df_dd = pd.read_csv(self.dd_path, sep=None, engine='python')
+
         attr_col = "attribute_name" if "attribute_name" in df_dd.columns else df_dd.columns[0]
         flag_col = f"is_{tag_name.lower().strip()}"
 
@@ -167,7 +175,11 @@ class CleaningAssistant:
         Returns:
             List[str]: A list of attribute names belonging to the specified entity.
         """
-        df_dd = pd.read_csv(self.dd_path)
+        try:
+            df_dd = pd.read_csv(self.dd_path, engine='c', low_memory=False)
+        except Exception:
+            df_dd = pd.read_csv(self.dd_path, sep=None, engine='python')
+
         attr_col = "attribute_name" if "attribute_name" in df_dd.columns else df_dd.columns[0]
         entity_col = "provisional_entity_assignment"
 
@@ -229,7 +241,15 @@ class CleaningAssistant:
             List[Dict[str, Any]]: A list of structured recommendation objects.
         """
         data = json.loads(response)
-        return data.get("recommendations", [])
+        recs = data.get("recommendations", [])
+        
+        # 🛡️ DEFENSIVE SANITIZATION: Ensure 'recommended_action' is a string.
+        # LLMs occasionally return lists for single-choice fields, which causes 
+        # "unhashable type: 'list'" errors in Pandas value_counts() or groupby calls.
+        for r in recs:
+            if "recommended_action" in r and isinstance(r["recommended_action"], list):
+                r["recommended_action"] = r["recommended_action"][0] if r["recommended_action"] else "user-review"
+        return recs
 
     def _call_llm(self, prompt: str) -> str:
         """

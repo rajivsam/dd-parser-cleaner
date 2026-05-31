@@ -3,6 +3,7 @@
 import argparse
 import logging
 import sys
+from pathlib import Path
 from dd_parser.orchestrator import PipelineOrchestrator
 from dd_common.path_coordinator import PathCoordinator
 
@@ -19,11 +20,6 @@ def main():
         description="Unified Project State: LLM-Powered Data Dictionary Parser & Entity Classifier."
     )
     parser.add_argument(
-        "--workspace", 
-        default=".", 
-        help="Path to the active directory workspace (default: current directory)"
-    )
-    parser.add_argument(
         "--config", 
         default="config.yaml", 
         help="Path to the runtime parameter configuration file (default: config.yaml)"
@@ -33,8 +29,13 @@ def main():
 
     try:
         logger.info("Initializing Path Coordinator and Parser Orchestration layers...")
+        
+        # 🎯 PATH RESOLUTION: Ensure config is resolved to absolute paths.
+        # Workspace is now resolved via PathCoordinator from config.yaml.
+        config_path = str(Path(args.config).resolve())
+
         # 🎯 CONSTRUCTOR DEPENDENCY INJECTION: Instantiate the authoritative routing contract
-        coordinator = PathCoordinator(config_path=args.config, working_dir=args.workspace)
+        coordinator = PathCoordinator(config_path=config_path)
         
         # 🎯 MODULAR ENTRY POINT: Inject the coordinator tracking boundary cleanly
         orchestrator = PipelineOrchestrator(path_coordinator=coordinator)

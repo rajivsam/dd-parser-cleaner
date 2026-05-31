@@ -1,22 +1,16 @@
 {
   "metadata": {
     "domain": "Provisional Entity Assignment Report",
-    "version": "2026-05-31 05:00:22",
+    "version": "2026-05-31 15:52:20",
     "authority_source": "sba_dd.csv",
-    "generation_timestamp": "2026-05-31 05:02:34"
+    "generation_timestamp": "2026-05-31 15:52:43"
   },
-  "constants": {
-    "cross-sectional": true,
-    "categorical": true,
-    "numeric": true,
-    "text": true,
-    "datetime": true
-  },
+  "constants": {},
   "validation_rules": [
     {
-      "rule_id": "geographic",
-      "description": "Geographic attribute validation rule",
-      "attribute": "borrstate|projectstate|sbadistrictoffice|congressionaldistrict|naicsdescription|businessage",
+      "rule_id": "geographic_flagging",
+      "description": "Flag geographic attributes",
+      "attribute": "borrstreet|borrcity|projectcounty|naicscode|franchisecode|congressionaldistrict|businessage|sbadistrictoffice",
       "operator": "in",
       "value": [
         "str"
@@ -24,22 +18,30 @@
       "action": "flag_warning"
     },
     {
-      "rule_id": "logical_type_mismatch",
-      "description": "Logical type mismatch validation rule",
-      "attribute": "asofdate|approvaldate|firstdisbursementdate|processingmethod|subprogram|terminmonths",
-      "operator": "eq",
+      "rule_id": "numeric_validation",
+      "description": "Validate numeric attributes",
+      "attribute": "grossapproval|approvalfy|terminmonths|naicscode|franchisecode|congressionaldistrict",
+      "operator": "gt|lt|ge|le|eq|ne",
       "value": [
-        "datetime"
+        0,
+        1000000
       ],
       "action": "quarantine"
     },
     {
-      "rule_id": "physical_type_mismatch",
-      "description": "Physical type mismatch validation rule",
-      "attribute": "grossapproval|approvalfy|franchisename|projectcounty",
+      "rule_id": "categorical_validation",
+      "description": "Validate categorical attributes",
+      "attribute": [
+        "businessage",
+        "processingmethod",
+        "subprogram",
+        "franchisename",
+        "projectstate",
+        "sbadistrictoffice"
+      ],
       "operator": "eq",
       "value": [
-        "int"
+        "str"
       ],
       "action": "quarantine"
     }

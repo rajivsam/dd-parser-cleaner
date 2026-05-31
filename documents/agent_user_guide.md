@@ -1,72 +1,26 @@
 # 🤖 Agent User Guide: Extending the Cleaner
 
-This guide provides the absolute technical constraints and operational patterns required for an AI Agent to extend the `dd-parser-cleaner`, including specialized workflows like **Migration Assistant Mode**.
+This guide provides the operational patterns for an AI Agent acting as a **Migration Assistant**. In this role, you leverage the intelligence produced by the `dd-parser-cleaner` package to implement dataset-specific cleaning logic.
 
 ## 1. The Agent's Mission
-Your objective is to transform raw data into a clean state based on a **Data Dictionary**. You do this by:
-1.  Identifying columns that need cleaning (Missing values, bad formatting, outliers).
-2.  Determining if a **Built-in Action** exists or if a **Custom Hook** is required.
-3.  Implementing the logic STRICTLY in `scripts/domain_logic.py`.
-4.  Registering the logic in `config.yaml`.
+Your mission begins *after* the user has run the diagnostic shell. You are provided with:
+1.  **Metadata**: The `synchronized_dictionary.csv` (The Clean Bucket).
+2.  **Intelligence**: The `cleaning_recommendations.md` report.
+3.  **Provisional Config**: A starting point in `provisional_config.yaml`.
 
-## 1.1 The Two Interaction Paths
-
-### Path 1: The Agent-Led Workflow (Direct)
-Best for simple built-ins or straightforward transformations.
-1. User describes intent.
-2. Agent updates `scripts/domain_logic.py` and `config.yaml`.
-3. User runs CLI: `clean-dataset --action full`.
-
-### Path 2: The Notebook-Led Explorer (Sandbox)
-Best for complex domain science or exploratory logic.
-1. **The Hand-off**: User creates the workspace directory and provides the path.
-2. **Initialization**: User runs the `prepare_workspace()` snippet. This authorizes the Agent to begin integrating code into `scripts/`.
-3. **Implementation**: User describes intent; Agent writes code to `domain_logic.py` and configuration to `config.yaml`.
-4. **Verification**: User imports the logic and verifies it in the notebook.
-5. **Acceptance**: If successful, the logic is "locked in."
-6. **Abort/Cleanup**: If the experiment fails, user instructs Agent to "Abort," which triggers a revert of the integrated code.
-
-## 1.2 Migration Assistant Mode (Incremental Extension)
-This mode is active when the Agent helps migrate existing code or incrementally add new features. 
-
-### Initialization Pattern
-When starting a session in a notebook, use this standard snippet. It ensures the `PathCoordinator` resolves KMDS directories correctly even if the notebook is running from the `notebooks/` folder.
-
-```python
-from dd_cleaner.notebook_utils import prepare_workspace, init_notebook_session
-
-# 1. Prepare & Initialize (Detects root, ensures scripts/ exists)
-prepare_workspace() 
-coord, df = init_notebook_session()
-
-# 2. Import logic (MUST happen after init adds scripts to path)
-import domain_logic
-
-print(f"✅ Session initialized for: {coord.base_dir}")
-
-# 3. Test the specific Agent-implemented function
-# Example: testing a transform function
-target_col = "LoanAmount"
-df[target_col] = domain_logic.your_function_name(df, target_col)
-
-# 4. Review Results
-print(df[target_col].head())
-```
+Your task is to translate these recommendations into vectorized Python logic within `scripts/domain_logic.py` and register them in `config.yaml`.
 
 ## 2. Project File Structure
-Expect the following layout. Never use absolute paths in your code; use relative paths from the workspace root.
+The project is anchored to the `working_dir` defined in `config.yaml`.
 ```text
 workspace/
 ├── src/
 │   └── dd_common/path_coordinator.py # Resource Routing
-│   └── dd_cleaner/notebook_utils.py # Session Helper
 ├── config.yaml          # Authoritative Single Source of Truth
 ├── scripts/
 │   └── domain_logic.py  # Where you write your Python code
-├── notebooks/           # KMDS: Experimental code (.ipynb)
-├── data_dictionary/     # KMDS: Data dictionary assets
-├── documents/           # KMDS: Project documentation (.pdf, .txt)
-└── data/                # KMDS: Physical data assets (CSVs)
+├── documents/           # Intelligence Inbox (Reports & Handshakes)
+└── data/                # Data Assets (Raw and Synchronized)
 ```
 
 ## 3. The Decision Tree (Resolution Hierarchy)

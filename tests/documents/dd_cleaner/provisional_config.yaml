@@ -4,18 +4,24 @@
 cleaner:
   column_filters:
     drop_attributes:
-    - approvaldate
     - asofdate
-    - chargeoffdate
-    - collateralind
-    - firstdisbursementdate
-    - franchisecode
-    - paidinfulldate
     - program
+    - approvaldate
+    - firstdisbursementdate
+    - paidinfulldate
+    - chargeoffdate
   missing_values:
     attribute_overrides:
-      congressionaldistrict: mean-imputation
+      subprogram: constant:MISSING
       naicscode: mean-imputation
+      naicsdescription: constant:MISSING
+      franchisecode: mean-imputation
+      franchisename: constant:MISSING
+      sbadistrictoffice: constant:MISSING
+      congressionaldistrict: mean-imputation
+      businesstype: constant:MISSING
+      businessage: constant:MISSING
+      loanstatus: constant:MISSING
   derivation:
     attribute_overrides:
       approvaldate: custom:datetime_to_numeric

@@ -20,18 +20,13 @@ def main():
         description="Unified Project State: Downstream Cleaner, Profiler, & Normalization CLI Engine."
     )
     parser.add_argument(
-        "--workspace", 
-        default="./tests", 
-        help="Path to the active directory workspace (default: current directory)"
-    )
-    parser.add_argument(
         "--config", 
         default="config.yaml", 
         help="Path to the runtime parameter configuration file (default: config.yaml)"
     )
     parser.add_argument(
         "--action",
-        choices=["discovery", "full", "integrity", "profile", "assessment", "column_filter", "row_filter", "impute", "derive"],
+        choices=["full", "integrity", "profile", "assessment"],
         default="full",
         help="Specify a pipeline stage to run or 'full' for the entire sequence (default: full)."
     )
@@ -42,12 +37,12 @@ def main():
         logger.info("Initializing Path Coordinator and Cleaner Orchestrator...")
         
         # 🎯 PATH RESOLUTION: Ensure workspace and config are resolved to absolute paths 
-        # to prevent relative path drift and align with test execution patterns.
-        workspace_root = str(Path(args.workspace).resolve())
+        # to prevent relative path drift. Workspace is now resolved via PathCoordinator.
         config_path = str(Path(args.config).resolve())
 
         # 🎯 CONSTRUCTOR DEPENDENCY INJECTION: Instantiate the authoritative routing contract
-        coordinator = PathCoordinator(config_path=config_path, working_dir=workspace_root)
+        coordinator = PathCoordinator(config_path=config_path)
+        workspace_root = str(coordinator.working_dir)
         
         # 🧪 AUTHORITATIVE BINDING: Ensure the coordinator explicitly tracks its config source
         coordinator.config_path = config_path

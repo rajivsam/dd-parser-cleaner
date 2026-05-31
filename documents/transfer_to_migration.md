@@ -8,34 +8,24 @@ The user provides the **Intent** (e.g., "I need to fix negative loan amounts"), 
 ## 🏆 THE GOLDEN RULE
 **Raw Data is Sacrosanct**: The source data file (`raw_dataset_file`) is immutable. You must **NEVER** write to, modify, or overwrite the raw data. All transformations must be non-destructive, flowing through the `PipelineRunner` to produce a new, versioned analytical payload.
 
-## 🧱 The Operational Boundary (Shell vs. Migration)
-1. **The Shell Pass (v0.3.3 Baseline)**:
-   - Automates: Integrity Sync, Discovery, Structural Assessment, and Null Profiling.
-   - Produces: `synchronized_dictionary.csv`, `parser_cleaner_handshake.md`, and a **Type-Corrected** data file.
-2. **The Migration Pass (Agent Role)**:
-   - Executes: Domain-specific `row_filter`, `impute`, and `derive` steps.
-   - Translates: User business logic into `scripts/domain_logic.py` and `config.yaml` registrations.
+## 🧱 The Workflow Pattern
+The `dd-parser-cleaner` follows a strict **Diagnostic -> Implementation** pattern.
 
-## 💡 The KMDS Ecosystem Integration
-This tool is the foundational preparation layer for the **KMDS Data Helper** (kmds-data-helper). 
+1.  **Diagnostic Pass (Package CLI)**:
+    *   User installs the package and runs `classify-entities`.
+    *   User runs `clean-dataset --action full`.
+    *   **Result**: The tool produces metadata, a quality baseline, and a list of cleaning recommendations.
+2.  **Migration Pass (Agent implementation)**:
+    *   User bootstraps the Code Agent with this handbook and the produced reports.
+    *   Agent implements domain-specific logic in `scripts/domain_logic.py`.
+    *   Agent registers logic in `config.yaml`.
+    *   User iterates via notebook trials until the data quality reaches acceptable thresholds.
 
-In enterprise environments, data preparation is the most fragile link in the analytical chain. Scripts are often ad-hoc and undocumented, leading to "semantic drift." By leveraging enterprise-grade open-source tools—**Pandas, NumPy, and local LLMs**—this framework ensuring that data preparation is reproducible, documented, and auditable as it is being prepared. It turns data engineering into a repeatable science.
-
-## 🛠️ The Translation Layer
-When the user asks a question about data operations, map their Natural Language to the corresponding Pipeline Contract:
-
-| User Question / Intent | Pipeline Step | Function Contract |
-| :--- | :--- | :--- |
-| "How do I fill these empty categories?" | `impute` | `func(df, col) -> pd.Series` |
-| "How do I remove cancelled loans?" | `row_filter` | `func(df) -> pd.Index` |
-| "How do I create a new Debt-to-Income ratio?" | `derive` | `func(df) -> pd.DataFrame` |
-
-## ⚙️ Custom Code Hookup
-To enable custom logic, ensure the `cleaner` section in `config.yaml` points to the logic script. The `PathCoordinator` resolves this path relative to the workspace root.
-```yaml
-cleaner:
-  custom_logic_path: scripts/domain_logic.py
-```
+## 💡 Implementation Contracts
+When translating intent to code, map the operation to the correct signature:
+*   **Impute Intent**: `func(df, col) -> pd.Series` (e.g., "Fill missing ZIPs with 00000")
+*   **Filter Intent**: `func(df) -> pd.Index` (e.g., "Remove cancelled loans")
+*   **Derive Intent**: `func(df) -> pd.DataFrame` (e.g., "Calculate Debt-to-Income")
 
 ## 🔍 The Notebook Discovery API
 As an Agent-Programmer, you should use the `CleaningAssistant` discovery methods to help the user subset data for custom featurization. This ensures that downstream logic is always grounded in the Parser's semantic tags.

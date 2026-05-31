@@ -1,29 +1,32 @@
-# dd-parser-cleaner
+# dd-parser-cleaner: Enterprise Pipeline Governance Engine
 
-A modular data engineering framework designed to bridge the gap between messy data dictionaries and production-ready datasets using local LLMs (Llama 3.2) and vectorized deterministic rules.
+An offline metadata parsing and pipeline governance engine that enforces data provenance and automated schema serialization at the ingestion boundary.
 
-## 💡 Why use this tool?
+## Technical & Architectural Constraints
+This system is built under strict architectural constraints to ensure stability in production enterprise environments:
+* **Zero Streaming Footprint:** Exclusively optimized for offline, design-time, and batch processing pipelines.
+* **Deterministic Execution:** Operates as a stateless execution wrapper over data ingestion blocks.
+* **No Telemetry Leakage:** All metadata parsing, validation, and serialization occur entirely within your closed local or cloud perimeter.
 
-In enterprise data science, data preparation is often the most fragile link. Scripts are frequently undocumented, and "semantic drift" occurs when the logic used to clean data no longer aligns with the business's Data Dictionary. This leads to non-reproducible results and high technical debt.
+## Executive Summary
+dd-parser-cleaner eliminates pipeline technical debt by intercepting batch data transfers and programmatically locking down data state, lineage, and structural metadata. It converts runtime data execution into audit-ready JSON/Markdown documentation, guaranteeing absolute reproducibility for downstream batch optimization matrices. This architecture provides **significant time savings for Data Science and ML teams** by automating the most fragile link in the analytical chain: data preparation and semantic alignment.
 
-`dd-parser-cleaner` solves this by creating a deterministic, auditable link between your documentation and your data. It is specifically designed to support the **KMDS Data Helper** ecosystem—leveraging enterprise-grade open-source tools like Pandas and local LLM runtimes to ensure every step of your data journey is documented, reproducible, and ready for production.
+## Core Capability Matrix
 
-## 🎯 Our Guarantee
-
-`dd_parser_cleaner` ensures that your data is ready for analytics or ML applications because:
-
-1. **Strict Schema Integrity**: It enforces a "Clean Bucket" policy via the Integrity Sync, purging undocumented "Ghost" columns to ensure every feature is semantically mapped to a Data Dictionary entry.
-2. **Semantic Type Enforcement**: It automatically casts raw strings into high-precision, nullable physical types (e.g., `Int64`, `float`, `datetime`) grounded in verified logical metadata, eliminating type-related crashes downstream.
-3. **Deterministic Pipe Sequencing**: It executes an idempotent, vectorized transformation sequence (Sync → Assessment → Filter → Impute → Derive) that prevents data contamination and ensures reproducible results.
-4. **Audit-Ready Traceability**: It generates a signed, synchronized operational matrix and a "Handshake" report, providing a 100% traceable link between source metadata and the final analytical payload.
-5. **Metadata Discovery API**: Provides a programmatic interface for notebooks to query semantic tags (e.g., Geographic, Financial) and entities, enabling seamless integration with downstream featurization and ML pipelines.
+| Capability | Operational Impact |
+| :--- | :--- |
+| **Deterministic State Capture** | Automatically serializes dataset shapes, cryptographic hashes, data types, and ingestion timestamps to prevent downstream model drift. |
+| **Zero-Overhead Schema Extraction** | Generates machine-readable JSON metadata payloads directly from batch dataframes, decoupling physical schema properties from pipeline code. |
+| **Automated Pipeline Lineage** | Compiles runtime execution state into standardized, human-readable Markdown asset logs for enterprise compliance reviews. |
+| **Strict Schema Integrity** | Enforces a "Clean Bucket" policy via Integrity Sync, purging undocumented columns to ensure 1:1 semantic mapping. |
+| **Metadata Discovery API** | Provides a programmatic interface for notebooks to query semantic tags, enabling seamless integration with ML pipelines. |
 
 ## 🚀 Quick Start
 
 ### 1. Classification (The Handshake)
-Run the parser to align your data dictionary with your physical data headers and perform semantic classification:
+Synchronize metadata and execute semantic classification:
 ```bash
-uv run classify-entities --workspace ./tests
+classify-entities
 ```
 
 ### 2. Cleaning (The Pipeline)

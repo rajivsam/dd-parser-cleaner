@@ -10,18 +10,28 @@ class PathCoordinator:
     Ensures zero file paths are hardcoded across application and client boundaries.
     """
     def __init__(self, config_path: str = "config.yaml", working_dir: Optional[Union[str, Path]] = None):
-        """Initializes the coordinator with explicit configuration and workspace paths."""
-        # 🎯 FIX: Explicitly set base_dir to working_dir if provided, fallback to default parent resolution
+        """
+        Initializes the coordinator. 
+        Anchors base_dir to config.yaml's working_dir for centralized pathing.
+        """
         if working_dir is not None:
             self.base_dir = Path(working_dir).resolve()
         else:
-            # Adjusted from .parent.parent to .parent.parent.parent because 
-            # this file is now located in src/dd_common/ instead of src/
             self.base_dir = Path(__file__).resolve().parent.parent.parent
             
         self.logger = logging.getLogger(__name__)
         self._config_name = config_path
         self._loaded_config = None
+
+        # 🎯 CONFIG PIVOT: Set authoritative base_dir from config if specified
+        config_val = self.config.get("working_dir")
+        if config_val:
+            self.base_dir = Path(config_val).resolve()
+
+    @property
+    def working_dir(self) -> Path:
+        """Authoritative working directory (synonymous with base_dir after config pivot)."""
+        return self.base_dir
 
     @property
     def config(self) -> dict:
@@ -70,7 +80,7 @@ class PathCoordinator:
     def documents_dir(self) -> Path:
         """Base layout folder for Human-in-the-Loop context summaries."""
         dirname = self._get_required_val(self.config, "documents_dir", "global")
-        return self.base_dir / dirname
+        return self.working_dir / dirname
 
     # --- PARSER MODULE ENDPOINTS ---
     @property
@@ -82,7 +92,7 @@ class PathCoordinator:
     def data_dictionary_path(self) -> Path:
         """INPUT: Resolves raw metadata configuration blueprints."""
         filename = self._get_required_val(self._parser_config, "data_dictionary_file", "parser")
-        return self.base_dir / "data_dictionary" / filename
+        return self.working_dir / "data_dictionary" / filename
 
     @property
     def parser_output_directory(self) -> Path:
@@ -123,13 +133,13 @@ class PathCoordinator:
         the data directory layout workspace: {$working_dir}/data/{$raw_dataset_file}
         """
         filename = self._get_required_val(self._cleaner_config, "raw_dataset_file", "cleaner")
-        return self.base_dir / "data" / filename
+        return self.working_dir / "data" / filename
 
     @property
     def cleaner_output_directory(self) -> Path:
         """OUTPUT DIR: Target directory location for clean table metrics."""
         out_dir_name = self._get_required_val(self._cleaner_config, "dd_cleaner_output_dir", "cleaner")
-        out_dir = self.base_dir / "data" / out_dir_name
+        out_dir = self.working_dir / "data" / out_dir_name
         out_dir.mkdir(parents=True, exist_ok=True)
         return out_dir
 
@@ -165,7 +175,7 @@ class PathCoordinator:
         dir_name = self._get_required_val(self._cleaner_config, "quarantine_dir", "cleaner")
         file_name = self._get_required_val(self._cleaner_config, "quarantine_filename", "cleaner")
         
-        target_dir = self.base_dir / "data" / dir_name
+        target_dir = self.working_dir / "data" / dir_name
         target_dir.mkdir(parents=True, exist_ok=True)
         return target_dir / file_name
 

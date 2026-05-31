@@ -8,19 +8,18 @@ This report provides automated recommendations based on data profile physics and
 - **Strategy Validation**: While we suggest mean/MISSING defaults, the user determines the final strategy.
 
 ## 📊 Summary of Actions
-- **drop-attribute**: 5 columns
+- **constant:MISSING**: 7 columns
+- **drop-attribute**: 3 columns
 - **custom:datetime_to_numeric**: 3 columns
-- **mean-imputation**: 2 columns
+- **mean-imputation**: 3 columns
 
 ## Deletion is recommended for the following attributes
 
 | Attribute     | Type     | Entity   | What Needs Fixing                                         | Recommended Fix   |
 |:--------------|:---------|:---------|:----------------------------------------------------------|:------------------|
 | asofdate      | datetime | Borrower | Constant value / Zero variance                            | drop-attribute    |
-| chargeoffdate | datetime | Borrower | Extreme sparsity (99.2%): Exceeds null threshold of 95.0% | drop-attribute    |
-| collateralind | numeric  | Loan     | Column is physically empty (100% null)                    | drop-attribute    |
-| franchisecode | numeric  | Location | Extreme sparsity (95.2%): Exceeds null threshold of 95.0% | drop-attribute    |
 | program       | numeric  | Program  | Constant value / Zero variance                            | drop-attribute    |
+| chargeoffdate | datetime | Borrower | Extreme sparsity (99.2%): Exceeds null threshold of 95.0% | drop-attribute    |
 
 ## Derived attribute definition or deletion is recommended
 
@@ -34,10 +33,23 @@ This report provides automated recommendations based on data profile physics and
 
 ### Numeric Attributes (Standard: Mean Imputation)
 
-| Attribute             | Type    | Entity   | What Needs Fixing                                           | Recommended Fix   |
-|:----------------------|:--------|:---------|:------------------------------------------------------------|:------------------|
-| congressionaldistrict | numeric | Location | Numeric with 0.0% nulls: Recommendation is mean imputation. | mean-imputation   |
-| naicscode             | numeric | Location | Numeric with 0.4% nulls: Recommendation is mean imputation. | mean-imputation   |
+| Attribute             | Type    | Entity   | What Needs Fixing                                            | Recommended Fix   |
+|:----------------------|:--------|:---------|:-------------------------------------------------------------|:------------------|
+| naicscode             | numeric | Location | Numeric with 0.4% nulls: Recommendation is mean imputation.  | mean-imputation   |
+| franchisecode         | numeric | Location | Numeric with 90.2% nulls: Recommendation is mean imputation. | mean-imputation   |
+| congressionaldistrict | numeric | Location | Numeric with 0.0% nulls: Recommendation is mean imputation.  | mean-imputation   |
+
+### Categorical Attributes (Standard: 'MISSING' Category)
+
+| Attribute         | Type        | Entity   | What Needs Fixing                                                                   | Recommended Fix   |
+|:------------------|:------------|:---------|:------------------------------------------------------------------------------------|:------------------|
+| subprogram        | categorical | Program  | Categorical/Text with 6.8% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| naicsdescription  | text        | Location | Categorical/Text with 0.4% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| franchisename     | categorical | Location | Categorical/Text with 90.2% nulls: Recommendation is creating a 'MISSING' category. | constant:MISSING  |
+| sbadistrictoffice | categorical | Location | Categorical/Text with 0.0% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| businesstype      | categorical | Borrower | Categorical/Text with 0.0% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| businessage       | categorical | Location | Categorical/Text with 0.5% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| loanstatus        | categorical | Borrower | Categorical/Text with 0.2% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
 
 
 ---

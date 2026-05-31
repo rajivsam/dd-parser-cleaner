@@ -4,19 +4,14 @@ import sys
 import logging
 import yaml
 import json
-from datetime import datetime
 import pandas as pd
 from pathlib import Path
-import importlib.util
 from typing import Dict, Any, List
 from rich.console import Console
 from dd_common.path_coordinator import PathCoordinator
 
-from .assistant import CleaningAssistant
-from dd_parser.document_processor import DocumentProcessor
-from .pipeline import PipelineRunner
 from dd_parser.rules import IntegrityEngine
-from dd_parser.structural_assessor import StructuralAssessor
+from .assistant import CleaningAssistant
 from .null_profiler import DatasetDataProfiler
 
 class CleanerOrchestrator:
@@ -30,8 +25,6 @@ class CleanerOrchestrator:
         paths (PathCoordinator): Manages workspace resource routing.
         config (dict): The global project configuration.
         cleaner_cfg (dict): Cleaner-specific settings.
-        structural_assessor (StructuralAssessor): Logic for data integrity audits.
-        doc_processor (DocumentProcessor): Extracts policy rules from text.
     """
 
     def __init__(self, path_coordinator: PathCoordinator) -> None:
@@ -45,10 +38,7 @@ class CleanerOrchestrator:
         self.paths = path_coordinator
         self.config = self.paths.config
         self.cleaner_cfg = self.config.get("cleaner", {})
-        
-        self.structural_assessor = StructuralAssessor(self.config)
         self.console = Console()
-        self.doc_processor = DocumentProcessor(model_name=self.config.get("model_name", "llama3.2"))
 
     def run_pipeline(self, action: str = "full") -> None:
         """
@@ -68,293 +58,70 @@ class CleanerOrchestrator:
             self.console.print("[bold green]Action:[/bold green] Please run the [white]classify-entities[/white] command first.\n")
             return
         
-        # 0. Phase 0: Domain Discovery (Zero-Hardcoding Trigger)
-        if action == "discovery":
-            self._execute_domain_discovery()
-            return
+        # 🎯 SEQUENTIAL EXECUTION: The 'full' pipeline runs 1, 2, and 3.
+        active_actions = ["integrity", "profile", "assessment"] if action == "full" else [action]
 
-        # 1. Ingest Data
+        # --- 1. Handshake & Integrity Sync ---
         raw_path = Path(self.paths.raw_dataset_path)
         if not raw_path.exists():
             self.logger.error(f"Raw dataset missing at: {raw_path}")
             return
 
-        # Standard read (sep=None handles CSV/TSV)
-        df = pd.read_csv(raw_path, sep=None, engine='python')
-        
-        df_dict = None
-        metadata_lookup = {}
+        # 🚀 PERFORMANCE: Attempt fast C-engine loading (defaults to comma separator).
+        # Fallback to Python engine only if sniffing is required (sep=None).
+        try:
+            df = pd.read_csv(raw_path, engine='c', low_memory=False)
+            self.logger.info(f"Loaded {raw_path.name} using high-performance C engine.")
+        except Exception:
+            self.logger.warning("C engine failed or delimiter is non-standard. Falling back to Python engine for sniffing...")
+            df = pd.read_csv(raw_path, sep=None, engine='python')
 
-        # 1.5 Integrity Sync (Bucket Strategy): Reconcile Dictionary vs Raw
+        metadata_lookup = {}
         dd_path = Path(self.paths.data_dictionary_csv_path)
+
         if dd_path.exists():
-            df_dict = pd.read_csv(dd_path)
-            # Reconciled dictionary attributes live in 'attribute_name' per post-processor rules
+            self.logger.info("Step 1: Handshake & Integrity Sync...")
+            try:
+                df_dict = pd.read_csv(dd_path, engine='c', low_memory=False)
+            except Exception:
+                df_dict = pd.read_csv(dd_path, sep=None, engine='python')
+
             dd_attributes = df_dict["attribute_name"].dropna().tolist()
             bridge = IntegrityEngine.evaluate_bridge(dd_attributes, list(df.columns))
             self.logger.info(f"🌉 Bridge Evaluation: {len(bridge['operational'])} Operational, {len(bridge['orphans'])} Orphans")
 
-            # 🎯 SYNC POINT: Immediately subset the data to the 'Clean Bucket'
-            # This ensures profiles and recommendations only reflect semantically mapped attributes.
             df = df[bridge['operational']].copy()
-
-            # 🧠 METADATA LOOKUP: Build the lookup map for logical types to support grounded profiling
             attr_col = "attribute_name" if "attribute_name" in df_dict.columns else df_dict.columns[0]
             metadata_lookup = df_dict.set_index(attr_col)["logical_type"].to_dict()
-        
-        if action == "integrity":
-            return
 
-        # 📊 INDEPENDENT FEATURE: Null Profiling
-        if action == "profile":
-            self.console.print("\n[bold yellow]📊 Generating independent data quality profile...[/bold yellow]")
+        # --- 2. Null Profiling ---
+        if "profile" in active_actions:
+            self.console.print("\n[bold yellow]Step 2: Generating Data Quality Profile...[/bold yellow]")
             profiler = DatasetDataProfiler(Path(self.paths.profiling_report_path))
             profiler.generate_null_quality_report(df, metadata_lookup=metadata_lookup)
             self.console.print(f"[bold green]✅ Null Profile Generated![/bold green] See: [cyan]{self.paths.profiling_report_path}[/cyan]")
-            return
 
-        # 🛡️ GATEKEEPER: Fetch current exclusions to filter recommendations
-        col_filters = self.cleaner_cfg.get("column_filters", {})
-        manual_drops = col_filters.get("drop_attributes", [])
-        ignored = col_filters.get("ignore_recommendations", []) # This is for StructuralAssessor
-        missing_value_overrides = self.cleaner_cfg.get("missing_values", {}).get("attribute_overrides", {})
-        all_exclusions = list(set(manual_drops) | set(ignored) | set(missing_value_overrides.keys()))
-        
-        report = self.structural_assessor.assess(df, exclude_cols=all_exclusions)
-
-        # 🛡️ GATEKEEPER: Auto-persist inferred dataset type to config.yaml (Non-blocking)
-        sa_cfg = self.cleaner_cfg.setdefault("structural_assessment", {})
-        current_type = sa_cfg.get("dataset_type")
-        inferred_type = report.get("dataset_type") or "cross-sectional"
-
-        # Update if explicitly requested or if the value is missing/sentinel
-        if not current_type or "not_yet_inferred" in str(current_type).lower():
-            tagged_type = f"{inferred_type} (inferred)"
-            self.logger.info(f"🔍 Structural Analysis: Updating dataset_type to [bold cyan]{tagged_type}[/bold cyan]")
+        # --- 3. Assessment & Recommendations ---
+        if "assessment" in active_actions:
+            self.console.print("\n[bold yellow]Step 3: Generating Cleaning Recommendations...[/bold yellow]")
+            profile_json = Path(self.paths.profiling_report_path).with_suffix(".json")
             
-            # Update both the local reference and the authoritative config object
-            sa_cfg["dataset_type"] = tagged_type
-            self.config.setdefault("cleaner", {})["structural_assessment"] = sa_cfg
+            if not profile_json.resolve().exists():
+                self.logger.warning("Profile JSON missing. Running profiler automatically.")
+                profiler = DatasetDataProfiler(Path(self.paths.profiling_report_path))
+                profiler.generate_null_quality_report(df, metadata_lookup=metadata_lookup)
 
-            self._persist_config()
-            self.console.print(f"\n[bold yellow]🛠️  CONFIG UPDATED:[/bold yellow] Dataset type set to '[cyan]{tagged_type}[/cyan]'. Review in config.yaml.")
-
-        self.console.print(f"📊 [bold cyan]Structural Context:[/bold cyan] [yellow]{sa_cfg.get('dataset_type', 'unknown')}[/yellow]")
-
-        # 🤖 Assistant: Generate smart recommendations
-        # Ensure df_dict is available for the assistant, even if it didn't exist initially
-        if df_dict is None and dd_path.exists():
-            df_dict = pd.read_csv(dd_path)
-        elif df_dict is None:
-            self.logger.warning("Data Dictionary not found, Cleaning Assistant will operate without semantic context.")
-            df_dict = pd.DataFrame(columns=["attribute_name", "logical_type"]) # Empty DF to prevent errors
-
-        profile_json = Path(self.paths.profiling_report_path).with_suffix(".json")
-        
-        # 📊 BOOTSTRAP: Generate initial profile if missing so Assistant has data to work with
-        # We check for existence of the absolute path to avoid CWD drift issues
-        if not profile_json.resolve().exists():
-            self.console.print("\n[bold yellow]📊 Generating initial data profile for Cleaning Assistant...[/bold yellow]")
-            # Ensure we pass a Path object to the profiler
-            profiler = DatasetDataProfiler(Path(self.paths.profiling_report_path))
-            profiler.generate_null_quality_report(df, metadata_lookup=metadata_lookup)
-
-        self.assistant = CleaningAssistant(self.config, profile_json, dd_path)
-        self.assistant.generate_recommendations()
-        # Artifacts go to the consolidated cleaner narrative directory (documents/dd_cleaner/)
-        self.assistant.write_artifacts(self.paths.cleaner_narrative_directory)
-        
-        report_path = self.paths.cleaner_narrative_directory / "cleaning_recommendations.md"
-        self.console.print(f"\n[bold green]✅ Cleaning Recommendations Report Generated![/bold green]")
-        self.console.print(f"📄 Location: [cyan]{report_path}[/cyan]")
-
-        if action == "assessment":
-            self.console.print("\n[bold yellow]Assessment Complete.[/bold yellow] Review the report and provide adjustments in natural language.")
-            self.console.print("[dim]Next steps will include imputation and derivations as defined in config.yaml[/dim]")
-            self.console.print("[dim]Example: 'Impute ZipCode with a constant 00000 and keep LoanID'[/dim]")
-            self._display_imputation_candidates(profile_json, all_exclusions)
-            return
-
-        self.logger.info("✅ Pre-flight checks complete. Handing off to Pipeline Runner...")
-
-        # 3. Hand off to the idempotent PipelineRunner for transformations
-        # Reload config to ensure PipelineRunner uses the latest (user-adjusted) config
-        self._reload_config()
-        self.cleaner_cfg = self.config.get("cleaner", {})
-        self.structural_assessor.update_config(self.config) # Update assessor with new config
-
-        # Re-run structural assessment with potentially updated config (after user interaction)
-        # This will catch any structural issues not covered by the assistant or user's choices
-        col_filters = self.cleaner_cfg.get("column_filters", {})
-        manual_drops = col_filters.get("drop_attributes", [])
-        ignored = col_filters.get("ignore_recommendations", [])
-        missing_value_overrides = self.cleaner_cfg.get("missing_values", {}).get("attribute_overrides", {})
-        all_exclusions = list(set(manual_drops) | set(ignored) | set(missing_value_overrides.keys()))
-        final_structural_report = self.structural_assessor.assess(df, exclude_cols=all_exclusions)
-        self._report_structural_findings(final_structural_report) # Report findings without stopping
-
-        # 🚀 START FROM RAW: The runner is responsible for the full transformation sequence
-        # based on the now-validated config.
-        runner = PipelineRunner(self.paths)
-        self.logger.info(f"Applying full pipeline to raw dataset: {raw_path.name}")
-        runner.run(action=action)
-
-        if action == "full":
-            self.console.print(f"\n[bold green]✅ Success:[/bold green] Cleaned dataset produced at [cyan]{self.paths.clean_dataset_output_path}[/cyan]")
+            self.assistant = CleaningAssistant(self.config, profile_json, dd_path)
+            self.assistant.generate_recommendations()
+            self.assistant.write_artifacts(self.paths.cleaner_narrative_directory)
             
-            # 🌍 SEMANTIC DISCOVERY REPORT: Provide visibility into tagged attributes
-            geo_cols = self.assistant.get_attributes_by_tag("geographic")
-            if geo_cols:
-                self.console.print(f"🌍 [bold cyan]Semantic Discovery:[/bold cyan] Found {len(geo_cols)} attributes tagged as '[yellow]geographic[/yellow]'.")
+            report_path = self.paths.cleaner_narrative_directory / "cleaning_recommendations.md"
+            self.console.print(f"\n[bold green]✅ Success: Diagnostic suite concluded.[/bold green]")
+            self.console.print(f"📄 Review Recommendations: [cyan]{report_path}[/cyan]")
 
-    def _execute_domain_discovery(self) -> None:
-        """
-        Orchestrates LLM-based extraction of policy rules into a Manifest.
-        
-        Loads the handshake protocol and any available Data Dictionary context 
-        to produce a machine-readable JSON manifest of business rules.
-        """
-        # 1. Use the authoritative handshake path established by the parser
-        doc_path = self.paths.handshake_path
-        self.logger.info(f"🔎 KMDS Discovery: Loading handshake protocol from {doc_path.name}")
-
-        # 2. Extract Data Dictionary context to ground discovery (essential for narrative-free fallback)
-        dd_path = Path(self.paths.data_dictionary_csv_path)
-        dd_context = ""
-        if dd_path.exists():
-            df_dd = pd.read_csv(dd_path)
-            dd_context = df_dd.to_string(index=False)
-
-        self.console.print(f"\n[bold cyan]🧠 Phase 0: Domain Discovery[/bold cyan]")
-        try:
-            manifest = self.doc_processor.extract_policy_manifest(doc_path, dd_context=dd_context)
-            if manifest:
-                # Inject generation timestamp into metadata for auditability
-                manifest.setdefault("metadata", {})["generation_timestamp"] = \
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                
-                output_path = self.paths.cleaner_narrative_directory / "policy_manifest.json"
-                with open(output_path, 'w') as f:
-                    json.dump(manifest, f, indent=2)
-                self.console.print(f"[bold green]✅ Success:[/bold green] Policy Manifest generated at [cyan]{output_path}[/cyan]")
-            else:
-                self.logger.error("Discovery failed: DocumentProcessor returned empty manifest.")
-        except Exception as e:
-            self.logger.error(f"Discovery phase failed: {e}")
-
-    def _display_imputation_candidates(self, profile_json: Path, exclusions: List[str]) -> None:
-        """
-        Displays columns requiring imputation strategies based on the null profile.
-
-        Args:
-            profile_json (Path): Path to the generated JSON profile.
-            exclusions (List[str]): Attributes already handled in config.
-        """
-        if not profile_json.exists():
-            return
-
-        try:
-            with open(profile_json, 'r') as f:
-                profile = json.load(f)
-            
-            candidates = [col for col, stats in profile.items() 
-                         if stats.get('null_count', 0) > 0 and col not in exclusions]
-            
-            if candidates:
-                self.console.print("\n[bold cyan]🩹 Imputation Candidates (Columns with nulls):[/bold cyan]")
-                for col in candidates:
-                    null_pct = profile[col].get('null_percentage', 0) * 100
-                    self.console.print(f" - [white]{col}[/white] ([yellow]{null_pct:.1f}% null[/yellow])")
-        except Exception as e:
-            self.logger.warning(f"Could not parse profile for candidates: {e}")
-
-    def _report_structural_findings(self, report: Dict[str, Any]) -> None:
-        """
-        Reports structural recommendations to the console.
-
-        Args:
-            report (dict): Structural audit report from the assessor.
-        """
-        self.console.print("\n[bold cyan]📋 Cleaner: Structural Assessment Report[/bold cyan]")
-        self.console.print(f"Structural Hash: [yellow]{report['structural_hash']}[/yellow]")
-
-        # Reload config to ensure we have the latest state after user interaction
-        self._reload_config()
-        self.cleaner_cfg = self.config.get("cleaner", {})
-        col_filters = self.cleaner_cfg.get("column_filters", {})
-        manual_drops = col_filters.get("drop_attributes", [])
-        ignored = col_filters.get("ignore_recommendations", [])
-
-        if manual_drops:
-            self.console.print(f"\n[bold blue]📝 Manual Drops (from config):[/bold blue] {manual_drops}")
-        if ignored:
-            self.console.print(f"[bold blue]🙈 Ignored Recommendations:[/bold blue] {ignored}")
-        
-        if report["recommendations"]:
-            self.console.print("\n[bold yellow]⚠️  New Recommendations Found (Unhandled by config):[/bold yellow]")
-            for rec in report["recommendations"]:
-                self.console.print(f" - {rec}")
-            
-            self.console.print("\n[yellow]Note: These recommendations are unhandled in config. Proceeding per user request.[/yellow]")
-            self.logger.info(f"Structural findings reported: {len(report['recommendations'])} items.")
-        else:
-            self.console.print("\n[green]✅ No unhandled structural issues detected.[/green]")
-            
-    def _get_config_path(self) -> Path:
-        """
-        Resolves the authoritative config path from the coordinator.
-
-        Returns:
-            Path: Absolute path to the active config.yaml.
-        """
-        # Prioritize config_path set in cli.py, then fallback to common coordinator attributes
-        config_path = getattr(self.paths, "config_path", None) or \
-                      getattr(self.paths, "_config_path", None) or \
-                      getattr(self.paths, "config_file", None)
-
-        if not config_path:
-            raise ValueError("PathCoordinator failed to provide an authoritative config path.")
-            
-        return Path(config_path).resolve()
-
-    def _reload_config(self) -> None:
-        """
-        Reloads the configuration from the physical file.
-        
-        Synchronizes internal state with any manual edits performed by the 
-        user during the assessment phase.
-        """
-        try:
-            target = self._get_config_path()
-            with open(target, 'r') as f:
-                new_config = yaml.safe_load(f)
-            
-            self.config = new_config
-            # Sync the coordinator's internal state so downstream runners see the updates
-            self.paths.config = new_config
-            self.cleaner_cfg = self.config.get("cleaner", {})
-            self.logger.info(f"🔄 Configuration reloaded from: {target}")
-        except Exception as e:
-            self.logger.error(f"❌ Failed to reload configuration: {e}")
-
-    def _persist_config(self) -> None:
-        """
-        Writes the current state of self.config back to the active config.yaml file.
-        Uses the authoritative path from the coordinator to prevent relative path drift.
-        """
-        try:
-            target = self._get_config_path()
-            with open(target, 'w') as f:
-                yaml.safe_dump(self.config, f, sort_keys=False)
-            self.logger.info(f"💾 Configuration persisted to: {target.resolve()}")
-        except Exception as e:
-            self.logger.error(f"❌ Failed to persist configuration: {e}")
-
-    def update_config(self, config: Dict[str, Any]) -> None:
-        """
-        Refreshes sub-component settings.
-
-        Args:
-            config (dict): New configuration object.
-        """
-        self.structural_assessor.update_config(config)
+        # --- 4. Dataset Persistence ---
+        # Persist the synchronized/subsetted dataframe to the authoritative output path.
+        output_path = self.paths.clean_dataset_output_path
+        self.logger.info(f"💾 Persisting synchronized dataset to: {output_path}")
+        df.to_csv(output_path, index=False)
+        self.console.print(f"[bold green]✅ Dataset Exported:[/bold green] [cyan]{output_path}[/cyan]")
