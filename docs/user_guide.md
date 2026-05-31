@@ -48,7 +48,7 @@ Prepending tracking hashes or comment signature flags (e.g., `# DD-PARSER-SIGNAT
 Conversational code modification memory drifts over time. To prevent application processes or test harnesses from falling out of alignment with the **Unified Platform Integration Layout**, no core module is allowed to compute local drive paths manually. Everything inherits paths from the `PlatformPathResolver` instance class:
 
 * **Raw Payloads Input Directory**: `{working_dir}/data/`
-* **Cleaned Datasets Destination**: `{working_dir}/data/dd_cleaner_results/`
+* **Cleaned Datasets Destination**: `{working_dir}/data/dd_cleaner/`
 * **Data Dictionary Target folder**: `{working_dir}/data_dictionary/dd_analysis_results/`
 * **Executive Summary Markdown Deliverables**: `{working_dir}/documents/`
 
