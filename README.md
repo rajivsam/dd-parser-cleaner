@@ -37,6 +37,14 @@ This project uses a **Markdown-Native documentation architecture** rather than t
 | **Agent Interface** | **AI-Native:** Designed for AI Assistants to autonomously implement complex, vectorized domain logic. |
 | **Metadata Discovery API** | **Faster Featurization:** Programmatic access to semantic tags (Geographic, Risk, Financial) for ML pipelines. |
 
+## 🚀 The KMDS Onboarding Flow
+
+Moving a new client or project into the `dd-parser-cleaner` framework is now a guided, three-step process designed to eliminate configuration guesswork:
+
+1.  **`init-workspace`**: Builds the authoritative KMDS directory structure (`data/`, `data_dictionary/`, `documents/`, `notebooks/`, `scripts/`) and initializes the `domain_logic.py` stub.
+2.  **`location-helper`**: Provides immediate structural guidance. It tells the user exactly where to place their raw CSVs and narrative documents before any configuration exists.
+3.  **`bootstrap-config`**: The "Smart Scan." This utility discovers your placed assets, peeks at your data dictionary headers to identify the primary attribute column, and generates an authoritative `config.yaml` (including all necessary LLM prompt templates) to get you running in minutes.
+
 ## ⚙️ Installation
 
 ### Standard Installation (CLI Only)
@@ -51,7 +59,15 @@ pip install "dd-parser-cleaner[notebook]"
 
 ## 🚀 Quick Start
 
-### 1. Classification (The Handshake)
+### 1. Bootstrap Your Workspace
+Initialize and configure your project without writing a single line of YAML:
+```bash
+uv run init-workspace ./my_project
+# ... move your CSV files to ./my_project/data/ ...
+uv run bootstrap-config ./my_project
+```
+
+### 2. Classification (The Handshake)
 Synchronize metadata and execute semantic classification:
 ```bash
 classify-entities
