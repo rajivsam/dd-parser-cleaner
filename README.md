@@ -42,7 +42,7 @@ This project uses a **Markdown-Native documentation architecture** rather than t
 Moving a new client or project into the `dd-parser-cleaner` framework is now a guided, three-step process designed to eliminate configuration guesswork:
 
 1.  **`init-workspace`**: Builds the authoritative KMDS directory structure (`data/`, `data_dictionary/`, `documents/`, `notebooks/`, `scripts/`) and initializes the `domain_logic.py` stub.
-2.  **`location-helper`**: Provides immediate structural guidance. It tells the user exactly where to place their raw CSVs and narrative documents before any configuration exists.
+2.  **`location-helper`**: Acts as the verification gate and placement guide. It verifies that the KMDS structure is ready and defines the exact locations and column requirements for your source assets (Raw Data, Data Dictionary, and Narratives) so the automation can find them.
 3.  **`bootstrap-config`**: The "Smart Scan." This utility discovers your placed assets, peeks at your data dictionary headers to identify the primary attribute column, and generates an authoritative `config.yaml` (including all necessary LLM prompt templates) to get you running in minutes.
 
 ## ⚙️ Installation
