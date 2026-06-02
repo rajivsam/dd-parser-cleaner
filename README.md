@@ -37,6 +37,18 @@ This project uses a **Markdown-Native documentation architecture** rather than t
 | **Agent Interface** | **AI-Native:** Designed for AI Assistants to autonomously implement complex, vectorized domain logic. |
 | **Metadata Discovery API** | **Faster Featurization:** Programmatic access to semantic tags (Geographic, Risk, Financial) for ML pipelines. |
 
+## ⚙️ Installation
+
+### Standard Installation (CLI Only)
+```bash
+pip install dd-parser-cleaner
+```
+
+### Installation with Notebook Support (Migration Assistant)
+```bash
+pip install "dd-parser-cleaner[notebook]"
+```
+
 ## 🚀 Quick Start
 
 ### 1. Classification (The Handshake)

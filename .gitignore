@@ -1,13 +1,31 @@
+# Environments
 .venv/
 uv.lock
+
+# Python
 __pycache__/
 *.pyc
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Testing
 .pytest_cache/
+
+# IDEs & System
+.vscode/
 .DS_Store
+
+# Build & Distribution
 dist/
+build/
+*.egg-info/
+
+# Project Specific Output & Data
 dd_analysis_results/
 dd_cleaner_results/
 parser_run.log
-.vscode/
 tests/data/*.csv
 tests/workspace_test/
+**/quarantine/
+**/dd_cleaner/

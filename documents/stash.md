@@ -19,10 +19,9 @@
 ## 🛠️ Active Project State (Last Updated: June 2, 2026 - Baseline v0.4.2+)
 
 ### ✅ Onboarding Suite & Refactoring Complete
-* **Status**: **v0.4.2 Published to PyPI**. All core diagnostic, parsing, and cleaning orchestration features are implemented and validated.
+* **Status**: **v0.4.4 Sealed Baseline**. All core diagnostic, parsing, cleaning orchestration, and notebook utilities (including optional extras) are implemented, tested, and validated.
 * **Backlogs**: None. The project has moved out of active feature development.
-* **Next Action**: Maintenance and bug fixes as required.
-* **New Features**: Added `init-workspace`, `location-helper`, and `bootstrap-config` CLI utilities to manage the Phase 0 onboarding lifecycle.
+* **Next Action**: Project is in Maintenance Mode. No further feature design required.
 * **Refactoring**: LLM prompts externalized to `dd_common.llm_prompts`. Redundant config generation removed from Cleaner.
 * **Workflow**: `init-workspace` -> `location-helper` -> `bootstrap-config` -> `classify-entities` -> `clean-dataset`.
 

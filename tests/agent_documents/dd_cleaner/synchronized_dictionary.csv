@@ -1,4 +1,0 @@
-attribute_name,physical_type,logical_type,provisional_entity_assignment
-gross_approval_amount,int,numeric,Loan
-loan_program,str,categorical,Program
-naics_code,int,numeric,Business
