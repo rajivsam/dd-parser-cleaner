@@ -6,37 +6,13 @@ import logging
 from pathlib import Path
 from typing import Tuple
 from dd_common.path_coordinator import PathCoordinator
+from dd_common.utilities import prepare_workspace as _prepare_workspace
 
 logger = logging.getLogger(__name__)
 
 def prepare_workspace(working_dir: str = ".") -> PathCoordinator:
-    """
-    Standardizes the workspace for the Migration Assistant.
-    Ensures required directories exist and creates a domain_logic stub if missing.
-    """
-    coord = PathCoordinator(working_dir=working_dir)
-    
-    # 1. Ensure scripts directory exists
-    scripts_dir = coord.base_dir / "scripts"
-    scripts_dir.mkdir(exist_ok=True)
-    
-    # 2. Ensure domain_logic.py exists
-    logic_file = scripts_dir / "domain_logic.py"
-    if not logic_file.exists():
-        with open(logic_file, "w") as f:
-            f.write("import pandas as pd\nimport numpy as np\n\n"
-                    "# Add your custom Transform, Filter, and Derivation logic here.\n")
-        print(f"✨ Created initial logic stub: {logic_file}")
-
-    # 3. Verify Safety Gate (Handshake)
-    # Note: Handshake is usually in documents/dd_cleaner/
-    handshake_dir = coord.base_dir / "documents" / "dd_cleaner"
-    handshake_file = handshake_dir / "parser_cleaner_handshake.md"
-    if not handshake_file.exists():
-        print(f"⚠️  Warning: Handshake file missing at {handshake_file}. "
-              "Discovery and full cleaning may be restricted.")
-              
-    return coord
+    base_path = _prepare_workspace(working_dir)
+    return PathCoordinator(working_dir=base_path)
 
 def init_notebook_session(working_dir: str = ".") -> Tuple[PathCoordinator, pd.DataFrame]:
     """

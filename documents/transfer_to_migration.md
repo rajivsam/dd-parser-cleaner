@@ -21,6 +21,25 @@ The `dd-parser-cleaner` follows a strict **Diagnostic -> Implementation** patter
     *   Agent registers logic in `config.yaml`.
     *   User iterates via notebook trials until the data quality reaches acceptable thresholds.
 
+## 🧠 The Decision Tree (Resolution Hierarchy)
+When the engine processes a column, it looks for instructions in this specific order. Use this to determine where to place your configuration:
+
+1.  **Attribute Override**: Specific rule for a specific column name (e.g., `LoanAmount`).
+2.  **Logical Type Default**: Default rule for a class of data (e.g., all `numeric` columns).
+3.  **System Fallback**: If neither is found, the engine leaves the value as-is and logs a warning.
+
+## 🛠️ Built-in Action Library
+Before writing custom code, check if a built-in vectorized action exists:
+
+| Category | Action | Usage Example |
+| :--- | :--- | :--- |
+| **Impute** | `mean`, `median`, `mode`, `ffill`, `bfill` | `LoanAmount: "mean"` |
+| **Impute** | `constant:[value]` | `Status: "constant:Unknown"` |
+| **Row Filter** | `drop-row` | `Email: "drop-row"` (removes row if null) |
+| **Column Filter** | `include-regex:[pattern]` | `ID: "include-regex:^L-.*"` |
+| **Column Filter** | `exclude-regex:[pattern]` | `Email: "exclude-regex:.*@test.com"` |
+| **Column Filter** | `drop-list` (in config) | `drop_attributes: ["ColA", "ColB"]` |
+
 ## 💡 Implementation Contracts
 When translating intent to code, map the operation to the correct signature:
 *   **Impute Intent**: `func(df, col) -> pd.Series` (e.g., "Fill missing ZIPs with 00000")

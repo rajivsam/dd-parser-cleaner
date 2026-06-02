@@ -1,5 +1,5 @@
 # 📑 Data Dictionary: Provisional Entity Assignment Report
-**Generation Timestamp:** `2026-06-01 04:10:14`
+**Generation Timestamp:** `2026-06-02 09:20:47`
 **Source Blueprint:** `sba_dd.csv`
 
 ### 🏗️ Structural Assessment
@@ -8,10 +8,9 @@
 
 ### 📊 Classification Summary
 - **Borrower**: 11 fields
-- **Location**: 10 fields
+- **Location**: 11 fields
 - **Loan**: 6 fields
 - **Program**: 3 fields
-- **Lender**: 1 fields
 
 ### ⚠️ Orphans in Data Dictionary
 > These attributes exist in the dictionary but were **not found** in the raw data file. They have been excluded from the assignments below.
@@ -49,7 +48,7 @@
 |-------------------------|--------------|----------------|-----------------|--------------------|
 | `asofdate`              | `Borrower`   | `datetime`     | `datetime`      | `False`            |
 | `program`               | `Program`    | `numeric`      | `int`           | `False`            |
-| `locationid`            | `Lender`     | `numeric`      | `int`           | `False`            |
+| `locationid`            | `Location`   | `numeric`      | `int`           | `True`             |
 | `borrname`              | `Borrower`   | `text`         | `str`           | `False`            |
 | `borrstreet`            | `Borrower`   | `text`         | `str`           | `True`             |
 | `borrcity`              | `Location`   | `text`         | `str`           | `True`             |

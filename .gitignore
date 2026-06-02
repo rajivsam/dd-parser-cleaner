@@ -10,3 +10,4 @@ dd_cleaner_results/
 parser_run.log
 .vscode/
 tests/data/*.csv
+tests/workspace_test/

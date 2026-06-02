@@ -16,21 +16,29 @@
 *   **Phase 2: Migration Assistant**: User bootstraps the Agent with the produced recommendations and guides. The Agent then generates `domain_logic.py` and `config.yaml` overrides.
 *   **Safety Gate**: The Cleaner enforces the presence of the Handshake file produced by the Parser.
  
-## 🛠️ Active Project State (Last Updated: May 31, 2026 - Baseline v0.4.2)
+## 🛠️ Active Project State (Last Updated: June 2, 2026 - Baseline v0.4.2+)
 
-### ✅ Baseline Complete: Feature Implementation & Testing Finished
+### ✅ Onboarding Suite & Refactoring Complete
 * **Status**: **v0.4.2 Published to PyPI**. All core diagnostic, parsing, and cleaning orchestration features are implemented and validated.
 * **Backlogs**: None. The project has moved out of active feature development.
 * **Next Action**: Maintenance and bug fixes as required.
-* **Workflow**: `pip install dd-parser-cleaner` -> Standard Diagnostic/Migration flow.
+* **New Features**: Added `init-workspace`, `location-helper`, and `bootstrap-config` CLI utilities to manage the Phase 0 onboarding lifecycle.
+* **Refactoring**: LLM prompts externalized to `dd_common.llm_prompts`. Redundant config generation removed from Cleaner.
+* **Workflow**: `init-workspace` -> `location-helper` -> `bootstrap-config` -> `classify-entities` -> `clean-dataset`.
 
 ### 1. Core Architecture
 * **Infrastructure**: `PathCoordinator` enforces zero-default path resolution via `config.yaml`.
+* **Workspace Onboarding Utilities**:
+    * **`init-workspace`**: Standardizes KMDS directory creation and initial logic stubs.
+    * **`location-helper`**: Provides structural guidance for file placement (Data, Dictionary, Docs) prior to configuration.
+    * **`bootstrap-config`**: Executes smart discovery of CSV assets, peeks at Data Dictionary headers, and generates the authoritative `provisional_config.yaml`.
+* **LLM Prompt Management**: Prompts are externalized to `dd_common.llm_prompts.py` for maintainability while remaining configurable via `config.yaml`.
+* **Timeout Management**: Added `llm_timeout` (default 180s) to `config.yaml` and `CleaningAssistant` to handle large local inference profiles.
 * **Baseline Status**: v0.4.2 Production Baseline Locked. The tool provides semantic intelligence and data quality baselines.
 * **Cleaner Orchestration**: Simplified 3-step Diagnostic Sequence:
     1. **Integrity Sync**: Reconcile Dictionary vs Raw (Intersection subsetting/Clean Bucket).
     2. **Null Profiling**: Generate MD and JSON quality baselines.
-    3. **Assessment**: LLM-augmented cleaning recommendations and `provisional_config.yaml`.
+    3. **Assessment**: LLM-augmented cleaning recommendations.
     4. **Persistence**: Export synchronized "Clean Bucket" dataset for migration handover.
 * **Data Quality & Grounding**: `DatasetDataProfiler` generates timestamped Markdown reports and JSON metadata sidecars including `logical_type` to ground LLM inference (Task 4.1).
 * **Orchestrator**: Executes a two-phase LLM pipeline (Macro Discovery + Atomic Row Assignment) synchronized with physical headers. Handshake Safety Gate is active.
@@ -41,7 +49,8 @@
 * **Performance**: Optimized CSV ingestion using C-engine with Python-engine fallback for delimiter sniffing.
 * **Standardized CLI**: `classify-entities` and `clean-dataset --action [full|integrity|profile|assessment]` are the authoritative entry points.
 * **Diagnostic Tools**: `check_integrity_bridge.py` established as a dataset-agnostic standalone tool for bridge validation.
-* **Cleaning Assistant**: LOCKED heuristic framework producing segmented reports (`cleaning_recommendations.md`) and `provisional_config.yaml`.
+* **Cleaning Assistant**: LOCKED heuristic framework producing segmented reports (`cleaning_recommendations.md`). Configuration generation removed (now handled by `bootstrap-config`).
 * **Migration Handover**: The shell exports a synchronized data file representing the "Clean Bucket" for downstream migration processing.
+* **Authoritative Documentation**: `transfer_to_migration.md` (Agent-Programmer's Handbook) is the consolidated source of truth for migration agents.
 ---
 *This stash ensures that the "Golden Rule" is maintained: any future updates must build upon the logic summarized here.*

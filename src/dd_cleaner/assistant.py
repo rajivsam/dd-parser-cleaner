@@ -30,6 +30,7 @@ class CleaningAssistant:
         self.recommendations = []
         self.prompts = self.config.get("cleaner", {}).get("missing_values", {}).get("prompts", {}).get("cleaning_assistant", {})
         self.model_name = self.config.get("model_name", "llama3.2")
+        self.llm_timeout = float(self.config.get("llm_timeout", 180.0))
 
     def generate_recommendations(self) -> Dict[str, Any]:
         """
@@ -267,7 +268,7 @@ class CleaningAssistant:
         response = httpx.post(
             "http://localhost:11434/api/generate",
             json={"model": self.model_name, "prompt": prompt, "stream": False, "format": "json"},
-            timeout=60.0
+            timeout=self.llm_timeout
         )
         if response.status_code != 200:
             raise RuntimeError(f"Ollama API error: {response.text}")
@@ -275,7 +276,7 @@ class CleaningAssistant:
 
     def write_artifacts(self, output_dir: Path):
         """
-        Generates Markdown, CSV, and provisional YAML configuration artifacts.
+        Generates Markdown and CSV artifact reports.
 
         Args:
             output_dir (Path): Destination directory for the generated files.
@@ -345,35 +346,5 @@ class CleaningAssistant:
         csv_path = output_dir / "cleaning_matrix_actions_only.csv"
         df.to_csv(csv_path, index=False)
 
-        # 3. Provisional Config YAML
-        yaml_path = output_dir / "provisional_config.yaml"
-        recommendation_map = {
-            rec["attribute_name"]: rec["recommended_action"]
-            for rec in self.recommendations
-        }
-        
-        drops = [col for col, action in recommendation_map.items() 
-                 if action == "drop-attribute" or action == "custom:datetime_to_numeric"]
-        
-        imputes = {col: action for col, action in recommendation_map.items() 
-                   if action not in ["drop-attribute", "custom:datetime_to_numeric", "user-review"]}
-        
-        derivations = {col: action for col, action in recommendation_map.items() 
-                       if action == "custom:datetime_to_numeric"}
-
-        prov_cfg = {
-            "cleaner": {
-                "column_filters": {"drop_attributes": drops},
-                "missing_values": {"attribute_overrides": imputes},
-                "derivation": {"attribute_overrides": derivations}
-            }
-        }
-
-        with open(yaml_path, "w") as f:
-            f.write("# 🚧 PROVISIONAL CLEANING CONFIGURATION\n")
-            f.write("# Review these settings and apply to your main config.yaml\n\n")
-            yaml.safe_dump(prov_cfg, f, sort_keys=False)
-
         self.console.print(f"\n[bold green]✨ Assistant artifacts generated in:[/bold green] {output_dir}")
         self.console.print(f" - Report: [cyan]cleaning_recommendations.md[/cyan]")
-        self.console.print(f" - Config: [cyan]provisional_config.yaml[/cyan]")
