@@ -50,8 +50,8 @@ The core value of this framework is the reduction of messy data prep into a pred
 8.  **Handshake**: Review the `parser_cleaner_handshake.md` for schema verification.
 9.  **Baseline**: Review the **Null Profile** to understand raw data conditions.
 10. **Recommendations**: Review `cleaning_recommendations.md` for AI-driven insights.
-11. **Access**: Use the example notebook to load the "Clean Baseline" dataset.
-12. **Modify**: Implement domain-specific cleaning/featurization in your notebook.
+11. **Access**: Use the [example notebook](https://github.com/rajivsam/dd-parser-cleaner/blob/main/tests/notebooks/verify_notebook_utils.ipynb) to load the "Clean Baseline" dataset.
+12. **Modify**: Implement domain-specific cleaning/featurization in your [notebook](https://github.com/rajivsam/dd-parser-cleaner/blob/main/tests/notebooks/imperative_migration_example.ipynb).
 
 ## ⚙️ Installation
 
