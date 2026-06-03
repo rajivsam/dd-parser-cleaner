@@ -42,7 +42,7 @@ The core value of this framework is the reduction of messy data prep into a pred
 
 1.  **Install**: `pip install dd-parser-cleaner`
 2.  **Initialize**: Run `init-workspace` to build the KMDS directory structure.
-3.  **Locate**: Run `location-helper` for placement guidance.
+3.  **Locate**: Run `location-helper` for placement guidance - where to put the data files and documents?
 4.  **Populate**: Move source files to `data/`, `data_dictionary/`, and `documents/`.
 5.  **Bootstrap**: Run `bootstrap-config` to generate a `provisional_config.yaml`. (Save as `config.yaml`).
 6.  **Classify**: Run `classify-entities` to synchronize metadata and tag entities.
