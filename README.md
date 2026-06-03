@@ -37,13 +37,21 @@ This project uses a **Markdown-Native documentation architecture** rather than t
 | **Agent Interface** | **AI-Native:** Designed for AI Assistants to autonomously implement complex, vectorized domain logic. |
 | **Metadata Discovery API** | **Faster Featurization:** Programmatic access to semantic tags (Geographic, Risk, Financial) for ML pipelines. |
 
-## 🚀 The KMDS Onboarding Flow
+## 🚀 The 12-Step Operational Recipe
+The core value of this framework is the reduction of messy data prep into a predictable, 12-step sequence. This workflow moves you from raw, undocumented data to a high-integrity analytical baseline:
 
-Moving a new client or project into the `dd-parser-cleaner` framework is now a guided, three-step process designed to eliminate configuration guesswork:
-
-1.  **`init-workspace`**: Builds the authoritative KMDS directory structure (`data/`, `data_dictionary/`, `documents/`, `notebooks/`, `scripts/`) and initializes the `domain_logic.py` stub.
-2.  **`location-helper`**: Acts as the verification gate and placement guide. It verifies that the KMDS structure is ready and defines the exact locations and column requirements for your source assets (Raw Data, Data Dictionary, and Narratives) so the automation can find them.
-3.  **`bootstrap-config`**: The "Smart Scan." This utility discovers your placed assets, peeks at your data dictionary headers to identify the primary attribute column, and generates an authoritative `config.yaml` (including all necessary LLM prompt templates) to get you running in minutes.
+1.  **Install**: `pip install dd-parser-cleaner`
+2.  **Initialize**: Run `init-workspace` to build the KMDS directory structure.
+3.  **Locate**: Run `location-helper` for placement guidance.
+4.  **Populate**: Move source files to `data/`, `data_dictionary/`, and `documents/`.
+5.  **Bootstrap**: Run `bootstrap-config` to generate a `provisional_config.yaml`. (Save as `config.yaml`).
+6.  **Classify**: Run `classify-entities` to synchronize metadata and tag entities.
+7.  **Clean**: Run `clean-dataset --action full` to execute the diagnostic pipeline.
+8.  **Handshake**: Review the `parser_cleaner_handshake.md` for schema verification.
+9.  **Baseline**: Review the **Null Profile** to understand raw data conditions.
+10. **Recommendations**: Review `cleaning_recommendations.md` for AI-driven insights.
+11. **Access**: Use the example notebook to load the "Clean Baseline" dataset.
+12. **Modify**: Implement domain-specific cleaning/featurization in your notebook.
 
 ## ⚙️ Installation
 

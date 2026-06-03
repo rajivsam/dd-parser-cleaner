@@ -1,77 +1,28 @@
 # 🧼 Cleaner Module: Generalized Transformation Design
 
 ## 🎯 Core Philosophy
-The Cleaner is a **domain-agnostic transformation engine**. It provides the "plumbing" (IO, validation, sequencing) while allowing the user to inject "domain science" via a unified **Custom Code Bridge**.
-**Simplicity Rule**: The engine is a deterministic, declarative pipeline. Interactivity is handled via the AI Agent (Natural Language to YAML). The engine generates reports; the Agent translates intent into instructions.
+The Cleaner is a **Diagnostic Shell** designed to establish a high-integrity "Clean Baseline." Its mission is to perform the non-destructive grunt work (IO, metadata synchronization, and profiling) so that domain-specific cleaning can happen in a flexible, imperative environment.
 
-## 🏗️ The Logic Registry
-Instead of hardcoded rules, the cleaner treats all operations as lookups within a registry. This allows a seamless blend of built-in vectorized operations and user-defined scripts.
+## 🏗️ The Diagnostic Pipeline
+The cleaner executes a fixed, deterministic sequence to ensure the resulting dataset is fit for purpose:
 
-### 1. Configuration Contract (`config.yaml`)
-```yaml
-cleaner:
-  custom_logic_path: "scripts/domain_logic.py"
-  pipeline: [integrity, assessment, row_filter, column_filter, impute, derive]
+1.  **Integrity Sync**: Reconciles the Data Dictionary against physical headers (Bucket Strategy).
+2.  **Null Profiling**: Generates Markdown and JSON quality baselines.
+3.  **Assessment**: LLM-augmented cleaning recommendations based on the grounded data profile.
+4.  **Persistence**: Exports the synchronized "Clean Bucket" dataset.
 
-  structural_assessment:
-    dataset_type: "not_yet_inferred" # Options: cross-sectional, longitudinal, panel
-    primary_keys: []         # Confirmed by user (e.g., ["LoanID", "LineItem"])
-    auto_drop_constant: true
-    null_threshold: 0.95
-  
-  # Each action group maps a column or logical type to a strategy
-  missing_values:
-    attribute_overrides:
-      LoanAmount: "custom:risk_adjusted_impute"
-  recoding:
-    attribute_overrides:
-      BorrState: "custom:map_to_regions"
+## 🔄 Implementation Boundary
+The Cleaner deliberately stops after producing the baseline. 
+*   **Framework Duty**: Ensure the headers match, types are identified, and quality issues are flagged.
+*   **User Duty**: Implement domain-specific logic (Filtering, Imputing, Deriving) in a Jupyter Notebook using standard Pandas operations.
 
-  # Built-in specialized column filters (Structural)
-  column_filters:
-    drop_attributes: ["LocationID", "InternalNotes"] # Global drop list
-    include_attributes: ["LoanID", "Amount", "Status"] # Global white list (optional)
-    attribute_overrides:
-      Email: "exclude-regex:.*@test\\.com$"
-      LoanID: "include-regex:^L-[0-9]{5}$"
-```
+This boundary prevents "YAML-programming" complexity and ensures the user has total imperative control over their final analytical payload.
 
-## 📜 Standard Signature Contracts
-To prevent "signature inflation," all custom logic must adhere to one of three standardized functional contracts. This ensures the engine can call user code predictably.
-
-| Contract | Targeted Actions | Signature | Return Type |
-| :--- | :--- | :--- | :--- |
-| **Transform** | Imputing, Recoding | `func(df, col)` | `pd.Series` |
-| **Row Filter** | Row Removal, Outlier Clipping | `func(df)` | `pd.Index` or `Boolean Mask` |
-| **Derivation** | Feature Engineering, Merging | `func(df)` | `pd.DataFrame` |
-
-### 🔧 Action-to-Signature Mapping
-When implementing custom logic in `scripts/domain_logic.py`, the signature is determined by the pipeline step:
-
-#### 1. Transform Actions (`impute`, `recoding`)
-Used when modifying an existing column.
-```python
-def my_custom_transform(df: pd.DataFrame, col: str) -> pd.Series:
-    # Example: Return column 'col' multiplied by a factor from another column
-    return df[col] * df['Multiplier']
-```
-
-#### 2. Filter Actions (`filter`)
-Used to reduce the dataset size by removing rows.
-```python
-def my_custom_filter(df: pd.DataFrame) -> pd.Index:
-    # Example: Keep only rows where 'Status' is 'Active'
-    return df[df['Status'] == 'Active'].index
-```
-
-#### 3. Derivation Actions (`derive`)
-Used to append new columns or perform structural changes.
-```python
-def my_custom_derivation(df: pd.DataFrame) -> pd.DataFrame:
-    # Example: Create a new 'Risk_Score' column
-    df['Risk_Score'] = df['Debt'] / df['Income']
-    return df
-```
+## 🛡️ The Quarantine Workflow
+Before transformations, the cleaner scans for **Mixed Values**. 
+* **Detection**: Identifies columns containing multiple data types (e.g., numeric and string).
+* **Isolation**: Records deviating from the dominant type are moved to the `quarantine/` directory.
+* **Safety**: This ensures that any subsequent logic applied in a notebook processes a structurally consistent schema.
 
 ## 🔄 Execution Flow
 The Cleaner operates as an idempotent sequence with a **Consolidated Safety Gate**:
@@ -83,16 +34,16 @@ The Cleaner operates as an idempotent sequence with a **Consolidated Safety Gate
 1.  **Integrity Sync**: Reconciles the Data Dictionary against physical headers (Bucket Strategy).
 2.  **Type Alignment**: Coerces raw data into the physical types identified by the Profiler.
 3.  **The Action Loop**: Iterates through the `pipeline` defined in config.
+4.  **Persistence**: Writes the final baseline to the `dd_cleaner/` data directory.
 
-### 🔄 Execution Sequence (Final Order)
-1. **Integrity Sync**: Reconcile Dictionary vs Raw.
-2. **Type Alignment**: Coerce types based on Parser metadata.
-3. **Row Filtering**: Execute custom/built-in row exclusion.
-4. **Imputation**: Resolve missing values via Hierarchy.
-5. **Derivation**: Feature engineering (e.g., Datetime-to-Numeric offsets).
-6. **Column Filtering (Terminal Action)**: Final physical removal of attributes. This is the last transformation step, ensuring all preceding actions (Impute, Derive, Policy Audit) have access to the full raw feature set.
+## 🛡️ Safety Boundaries
+*   **Immutable Raw Data**: The engine never modifies the source file.
+*   **Handshake Protocol**: Requires the Parser's output to ensure semantic grounding.
+*   **No Silent Failures**: Critical schema mismatches (Orphans/Ghosts) are explicitly flagged in the diagnostic report.
 
-## 🛡️ Safety & Error Boundaries
+## 🧪 User Workflow
+1.  **Run CLI**: `clean-dataset --action full` to get the baseline.
+2.  **Open Notebook**: Use `imperative_migration_example.ipynb` to apply domain logic.
 Custom code is treated as an "untrusted" layer. 
 
 *   **Vectorization Requirement**: Functions receive the full `pd.DataFrame` context. Row-based iteration (e.g. `.iterrows()`) is discouraged; users should use vectorized Pandas/NumPy operations.

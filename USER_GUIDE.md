@@ -3,6 +3,20 @@
 ## 📑 Overview
 This system is a modular data engineering framework designed to bridge the gap between messy data dictionaries and clean, production-ready datasets. It uses local LLMs (Llama 3.2) to classify metadata and deterministic vectorized rules to transform data.
 
+## 🚀 The 12-Step Operational Recipe
+1. **Install**: `pip install dd-parser-cleaner`
+2. **Initialize**: Run `init-workspace`.
+3. **Locate**: Run `location-helper` for placement guidance.
+4. **Populate**: Move source files to `data/`, `data_dictionary/`, and `documents/`.
+5. **Bootstrap**: Run `bootstrap-config` to generate `provisional_config.yaml`. Save as `config.yaml`.
+6. **Classify**: Run `classify-entities`.
+7. **Clean**: Run `clean-dataset --action full`.
+8. **Handshake**: Review `parser_cleaner_handshake.md`.
+9. **Baseline**: Review the **Null Profile**.
+10. **Recommendations**: Review `cleaning_recommendations.md`.
+11. **Access**: Open `imperative_migration_example.ipynb` to view the baseline.
+12. **Modify**: Implement domain-specific cleaning in the notebook.
+
 ## 🔎 Component 1: The Parser (`classify-entities`)
 The parser analyzes your Data Dictionary to create a structured mapping matrix.
 

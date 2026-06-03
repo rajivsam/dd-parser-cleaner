@@ -2,43 +2,24 @@
 
 This document defines the specialized workflow for migrating existing data cleaning logic (e.g., from Jupyter Notebooks or legacy scripts) into the `dd-parser-cleaner` framework.
 
-## 🔄 The "Tag & Inject" Workflow
-The migration process is a collaborative, human-in-the-loop interaction designed to move logic from loose code blocks into a structured pipeline.
+## 🔄 The "Extract & Baseline" Workflow
+Migration is now an **Imperative Process** rather than an orchestrated one. Instead of injecting code into the cleaner's core pipeline, you consume its high-integrity output.
 
-1.  **User Submission**: The user pastes a specific code snippet and identifies the intended **Cleaner Action** (e.g., Row-Filter, Transform/Impute, or Derivation).
-2.  **Agent Classification**: The agent confirms the classification and maps the code to the corresponding functional contract (Transform, Filter, or Derivation).
-3.  **Code Injection**: The agent automatically wraps the logic in a standardized signature and injects it into the framework.
+1.  **Generate Baseline**: Run the `clean-dataset --action full` command to establish the "Clean Bucket" and review LLM recommendations.
+2.  **Notebook Porting**: Copy existing logic into a Jupyter Notebook that loads the cleaned baseline using `get_cleaned_data(coord)`.
+3.  **Functional Chaining**: Refactor legacy code into the recommended sequence: Filter -> Impute -> Derive -> Rename/Drop.
 
 ## ⚖️ Implementation Rules
 
-### 1. Authoritative Naming Strategy
-**The raw data file is the source of truth.** 
-In any conflict between attribute names in the pasted code and the physical headers of the raw data file, the agent must align the code to the data file version. This prevents `KeyErrors` during pipeline execution and ensures the cleaner operates on the actual physical schema.
+### 1. The Clean Bucket Constraint
+All migrated logic must target the attributes synchronized in the `parser_cleaner_handshake.md`. If your legacy code references columns that were stripped (Orphans), you must address why they are missing from the Data Dictionary first.
 
-### 2. Directory Resolution
-Custom logic must be placed in `domain_logic.py` within the `scripts/` directory relative to the current **Working Directory**.
-*   **Development/Testing**: `tests/scripts/domain_logic.py`
-*   **Production**: `scripts/domain_logic.py`
-
-### 3. Agent Responsibilities
-Upon receiving a code block, the agent is responsible for:
-*   **Writing the Function**: Implementing the logic in `domain_logic.py`.
-*   **Impact Assessment**: If the proposed change modifies the existing behavior of a function in `domain_logic.py` or a key setting in `config.yaml`, the agent must explicitly warn the user before providing the code.
-*   **Attribute Verification**: The agent must verify that every attribute name referenced in a code block or configuration snippet exists in the raw data file headers before suggesting the change.
-*   **Updating Configuration**: Providing the specific YAML snippet for the `attribute_overrides` section in `config.yaml`.
-*   **Providing Verification**: Generating a test harness for the user to verify the transformation before running the full pipeline.
-
-### 4. Structural Preservation
-The agent must preserve the existing structure of `config.yaml` and any existing logic within `scripts/domain_logic.py` unless explicitly directed otherwise.
-
-## 📋 Contract Mapping Reference
-
-| Notebook Pattern | Cleaner Action | Contract Signature |
-| :--- | :--- | :--- |
-| `df = df[df.col > val]` | **Row-Filter** | `func(df) -> pd.Index` |
-| `df['col'] = df['col'].fillna(x)` | **Impute** | `func(df, col) -> pd.Series` |
-| `df['new'] = df['a'] + df['b']` | **Derivation** | `func(df) -> pd.DataFrame` |
-| `df['col'] = df['col'].map(dict)` | **Transform** | `func(df, col) -> pd.Series` |
+### 2. Best-Practice Sequence
+To prevent clobbering dependencies, migrated logic should follow this order:
+1. **Filtering**: Remove invalid rows early.
+2. **Imputation**: Fill NaNs before they affect calculations.
+3. **Derivation**: Create features while original names are still present.
+4. **Schema Management**: Rename or drop columns as the final act.
 
 ---
 *This guide ensures that the migration from exploratory code to declarative pipelines is predictable, validated, and aligned with the project's Golden Rule.*

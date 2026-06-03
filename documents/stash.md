@@ -9,11 +9,12 @@
 *   **Behavioral Change Awareness**: Before suggesting changes that modify existing logic in `domain_logic.py` or functional settings in `config.yaml`, the agent must explicitly notify the user of the expected change in behavior.
 *   **Raw Data Verification**: The agent must strictly verify that every attribute name referenced in code or configuration changes matches an existing column in the raw dataset file to prevent schema drift and runtime errors.
 * **KMDS Handshake Protocol**: The Cleaner enforces the existence of `parser_cleaner_handshake.md` (the "handshake file") in `documents/dd_cleaner/` before execution. This file serves as the fixed "Inbox" artifact produced by the Parser and contains semantic context for discovery.
-* **Implementation Boundary**: The core package (CLI) provides diagnostics and recommendations. Implementation of cleaning logic happens in the "Migration" phase via the Agent writing to `scripts/domain_logic.py`.
+* **Implementation Boundary (CLEAN BASELINE)**: The framework's core mission concludes with the production of the "Clean Baseline" dataset and its diagnostic suite.
+* **User Autonomy**: Users are not expected to extend `config.yaml` for transformation logic. All domain-specific cleaning (filtering, derivation, etc.) is recommended to take place in the user's analytical environment (e.g., Jupyter Notebooks) using the imperative patterns provided.
 
 ## 🎭 User Experience (UX) Personas & Interaction Paths [LOCKED]
-*   **Phase 1: Diagnostic Shell**: User sets `working_dir` in `config.yaml` and runs `classify-entities` followed by `clean-dataset --action full`.
-*   **Phase 2: Migration Assistant**: User bootstraps the Agent with the produced recommendations and guides. The Agent then generates `domain_logic.py` and `config.yaml` overrides.
+*   **Phase 1: Diagnostic Shell**: The authoritative usage path. User initializes the workspace, sets location preferences in `config.yaml`, and executes the diagnostic pipeline to establish a high-integrity data baseline.
+*   **Phase 2: Data Science Migration**: The user consumes the "Clean Baseline" dataset. The framework provides best-practice imperative examples (Notebooks) for domain cleaning, but does not dictate the processing approach.
 *   **Safety Gate**: The Cleaner enforces the presence of the Handshake file produced by the Parser.
  
 ## 🛠️ Active Project State (Last Updated: June 2, 2026 - Baseline v0.4.2+)
@@ -21,14 +22,15 @@
 ### ✅ Onboarding Suite & Refactoring Complete
 * **Status**: **v0.4.4 Sealed Baseline**. All core diagnostic, parsing, cleaning orchestration, and notebook utilities (including optional extras) are implemented, tested, and validated.
 * **Backlogs**: None. The project has moved out of active feature development.
-* **Next Action**: Project is in Maintenance Mode. No further feature design required.
+* **Boundary reached**: The tool is now a finalized diagnostic utility. No further extensions to the `config.yaml` orchestration engine are planned.
+* **Next Action**: Project is in Maintenance Mode.
 * **Refactoring**: LLM prompts externalized to `dd_common.llm_prompts`. Redundant config generation removed from Cleaner.
 * **Workflow**: `init-workspace` -> `location-helper` -> `bootstrap-config` -> `classify-entities` -> `clean-dataset`.
 
 ### 1. Core Architecture
 * **Infrastructure**: `PathCoordinator` enforces zero-default path resolution via `config.yaml`.
 * **Workspace Onboarding Utilities**:
-    * **`init-workspace`**: Standardizes KMDS directory creation and initial logic stubs.
+    * **`init-workspace`**: Standardizes KMDS directory creation.
     * **`location-helper`**: Provides structural guidance for file placement (Data, Dictionary, Docs) prior to configuration.
     * **`bootstrap-config`**: Executes smart discovery of CSV assets, peeks at Data Dictionary headers, and generates the authoritative `provisional_config.yaml`.
 * **LLM Prompt Management**: Prompts are externalized to `dd_common.llm_prompts.py` for maintainability while remaining configurable via `config.yaml`.
