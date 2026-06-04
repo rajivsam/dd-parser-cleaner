@@ -6,26 +6,26 @@
 ## 🤖 Agent Operational Directives
 * **Domain Agnosticism**: Strict requirement. Zero hardcoded domain-specific items, magic numbers, or regulatory assumptions. All domain logic must be injected via config or discovered via the "Domain Discovery" phase.
 * **Config Management (STRICT)**: The `working_dir` variable in `config.yaml` is the single source of truth for the workspace. All paths resolved via `PathCoordinator` are relative to this root.
-*   **Behavioral Change Awareness**: Before suggesting changes that modify existing logic in `domain_logic.py` or functional settings in `config.yaml`, the agent must explicitly notify the user of the expected change in behavior.
+*   **Behavioral Change Awareness**: Before suggesting changes to functional settings in `config.yaml`, the agent must explicitly notify the user of the expected change in behavior.
 *   **Raw Data Verification**: The agent must strictly verify that every attribute name referenced in code or configuration changes matches an existing column in the raw dataset file to prevent schema drift and runtime errors.
 * **KMDS Handshake Protocol**: The Cleaner enforces the existence of `parser_cleaner_handshake.md` (the "handshake file") in `documents/dd_cleaner/` before execution. This file serves as the fixed "Inbox" artifact produced by the Parser and contains semantic context for discovery.
 * **Implementation Boundary (CLEAN BASELINE)**: The framework's core mission concludes with the production of the "Clean Baseline" dataset and its diagnostic suite.
 * **User Autonomy**: Users are not expected to extend `config.yaml` for transformation logic. All domain-specific cleaning (filtering, derivation, etc.) is recommended to take place in the user's analytical environment (e.g., Jupyter Notebooks) using the imperative patterns provided.
 
 ## 🎭 User Experience (UX) Personas & Interaction Paths [LOCKED]
-*   **Phase 1: Diagnostic Shell**: The authoritative usage path. User initializes the workspace, sets location preferences in `config.yaml`, and executes the diagnostic pipeline to establish a high-integrity data baseline.
+*   **Phase 1: Diagnostic Shell**: The authoritative usage path. User initializes the workspace, sets location preferences in `config.yaml`, and executes the diagnostic pipeline (Integrity -> Profile -> LLM Assessment) to establish a high-integrity data baseline.
 *   **Phase 2: Data Science Migration**: The user consumes the "Clean Baseline" dataset. The framework provides best-practice imperative examples (Notebooks) for domain cleaning, but does not dictate the processing approach.
 *   **Safety Gate**: The Cleaner enforces the presence of the Handshake file produced by the Parser.
  
-## 🛠️ Active Project State (Last Updated: June 2, 2026 - Baseline v0.4.2+)
+## 🛠️ Active Project State (Last Updated: June 4, 2026 - Baseline v0.4.6)
 
-### ✅ Onboarding Suite & Refactoring Complete
-* **Status**: **v0.4.4 Sealed Baseline**. All core diagnostic, parsing, cleaning orchestration, and notebook utilities (including optional extras) are implemented, tested, and validated.
+### ✅ Onboarding Suite & Performance Optimization Complete
+* **Status**: **v0.4.6 Performance Baseline**. All core diagnostic, parsing, and cleaning orchestration is optimized for GPU-accelerated local LLM inference.
 * **Backlogs**: None. The project has moved out of active feature development.
 * **Boundary reached**: The tool is now a finalized diagnostic utility. No further extensions to the `config.yaml` orchestration engine are planned.
 * **Next Action**: Project is in Maintenance Mode.
 * **Refactoring**: LLM prompts externalized to `dd_common.llm_prompts`. Redundant config generation removed from Cleaner.
-* **Workflow**: `init-workspace` -> `location-helper` -> `bootstrap-config` -> `classify-entities` -> `clean-dataset`.
+* **Workflow**: `init-workspace` -> `location-helper` -> `bootstrap-config` -> `classify-entities` -> `clean-dataset`. Note: `scripts` directory is no longer a core KMDS requirement for this utility.
 
 ### 1. Core Architecture
 * **Infrastructure**: `PathCoordinator` enforces zero-default path resolution via `config.yaml`.
@@ -34,7 +34,7 @@
     * **`location-helper`**: Provides structural guidance for file placement (Data, Dictionary, Docs) prior to configuration.
     * **`bootstrap-config`**: Executes smart discovery of CSV assets, peeks at Data Dictionary headers, and generates the authoritative `provisional_config.yaml`.
 * **LLM Prompt Management**: Prompts are externalized to `dd_common.llm_prompts.py` for maintainability while remaining configurable via `config.yaml`.
-* **Timeout Management**: Added `llm_timeout` (default 180s) to `config.yaml` and `CleaningAssistant` to handle large local inference profiles.
+* **Timeout Management**: Optimized `llm_timeout` (60s canary) with active health checks and payload truncation to ensure stable ~20-30s execution times.
 * **Baseline Status**: v0.4.2 Production Baseline Locked. The tool provides semantic intelligence and data quality baselines.
 * **Cleaner Orchestration**: Simplified 3-step Diagnostic Sequence:
     1. **Integrity Sync**: Reconcile Dictionary vs Raw (Intersection subsetting/Clean Bucket).

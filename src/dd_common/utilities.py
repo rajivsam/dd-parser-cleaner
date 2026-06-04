@@ -2,15 +2,19 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) 
 
-def verify_workspace_status(working_dir: str = ".") -> bool:
+def verify_workspace_status(working_path: Path) -> bool:
     """
-    Checks if the specified directory is already configured for dd-parser-cleaner.
+    Checks if the specified Path is already configured for dd-parser-cleaner.
     Returns True if core KMDS directories exist, False otherwise.
     """
-    base = Path(working_dir).resolve()
-    required_dirs = ["data", "data_dictionary", "documents", "notebooks", "scripts"]
+    base = working_path # Assume working_path is already resolved
+    
+    # Minimal set required for diagnostic discovery and bootstrapping.
+    # While 'init-workspace' creates 5 directories, we only enforce the 
+    # presence of the Data Hub core to allow tools to run on partial workspaces.
+    required_dirs = ["data", "data_dictionary"]
     
     for folder in required_dirs:
         if not (base / folder).is_dir():
@@ -27,7 +31,7 @@ def prepare_workspace(working_dir: str = ".") -> Path:
     base = Path(working_dir).resolve()
     
     # 1. Ensure core directories exist
-    required_dirs = ["data", "data_dictionary", "documents", "notebooks", "scripts"]
+    required_dirs = ["data", "data_dictionary", "documents", "notebooks"]
     for folder in required_dirs:
         dir_path = base / folder
         if not dir_path.exists():
@@ -35,16 +39,11 @@ def prepare_workspace(working_dir: str = ".") -> Path:
             print(f"📁 Created missing directory: {folder}")
         else:
             print(f"✅ Verified directory: {folder}")
+    
+    # The 'scripts' directory and domain_logic.py are no longer managed by init-workspace.
+    # Users are expected to manage their own scripts for imperative transformations.
 
-    # 2. Ensure domain_logic.py exists in scripts/
-    logic_file = base / "scripts" / "domain_logic.py"
-    if not logic_file.exists():
-        with open(logic_file, "w") as f:
-            f.write("import pandas as pd\nimport numpy as np\n\n"
-                    "# Add your custom Transform, Filter, and Derivation logic here.\n")
-        print(f"✨ Created initial logic stub: scripts/domain_logic.py")
-
-    # 3. Verify Safety Gate (Handshake) location
+    # 2. Verify Safety Gate (Handshake) location
     handshake_dir = base / "documents" / "dd_cleaner"
     handshake_file = handshake_dir / "parser_cleaner_handshake.md"
     if not handshake_file.exists():

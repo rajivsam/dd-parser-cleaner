@@ -1,0 +1,17 @@
+attribute_name,logical_type,entity_context,null_ratio,cardinality,recommended_action,reason
+asofdate,datetime,Borrower,0.0,1,drop-attribute,Constant value / Zero variance
+program,numeric,Program,0.0,1,drop-attribute,Constant value / Zero variance
+approvaldate,datetime,Loan,0.0,4468,custom:datetime_to_numeric,"This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."
+firstdisbursementdate,datetime,Borrower,0.1969057544372341,197,custom:datetime_to_numeric,"This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."
+subprogram,categorical,Program,0.0675920752933087,3,constant:MISSING,Categorical/Text with 6.8% nulls: Recommendation is creating a 'MISSING' category.
+naicscode,numeric,Location,0.003721689801882333,1126,mean-imputation,Numeric with 0.4% nulls: Recommendation is mean imputation.
+naicsdescription,text,Location,0.0037732605612617646,1747,constant:MISSING,Categorical/Text with 0.4% nulls: Recommendation is creating a 'MISSING' category.
+franchisecode,numeric,Location,0.9019897717993898,2117,mean-imputation,Numeric with 90.2% nulls: Recommendation is mean imputation.
+franchisename,categorical,Location,0.9021015084447118,2093,constant:MISSING,Categorical/Text with 90.2% nulls: Recommendation is creating a 'MISSING' category.
+sbadistrictoffice,categorical,Location,8.595126563238644e-06,74,constant:MISSING,Categorical/Text with 0.0% nulls: Recommendation is creating a 'MISSING' category.
+congressionaldistrict,numeric,Location,6.016588594267051e-05,54,mean-imputation,Numeric with 0.0% nulls: Recommendation is mean imputation.
+businesstype,categorical,Borrower,0.0003180196828398298,3,constant:MISSING,Categorical/Text with 0.0% nulls: Recommendation is creating a 'MISSING' category.
+businessage,categorical,Location,0.004589797584769436,10,constant:MISSING,Categorical/Text with 0.5% nulls: Recommendation is creating a 'MISSING' category.
+loanstatus,categorical,Borrower,0.0021573767673728995,21,constant:MISSING,Categorical/Text with 0.2% nulls: Recommendation is creating a 'MISSING' category.
+paidinfulldate,datetime,Borrower,0.6921827323907345,183,custom:datetime_to_numeric,"This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."
+chargeoffdate,datetime,Borrower,0.9918862005243028,634,drop-attribute,Extreme sparsity (99.2%): Exceeds null threshold of 95.0%

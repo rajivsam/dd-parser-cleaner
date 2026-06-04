@@ -1,0 +1,163 @@
+"""Utilities for initializing and managing interactive Jupyter Notebook sessions."""
+from typing import List
+import pandas as pd
+import sys
+import logging
+from pathlib import Path
+from typing import Tuple
+from dd_common.path_coordinator import PathCoordinator
+from dd_common.utilities import prepare_workspace as _prepare_workspace, verify_workspace_status
+from dd_cleaner.assistant import CleaningAssistant
+from rich.console import Console
+
+logger = logging.getLogger(__name__)
+
+def prepare_workspace(working_dir: str = ".") -> PathCoordinator:
+    base_path = _prepare_workspace(working_dir)
+    return PathCoordinator(working_dir=base_path)
+
+def init_notebook_session(working_dir: str) -> Tuple[PathCoordinator, pd.DataFrame]:
+    """
+    Initializes a notebook session by setting up the PathCoordinator 
+    and returning a DataFrame listing available artifacts.
+
+    Args:
+        working_dir (str): The root directory of the KMDS workspace.
+
+    Returns:
+        Tuple[PathCoordinator, pd.DataFrame]: A tuple containing the PathCoordinator
+        instance and a DataFrame detailing the available project artifacts.
+
+    Raises:
+        FileNotFoundError: If the workspace is not initialized or required files
+                           from previous CLI steps are missing.
+        ValueError: If config.yaml is missing or malformed.
+    """
+    console = Console()
+
+    # 1. Resolve Project Root and Validate Workspace
+    target_path = Path(working_dir).resolve()
+
+    if not verify_workspace_status(target_path):
+        error_msg = (
+            f"❌ Error: The directory '{target_path}' is not an initialized KMDS workspace.\n"
+            "👉 Please run 'init-workspace' first to create the required structure."
+        )
+        console.print(f"[bold red]{error_msg}[/bold red]")
+        raise FileNotFoundError(error_msg)
+
+    # 2. Setup Coordinator (will load config.yaml)
+    try:
+        coord = PathCoordinator(working_dir=str(target_path))
+    except FileNotFoundError as e:
+        error_msg = (
+            f"❌ Error: {e}\n"
+            "👉 A 'config.yaml' file is required. Please run 'bootstrap-config' to generate one."
+        )
+        console.print(f"[bold red]{error_msg}[/bold red]")
+        raise ValueError(error_msg) # Re-raise as ValueError for config issue
+    
+    # 2. Ensure scripts directory is in path for easy importing of domain_logic
+    scripts_path = str(coord.base_dir / "scripts")
+    if scripts_path not in sys.path:
+        sys.path.append(scripts_path)
+        logger.info(f"Added '{scripts_path}' to sys.path for domain_logic import.")
+
+    # 3. Construct Artifacts DataFrame and Validate Required Files
+    artifacts_data = []
+    missing_files_for_session = []
+
+    # Define all expected artifacts and their paths
+    expected_artifacts = {
+        "Raw Data": coord.raw_dataset_path,
+        "Cleaned Data": coord.clean_dataset_output_path,
+        "Tagged Entities (DD)": coord.data_dictionary_csv_path,
+        "Cleaning Recommendations Report": coord.cleaner_narrative_directory / "cleaning_recommendations.md",
+        "Profiling Report": coord.profiling_report_path,
+        "Handshake File": coord.handshake_path,
+        "Quarantine File": coord.quarantine_path
+    }
+
+    for name, path in expected_artifacts.items():
+        exists = path.exists()
+        artifacts_data.append({
+            "Artifact Name": name,
+            "File Name": path.name,
+            "Location": str(path.relative_to(coord.working_dir)) if path.is_relative_to(coord.working_dir) else str(path),
+            "Exists": exists
+        })
+        # Check for mandatory files for a successful session
+        if name in ["Raw Data", "Tagged Entities (DD)", "Cleaned Data", "Cleaning Recommendations Report", "Profiling Report", "Handshake File"] and not exists:
+            missing_files_for_session.append(f"- {name} at {path}")
+
+    artifacts_df = pd.DataFrame(artifacts_data)
+
+    if missing_files_for_session:
+        error_msg = (
+            "❌ Missing required output files from 'classify-entities' or 'clean-dataset --action full':\n"
+            f"{'\\n'.join(missing_files_for_session)}\n"
+            "\n👉 Please ensure you have run 'classify-entities' and 'clean-dataset --action full' successfully."
+        )
+        console.print(f"[bold red]{error_msg}[/bold red]")
+        raise FileNotFoundError(error_msg)
+
+    console.print(f"[bold green]✅ Notebook session initialized for workspace:[/bold green] [cyan]{target_path}[/cyan]")
+    console.print("\n[bold blue]Available Artifacts:[/bold blue]")
+    console.print(artifacts_df)
+
+    return coord, artifacts_df
+
+# Convenience methods
+def get_raw_data(coord: PathCoordinator) -> pd.DataFrame:
+    """Loads the raw dataset into a Pandas DataFrame."""
+    path = coord.raw_dataset_path
+    if not path.exists():
+        raise FileNotFoundError(f"Raw dataset not found at {path}")
+    return pd.read_csv(path)
+
+def get_cleaned_data(coord: PathCoordinator) -> pd.DataFrame:
+    """Loads the cleaned dataset into a Pandas DataFrame."""
+    path = coord.clean_dataset_output_path
+    if not path.exists():
+        raise FileNotFoundError(f"Cleaned dataset not found at {path}")
+    return pd.read_csv(path)
+
+def get_tagged_entities(coord: PathCoordinator) -> pd.DataFrame:
+    """Loads the tagged entities (processed Data Dictionary) into a Pandas DataFrame."""
+    path = coord.data_dictionary_csv_path
+    if not path.exists():
+        raise FileNotFoundError(f"Tagged entities (Data Dictionary) not found at {path}")
+    return pd.read_csv(path)
+
+def get_quarantined_data(coord: PathCoordinator) -> pd.DataFrame:
+    """Loads the quarantined data into a Pandas DataFrame."""
+    path = coord.quarantine_path
+    if not path.exists():
+        console.print(f"[bold yellow]⚠️ Warning:[/bold yellow] Quarantine file not found at [cyan]{path}[/cyan]. Returning empty DataFrame.")
+        return pd.DataFrame()
+    return pd.read_csv(path)
+
+def get_attributes_by_tag(coord: PathCoordinator, tag_name: str) -> List[str]:
+    """
+    Discovery API: Retrieves attributes matching a specific semantic tag.
+    Example: 'geographic', 'pii', etc.
+    """
+    profile_json = coord.profiling_report_path.with_suffix(".json")
+    assistant = CleaningAssistant(
+        config=coord.config, 
+        profile_path=profile_json, 
+        dd_path=coord.data_dictionary_csv_path
+    )
+    return assistant.get_attributes_by_tag(tag_name)
+
+def get_attributes_by_entity(coord: PathCoordinator, entity_name: str) -> List[str]:
+    """
+    Discovery API: Retrieves attributes assigned to a specific business entity concept.
+    """
+    profile_json = coord.profiling_report_path.with_suffix(".json")
+    assistant = CleaningAssistant(
+        config=coord.config, 
+        profile_path=profile_json, 
+        dd_path=coord.data_dictionary_csv_path
+    )
+    return assistant.get_attributes_by_entity(entity_name)

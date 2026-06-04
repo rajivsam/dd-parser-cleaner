@@ -28,7 +28,7 @@ def main():
     target_path = Path(working_dir).resolve()
 
     # 1. Verification Phase (First order of business)
-    is_ready = verify_workspace_status(working_dir)
+    is_ready = verify_workspace_status(target_path)
     
     if args.check:
         if is_ready:

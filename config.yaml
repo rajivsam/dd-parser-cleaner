@@ -7,6 +7,7 @@ model_name: llama3.2
 documents_dir: documents
 system_prompt: You are a precise data engineering assistant. Respond strictly in JSON.
 temperature: 0.0
+llm_timeout: 60.0  # Acts as a canary: GPU should respond in <10s. >60s implies CPU fallback.
 parser:
   data_dictionary_file: sba_dd.csv
   data_dictionary_attribute_col_name: Field Name

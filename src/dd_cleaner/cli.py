@@ -1,0 +1,64 @@
+"""Command Line Interface entry point for the dataset cleaning and profiling framework."""
+
+import argparse
+import logging
+import sys
+from pathlib import Path
+from dd_cleaner.orchestrator import CleanerOrchestrator
+from dd_common.path_coordinator import PathCoordinator
+
+
+def main():
+    logging.basicConfig(
+        level=logging.INFO, 
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        force=True
+    )
+    logger = logging.getLogger("dd_cleaner_cli")
+
+    parser = argparse.ArgumentParser(
+        description="Unified Project State: Downstream Cleaner, Profiler, & Normalization CLI Engine."
+    )
+    parser.add_argument(
+        "--config", 
+        default="config.yaml", 
+        help="Path to the runtime parameter configuration file (default: config.yaml)"
+    )
+    parser.add_argument(
+        "--action",
+        choices=["full", "integrity", "profile", "assessment"],
+        default="full",
+        help="Specify a pipeline stage to run or 'full' for the entire sequence (default: full)."
+    )
+    
+    args = parser.parse_args()
+
+    try:
+        logger.info("Initializing Path Coordinator and Cleaner Orchestrator...")
+        
+        # 🎯 PATH RESOLUTION: Ensure workspace and config are resolved to absolute paths 
+        # to prevent relative path drift. Workspace is now resolved via PathCoordinator.
+        config_path = str(Path(args.config).resolve())
+
+        # 🎯 CONSTRUCTOR DEPENDENCY INJECTION: Instantiate the authoritative routing contract
+        coordinator = PathCoordinator(config_path=config_path)
+        workspace_root = str(coordinator.working_dir)
+        
+        # 🧪 AUTHORITATIVE BINDING: Ensure the coordinator explicitly tracks its config source
+        coordinator.config_path = config_path
+
+        # 🎯 MODULAR ENTRY POINT: Inject the coordinator tracking boundary cleanly
+        orchestrator = CleanerOrchestrator(path_coordinator=coordinator)
+        
+        logger.info(f"Starting cleaner pipeline [Action: {args.action}]...")
+        orchestrator.run_pipeline(action=args.action)
+        
+        logger.info("Cleaner pipeline successfully concluded. View cleaned data and markdown profiles in output targets.")
+        
+    except Exception as e:
+        logger.error(f"Fatal Cleaner Pipeline Execution Failure: {str(e)}", exc_info=True)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

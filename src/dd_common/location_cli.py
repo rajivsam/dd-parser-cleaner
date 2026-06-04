@@ -17,7 +17,7 @@ def main():
     target_path = Path(working_dir).resolve()
 
     # 1. Pre-check: Verify workspace existence
-    if not verify_workspace_status(working_dir):
+    if not verify_workspace_status(target_path):
         print(f"❌ Error: The directory '{target_path}' is not an initialized workspace.")
         print("👉 Please run 'init-workspace' first to create the required KMDS structure.")
         sys.exit(1)

@@ -5,12 +5,16 @@ uv.lock
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
 # Jupyter Notebooks
 .ipynb_checkpoints/
 
 # Testing
 .pytest_cache/
+.coverage
+htmlcov/
 
 # IDEs & System
 .vscode/
@@ -25,7 +29,10 @@ build/
 dd_analysis_results/
 dd_cleaner_results/
 parser_run.log
+*.log
 tests/data/*.csv
 tests/workspace_test/
 **/quarantine/
-**/dd_cleaner/
+
+*.signature
+provisional_config.yaml
