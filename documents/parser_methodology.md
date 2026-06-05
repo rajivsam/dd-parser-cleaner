@@ -1,1 +1,0 @@
-* **Authority Integration**: Pass 2 now consumes the `SOPProcessor` output, ensuring that entity buckets (e.g., `CDC` vs `Lender`) align with SBA SOP 50 10 8 definitions.
