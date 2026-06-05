@@ -11,7 +11,10 @@ KMDS is an initiative focused on developing documented, maintainable data scienc
 
 By capturing metadata during the cleaning phase, we create the foundation upon which future featurization logic is built.
 
-## 🚀 Status & Roadmap
+## 📚 Methodological Foundation
+The development of `dd-parser-cleaner` is grounded in a careful review of relevant data science literature. Its diagnostic and cleaning logic incorporates key principles from foundational texts, such as **Dorian Pyle’s *Data Preparation for Data Mining***. By treating data as an "Information Assay" rather than a static table, we focus on evaluating the predictive utility and structural integrity of the dataset.
+
+## � Status & Roadmap
 *   **Current State:** `dd-parser-cleaner` is feature-complete (v0.4.2).
 *   **Short Term:** We will be releasing public examples of dataset migrations shortly.
 *   **Future:** Development of specialized featurization modules for ML and analytics projects will begin once the migration examples are public.
