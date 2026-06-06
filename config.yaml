@@ -107,6 +107,7 @@ parser:
 cleaner:
   raw_dataset_file: sba_loans_raw.csv
   clean_output_filename: sba_loans_raw_clean.csv
+  metadata_table_filename: sba_loans_metadata_table.csv
   dd_cleaner_output_dir: dd_cleaner
   handshake_file: parser_cleaner_handshake.md
   profiling_report_filename: sba_loans_raw_profiling_report.md

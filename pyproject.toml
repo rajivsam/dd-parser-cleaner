@@ -1,6 +1,6 @@
 [project]
 name = "dd-parser-cleaner"
-version = "0.4.6"
+version = "0.4.8"
 description = "A private, local LLM-powered data dictionary parser and entity mapper with automated cleaning."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -57,3 +57,13 @@ packages = ["src/dd_parser", "src/dd_cleaner", "src/dd_common"]
 
 [tool.hatch.build.targets.wheel.sources]
 "src" = ""
+
+[tool.hatch.build]
+exclude = [
+  "*.csv",
+  "*.pdf",
+  "*.log",
+  "tests/",
+  "documents/",
+  ".pytest_cache/",
+]

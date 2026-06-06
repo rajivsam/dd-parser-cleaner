@@ -86,12 +86,19 @@ class CleanerOrchestrator:
             except Exception:
                 df_dict = pd.read_csv(dd_path, sep=None, engine='python')
 
-            dd_attributes = df_dict["attribute_name"].dropna().tolist()
+            attr_col = "attribute_name" if "attribute_name" in df_dict.columns else df_dict.columns[0]
+            dd_attributes = df_dict[attr_col].dropna().tolist()
             bridge = IntegrityEngine.evaluate_bridge(dd_attributes, list(df.columns))
             self.logger.info(f"🌉 Bridge Evaluation: {len(bridge['operational'])} Operational, {len(bridge['orphans'])} Orphans")
 
             df = df[bridge['operational']].copy()
-            attr_col = "attribute_name" if "attribute_name" in df_dict.columns else df_dict.columns[0]
+
+            # 🎯 AUTHORITY BOOTSTRAP: Persist the synchronized dictionary baseline for expert refinement
+            df_dict_sync = df_dict[df_dict[attr_col].isin(bridge['operational'])].copy()
+            sync_path = self.paths.synchronized_dictionary_path
+            df_dict_sync.to_csv(sync_path, index=False)
+            self.logger.info(f"✅ Synchronized dictionary baseline saved to: {sync_path.name}")
+
             metadata_lookup = df_dict.set_index(attr_col)["logical_type"].to_dict()
 
         # --- 2. Null Profiling ---

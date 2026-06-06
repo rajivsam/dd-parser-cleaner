@@ -75,7 +75,8 @@ def init_notebook_session(working_dir: str) -> Tuple[PathCoordinator, pd.DataFra
         "Cleaning Recommendations Report": coord.cleaner_narrative_directory / "cleaning_recommendations.md",
         "Profiling Report": coord.profiling_report_path,
         "Handshake File": coord.handshake_path,
-        "Quarantine File": coord.quarantine_path
+        "Quarantine File": coord.quarantine_path,
+        "Metadata Authority": coord.metadata_table_path
     }
 
     for name, path in expected_artifacts.items():
@@ -161,3 +162,49 @@ def get_attributes_by_entity(coord: PathCoordinator, entity_name: str) -> List[s
         dd_path=coord.data_dictionary_csv_path
     )
     return assistant.get_attributes_by_entity(entity_name)
+
+def get_metadata_table(coord: PathCoordinator) -> pd.DataFrame:
+    """
+    Retrieves the authoritative metadata table (Expert Overrides).
+    
+    Validation:
+    1. Returns existing Metadata Table if it exists.
+    2. If not, checks if the Cleaner has run (verifies Synchronized Dictionary).
+    3. Bootstraps from the Cleaner's synchronized AI baseline.
+    """
+    auth_path = coord.metadata_table_path
+    if auth_path.exists():
+        return pd.read_csv(auth_path)
+
+    # Check if cleaner conclusion artifacts exist
+    sync_path = coord.synchronized_dictionary_path
+    if not sync_path.exists():
+        raise FileNotFoundError(
+            "❌ Error: The Cleaner has not established a baseline yet.\n"
+            "👉 Please run 'clean-dataset --action full' before attempting to set metadata authority."
+        )
+
+    logger.info(f"Bootstrapping metadata authority from cleaner baseline: {sync_path.name}")
+    return pd.read_csv(sync_path)
+
+def save_metadata_table(coord: PathCoordinator, df: pd.DataFrame):
+    """
+    Persists the metadata table as the new Authority.
+    Enforces 'Raw Data Verification' (Golden Rule) to prevent schema drift.
+    """
+    # 1. Verify against Raw Data headers (The ground truth)
+    raw_headers = pd.read_csv(coord.raw_dataset_path, nrows=0).columns.tolist()
+    
+    # 🎯 COLUMN RESOLUTION: Prefer standardized 'attribute_name' for processed metadata
+    attr_col = "attribute_name" if "attribute_name" in df.columns else coord.data_dictionary_attribute_col_name
+    table_attrs = df[attr_col].unique().tolist()
+    invalid_attrs = [a for a in table_attrs if a not in raw_headers]
+    
+    if invalid_attrs:
+        raise ValueError(f"❌ Schema Drift Detected! Attributes in metadata not in raw data: {invalid_attrs}")
+
+    # 2. Persist to data/dd_cleaner (The analytical destination)
+    path = coord.metadata_table_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, index=False)
+    print(f"✅ Metadata Authority (Expert Overrides) saved to: {path}")

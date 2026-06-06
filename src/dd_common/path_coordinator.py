@@ -150,6 +150,23 @@ class PathCoordinator:
         return self.cleaner_output_directory / filename
     
     @property
+    def synchronized_dictionary_path(self) -> Path:
+        """
+        Authoritative 'AI Baseline': The subsetted dictionary after Integrity Sync.
+        Targets: {$cleaner_narrative_directory}/synchronized_dictionary.csv
+        """
+        return self.cleaner_narrative_directory / "synchronized_dictionary.csv"
+
+    @property
+    def metadata_table_path(self) -> Path:
+        """
+        Authoritative 'Expert Authority': The final metadata lookup for featurization.
+        Targets: {$cleaner_output_directory}/{$metadata_table_filename}
+        """
+        filename = self._get_required_val(self._cleaner_config, "metadata_table_filename", "cleaner")
+        return self.cleaner_output_directory / filename
+
+    @property
     def profiling_report_path(self) -> Path:
         """
         Authoritative routing endpoint for the markdown data quality profiling report.
