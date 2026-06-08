@@ -19,6 +19,12 @@ The development of `dd-parser-cleaner` is grounded in a careful review of releva
 *   **Short Term:** We will be releasing public examples of dataset migrations shortly.
 *   **Future:** Development of specialized featurization modules for ML and analytics projects will begin once the migration examples are public.
 
+### Actual Implementation
+For a concrete, end-to-end implementation, see:
+
+* [Workflow description](https://github.com/rajivsam/dd_parser_cleaner_migration/blob/main/sba_migration/documents/workflow_desc.md)
+* [SBA cleaning notebook](https://github.com/rajivsam/dd_parser_cleaner_migration/blob/main/sba_migration/notebooks/clean_sba_dataset.ipynb)
+
 ## 📑 Documentation Strategy (Agent-First)
 This project uses a **Markdown-Native documentation architecture** rather than traditional external sites.
 
