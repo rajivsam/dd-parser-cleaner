@@ -12,9 +12,9 @@ def verify_workspace_status(working_path: Path) -> bool:
     base = working_path # Assume working_path is already resolved
     
     # Minimal set required for diagnostic discovery and bootstrapping.
-    # While 'init-workspace' creates 5 directories, we only enforce the 
-    # presence of the Data Hub core to allow tools to run on partial workspaces.
-    required_dirs = ["data", "data_dictionary"]
+    # While 'init-workspace' creates 5 directories, we enforce the core KMDS
+    # structure required for workspace verification and notebook integration.
+    required_dirs = ["data", "data_dictionary", "documents", "notebooks", "models"]
     
     for folder in required_dirs:
         if not (base / folder).is_dir():
@@ -25,13 +25,13 @@ def verify_workspace_status(working_path: Path) -> bool:
 def prepare_workspace(working_dir: str = ".") -> Path:
     """
     Standardizes the workspace for dd-parser-cleaner.
-    Ensures required directories (data, data_dictionary, documents, notebooks, scripts) 
+    Ensures required directories (data, data_dictionary, documents, notebooks, models) 
     exist and creates a domain_logic stub if missing.
     """
     base = Path(working_dir).resolve()
     
     # 1. Ensure core directories exist
-    required_dirs = ["data", "data_dictionary", "documents", "notebooks"]
+    required_dirs = ["data", "data_dictionary", "documents", "notebooks", "models"]
     for folder in required_dirs:
         dir_path = base / folder
         if not dir_path.exists():

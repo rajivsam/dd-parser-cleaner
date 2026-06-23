@@ -71,6 +71,7 @@ def init_notebook_session(working_dir: str) -> Tuple[PathCoordinator, pd.DataFra
     expected_artifacts = {
         "Raw Data": coord.raw_dataset_path,
         "Cleaned Data": coord.clean_dataset_output_path,
+        "User Cleaned Data": coord.user_cleaned_dataset_path,
         "Tagged Entities (DD)": coord.data_dictionary_csv_path,
         "Cleaning Recommendations Report": coord.cleaner_narrative_directory / "cleaning_recommendations.md",
         "Profiling Report": coord.profiling_report_path,
@@ -208,3 +209,14 @@ def save_metadata_table(coord: PathCoordinator, df: pd.DataFrame):
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(path, index=False)
     print(f"✅ Metadata Authority (Expert Overrides) saved to: {path}")
+
+def save_user_cleaned_data(coord: PathCoordinator, df: pd.DataFrame):
+    """
+    Persists the user-processed dataset to the configured output path.
+    """
+    path = coord.user_cleaned_dataset_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, index=False)
+    print(f"✅ User-cleaned dataset saved to: {path}")
+
+

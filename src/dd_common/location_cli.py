@@ -1,5 +1,6 @@
 import argparse
 import sys
+import json
 from pathlib import Path
 from dd_common.utilities import verify_workspace_status
 
@@ -11,6 +12,11 @@ def main():
         nargs="?", 
         help="The working directory to inspect. If omitted, defaults to current directory."
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output the location guidance in JSON format for automation."
+    )
     args = parser.parse_args()
 
     working_dir = args.working_dir or "."
@@ -21,6 +27,27 @@ def main():
         print(f"❌ Error: The directory '{target_path}' is not an initialized workspace.")
         print("👉 Please run 'init-workspace' first to create the required KMDS structure.")
         sys.exit(1)
+
+    if args.json:
+        guidance = {
+            "workspace_root": str(target_path),
+            "recommendations": {
+                "raw_data": {
+                    "path": "./data/",
+                    "config_key": "cleaner.raw_dataset_file"
+                },
+                "data_dictionary": {
+                    "path": "./data_dictionary/",
+                    "config_keys": ["parser.data_dictionary_file", "parser.data_dictionary_attribute_col_name"]
+                },
+                "narrative_documents": {
+                    "path": "./documents/",
+                    "config_key": "documents_dir"
+                }
+            }
+        }
+        print(json.dumps(guidance, indent=4))
+        return
 
     # 2. Provide structural guidance (Dependency on config.yaml removed)
     print(f"\n📍 [KMDS Location Helper] for: {target_path}")

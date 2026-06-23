@@ -150,6 +150,12 @@ class PathCoordinator:
         return self.cleaner_output_directory / filename
     
     @property
+    def user_cleaned_dataset_path(self) -> Path:
+        """OUTPUT FILE: Endpoint where user-processed/augmented datasets are stored."""
+        filename = self._get_required_val(self._cleaner_config, "user_cleaned_output_filename", "cleaner")
+        return self.cleaner_output_directory / filename
+
+    @property
     def synchronized_dictionary_path(self) -> Path:
         """
         Authoritative 'AI Baseline': The subsetted dictionary after Integrity Sync.

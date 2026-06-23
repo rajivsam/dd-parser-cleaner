@@ -1,5 +1,7 @@
 # Agent Instructions
 
+This file is the root agent instruction file for AI sessions. Use it together with `copilot_init.md` and the `documents/` directory as the basis for the session.
+
 This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
 
 > **Architecture in one line:** Issues live in a local Dolt database

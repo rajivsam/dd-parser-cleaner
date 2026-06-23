@@ -22,8 +22,10 @@ def select_csv(directory: Path, type_label: str, target_path: Path) -> str:
                 df = pd.read_csv(f, nrows=3)
                 if len(df.columns) > 1:
                     candidates.append(f)
+                else:
+                    console.print(f"[dim]ℹ️  Skipping {f.name}: Data Dictionary must have at least 2 columns.[/dim]")
             except Exception:
-                continue
+                console.print(f"[dim]ℹ️  Skipping {f.name}: File is empty or not a valid CSV.[/dim]")
         csv_files = candidates
 
     if not csv_files:
@@ -120,6 +122,8 @@ def main():
         "cleaner": {
             "raw_dataset_file": raw_file,
             "clean_output_filename": f"{Path(raw_file).stem}_clean.csv",
+            "metadata_table_filename": f"{Path(raw_file).stem}_metadata_table.csv",
+            "user_cleaned_output_filename": f"{Path(raw_file).stem}_user_cleaned.csv",
             "dd_cleaner_output_dir": "dd_cleaner",
             "handshake_file": "parser_cleaner_handshake.md",
             "profiling_report_filename": f"{Path(raw_file).stem}_profiling_report.md",
