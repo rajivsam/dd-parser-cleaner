@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "dd_parser_cleaner",
+  "project_id": "93acf900-7dd6-434d-aec0-c399b926d82a"
+}
