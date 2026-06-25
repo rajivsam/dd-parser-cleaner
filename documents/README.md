@@ -23,6 +23,8 @@ Use this index as the primary entry point for understanding the project architec
   - Test infrastructure and validation strategy for the parser module.
 - `transfer_to_migration.md`
   - Guidance for migration workflows and handoff between parser and cleaner.
+- `google_okf/`
+  - Google / OKF publication guidance and staging notes.
 - `upcoming_features/`
   - Roadmap and feature planning documents.
 
