@@ -32,6 +32,14 @@ uv run init-workspace ./my_project
 uv run bootstrap-config ./my_project
 ```
 
+### Discover package features from Python
+```python
+from dd_parser_cleaner import get_package_info
+
+info = get_package_info()
+print(info)
+```
+
 ### Run the core workflow
 ```bash
 classify-entities
