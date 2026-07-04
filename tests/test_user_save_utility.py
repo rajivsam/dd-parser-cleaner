@@ -25,6 +25,6 @@ def test_user_cleaned_data_flow(managed_test_config):
     assert coord.user_cleaned_dataset_path.name == "sba_loans_raw_user_cleaned.csv"
 
     # 4. Verify discovery
-    _, artifacts = init_notebook_session(str(coord.working_dir))
+    _, artifacts = init_notebook_session(str(coord.working_dir), config_path=managed_test_config)
     exists = artifacts[artifacts["Artifact Name"] == "User Cleaned Data"]["Exists"].iloc[0]
     assert exists == True

@@ -1,0 +1,90 @@
+{
+  "columns": {
+    "number": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 24918,
+      "logical_type": "categorical",
+      "is_mixed_type": false,
+      "samples": [
+        "INC0000045",
+        "INC0000047",
+        "INC0000057",
+        "INC0000060",
+        "INC0000062"
+      ]
+    },
+    "incident_state": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 9,
+      "logical_type": "categorical",
+      "is_mixed_type": false,
+      "samples": [
+        "New",
+        "Resolved",
+        "Closed",
+        "Active",
+        "Awaiting User Info"
+      ]
+    },
+    "opened_at": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 19849,
+      "logical_type": "datetime",
+      "is_mixed_type": false,
+      "samples": [
+        "2016-02-29 01:16:00",
+        "2016-02-29 04:40:00",
+        "2016-02-29 06:10:00",
+        "2016-02-29 06:38:00",
+        "2016-02-29 06:58:00"
+      ]
+    },
+    "assignment_group": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 79,
+      "logical_type": "categorical",
+      "is_mixed_type": false,
+      "samples": [
+        "Group 56",
+        "Group 70",
+        "Group 24",
+        "Group 25",
+        "Group 23"
+      ]
+    },
+    "resolved_at": {
+      "null_count": 3141,
+      "null_ratio": 0.022164672010838885,
+      "cardinality": 18505,
+      "logical_type": "datetime",
+      "is_mixed_type": false,
+      "samples": [
+        "2016-02-29 11:29:00",
+        "2016-03-01 09:52:00",
+        "2016-03-01 02:55:00",
+        "2016-03-02 12:06:00",
+        "2016-02-29 15:51:00"
+      ]
+    },
+    "closed_at": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 2707,
+      "logical_type": "datetime",
+      "is_mixed_type": false,
+      "samples": [
+        "2016-03-05 12:00:00",
+        "2016-03-06 10:00:00",
+        "2016-03-06 03:00:00",
+        "2016-03-07 13:00:00",
+        "2016-03-05 16:00:00"
+      ]
+    }
+  },
+  "row_count": 141712,
+  "timestamp": "2026-07-04 11:54:43"
+}

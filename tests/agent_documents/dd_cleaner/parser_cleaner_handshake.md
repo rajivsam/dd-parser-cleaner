@@ -3,8 +3,8 @@
 **Source Blueprint:** `sba_dd.csv`
 
 ### 🏗️ Structural Assessment
-- **Inferred Dataset Type:** `cross-sectional`
-> ⚠️ **Note:** This inference is an automated suggestion based on schema patterns and may be incorrect. The `dataset_type` must be explicitly confirmed or defined in `config.yaml` before the Cleaner phase begins.
+- **Dataset Type:** `cross-sectional`
+> ⚠️ **Note:** This dataset type is defined in configuration. Update `cleaner.structural_assessment.dataset_type` in `config.yaml` if the dataset is actually a panel.
 
 ### 📊 Classification Summary
 - **BorrowerInformation**: 1 fields

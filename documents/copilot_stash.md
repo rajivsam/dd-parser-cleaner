@@ -130,9 +130,8 @@ parser:
   entity_tagging: [geographic, ...]  # Feature flags to evaluate
   prompts:
     entity_classifier:
-      dataset_type_template: "..."  # Prompt 1: cross-sectional vs panel
-      macro_domain_template: "..."  # Prompt 2: coarse entity concepts
-      entity_discovery_template: "..."  # Prompt 3: per-field classification
+      macro_domain_template: "..."  # Prompt 1: coarse entity concepts
+      entity_discovery_template: "..."  # Prompt 2: per-field classification
     document_processor:
       system: "..."
       discovery_template: "..."
@@ -149,13 +148,18 @@ cleaner:
   quarantine_dir: quarantine      # Mixed-type isolation dir
   pipeline: [integrity, profile, assessment]  # Execution sequence
   structural_assessment:
-    null_threshold: 0.95          # Nullity threshold for flagging
-    auto_drop_constant: false     # Auto-drop constant columns
+    null_threshold: 0.95            # Nullity threshold for flagging
+    auto_drop_constant: false       # Auto-drop constant columns
   missing_values:
     prompts:
       cleaning_assistant:
         system: "..."
         recommendation_template: "..."
+```
+
+### Top-level dataset type
+```yaml
+dataset_type: cross-sectional   # User-controlled dataset type; set to 'panel' for longitudinal data
 ```
 
 ---
@@ -186,7 +190,6 @@ PROMPT_TEMPLATES = {
     "parser": {
         "prompts": {
             "entity_classifier": {
-                "dataset_type_template": "...",
                 "macro_domain_template": "...",
                 "entity_discovery_template": "..."
             },

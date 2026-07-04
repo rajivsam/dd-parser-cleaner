@@ -8,35 +8,29 @@ documents_dir: documents
 system_prompt: You are a precise data engineering assistant. Respond strictly in JSON.
 temperature: 0.0
 llm_timeout: 60.0  # Acts as a canary: GPU should respond in <10s. >60s implies CPU fallback.
+dataset_type: cross-sectional
+dataset_id: sba_loans_raw
+require_manifest_before_featurize: true
+enable_dataset_questionnaire: false
+interactive_mode: false
+questionnaire_schema_path: documents/config/dataset_questions.json
+handshake_require_questions: false
 parser:
   data_dictionary_file: sba_dd.csv
   data_dictionary_attribute_col_name: Field Name
   csv_target_column_index: 0
   dd_parser_output_dir: dd_analysis_results
   output_filename: sba_loans_raw_analysis_results.csv
+  dataset_manifest_filename: sba_loans_raw_dataset_manifest.json
+  attribute_manifest_filename: sba_loans_raw_attribute_manifest.json
   entity_tagging:
   - geographic
   prompts:
     entity_classifier:
-      dataset_type_template: 'Analyze this data dictionary snippet to determine the
-        dataset''s structural type.
-
-        Data: {sample_fields}
-
-
-        CRITERIA:
-
-        1. ''panel'': Schema contains repeating attribute sets for different time
-        periods in one row.
-
-        2. ''cross-sectional'': Data represents a single snapshot. A single reference
-        date column (like ''asOfDate'' or ''ReportDate'') indicates a snapshot, NOT
-        a panel.
-
-
-        Return a strict JSON object:
-
-        {{"dataset_type": "cross-sectional" | "panel"}}'
+      macro_domain_template: "You are a master data architect. Scan this snippet of a data dictionary blueprint:\n{sample_fields}\n\nThis dataset is a '{dataset_type}' dataset.\nIdentify the macroscopic business domain (e.g., Banking, Healthcare, Insurance).\nThen, generate a list of 4 to 6 coarse-grained logical entity concepts suited to house these attributes.\n\nCRITICAL RULES:\n1. DO NOT lump all attributes into a single catch-all category name.\n2. Separate attributes by their intrinsic structural nature (e.g., distinguish between Demographics, Risk Profiles, Financial metrics, and Spatial/Temporal metadata).\n3. Make sure the entity concepts are granular enough to support target variations.\n\nReturn a strict JSON object with a single key 'logical_entities' containing a list of strings."
+      entity_discovery_template: "Classify this single data schema field:\nField Name: {attr_str}\nDescription: {desc_str}\nPhysical Data Profile (Grounding Context): {stats_str}\n\nInstructions:\n1. Select the best match for 'entity_assignment' from these discovered choices: [{hints_str}].\n2. Evaluate dedicated boolean flags for these explicit semantic targets: {targets_str}.\n3. The dataset type is {dataset_type}. For panel/longitudinal data, prioritize assignments that preserve repeated-measure/event structure.\n\nReturn a strict flat JSON object exactly like this example:\n{{\"entity_assignment\": \"YourChoice\", \"is_geographic\": false}}"
+  prompts:
+    entity_classifier:
       macro_domain_template: 'You are a master data architect. Scan this snippet of
         a data dictionary blueprint:
 
@@ -110,7 +104,7 @@ cleaner:
   metadata_table_filename: sba_loans_metadata_table.csv
   user_cleaned_output_filename: sba_loans_raw_user_cleaned.csv
   dd_cleaner_output_dir: dd_cleaner
-  handshake_file: parser_cleaner_handshake.md
+  handshake_file: sba_parser_cleaner_handshake.md
   profiling_report_filename: sba_loans_raw_profiling_report.md
   quarantine_dir: quarantine
   quarantine_filename: sba_loans_raw_quarantine.csv
@@ -120,7 +114,7 @@ cleaner:
   - assessment
   structural_assessment:
     auto_drop_constant: false
-    dataset_type: cross-sectional (inferred)
+    dataset_type: cross-sectional  # User-controlled dataset type; change to 'panel' for longitudinal data
     null_threshold: 0.95
   missing_values:
     prompts:

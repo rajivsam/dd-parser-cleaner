@@ -345,7 +345,7 @@ class CleaningAssistant:
             f.write("This report provides automated recommendations based on data profile physics and semantic metadata.\n\n")
             
             f.write("## 🛡️ User Responsibilities\n")
-            f.write("- **Domain Logic**: User must capture domain-specific row filters in `config.yaml` or `domain_logic.py`.\n")
+            f.write("- **Domain Logic**: User should capture domain-specific row filters in `config.yaml` or via an optional external custom logic module referenced explicitly in configuration.\n")
             f.write("- **Domain Deletions**: User must identify columns requiring deletion based on business rules.\n")
             f.write("- **Strategy Validation**: While we suggest mean/MISSING defaults, the user determines the final strategy.\n\n")
 

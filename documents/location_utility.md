@@ -10,7 +10,9 @@ The `location-helper` performs the following steps:
 
 1.  **Workspace Pre-check**:
     *   It first verifies if the provided `working_dir` (or the current directory) is an initialized `dd-parser-cleaner` workspace by calling `dd_common.utilities.verify_workspace_status()`.
-    *   If the workspace is not initialized (i.e., the core `data`, `data_dictionary`, `documents`, `notebooks`, and `scripts` directories are missing), it will print an error message, instruct the user to run `init-workspace`, and exit with a non-zero status code.
+    *   If the workspace is not initialized (i.e., the core `data`, `data_dictionary`, `documents`, `notebooks`, and `models` directories are missing), it will print an error message, instruct the user to run `init-workspace`, and exit with a non-zero status code.
+    *   Note: A `scripts/` directory is no longer a required workspace artifact. Custom logic is optional and should be referenced explicitly in configuration.
+    *   The questionnaire schema is now provisioned under `documents/config/dataset_questions.json` by `init-workspace`.
 
 2.  **Structural Guidance (Pre-Configuration)**:
     *   Since this utility is run immediately after `init-workspace` and before a `config.yaml` is created, it provides static guidance on the KMDS file placement standards.

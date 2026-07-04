@@ -78,64 +78,6 @@ class LLMEntityClassifier:
         self.logger.info(f"📊 Grounding profile generated for {len(profile)} columns.")
         return profile
 
-    def infer_dataset_type(self, attributes: List[str], descriptions: List[str]) -> str:
-        """
-        Infers structural nature (Cross-sectional vs Panel) via temporal cues.
-
-        Args:
-            attributes (List[str]): Field names.
-            descriptions (List[str]): Definitions.
-
-        Returns:
-            str: 'cross-sectional' or 'panel'.
-        """
-        sample_size = min(30, len(attributes))
-        sample_fields = [
-            {"attr": str(a), "desc": str(d)} 
-            for a, d in zip(attributes[:sample_size], descriptions[:sample_size])
-        ]
-
-        # Assembly Phase
-        type_prompt = self._assemble_dataset_type_prompt(sample_fields)
-
-        # Execution and Processing Phase
-        try:
-            response = self._call_llm(type_prompt)
-            return self._process_dataset_type_result(response)
-        except Exception as e:
-            self.logger.warning(f"⚠️ Dataset type inference failed: {e}")
-        
-        return "cross-sectional"
-
-    def _assemble_dataset_type_prompt(self, sample_fields: List[Dict[str, str]]) -> str:
-        """
-        Constructs the structural assessment prompt.
-
-        Args:
-            sample_fields (List[dict]): Sample of the schema.
-
-        Returns:
-            str: Formatted prompt.
-        """
-        template = self.prompts.get("dataset_type_template")
-        if template:
-            return template.format(sample_fields=json.dumps(sample_fields))
-        
-        return (
-            "Analyze this data dictionary snippet to determine the dataset's structural type.\n"
-            f"Data: {json.dumps(sample_fields)}\n\n"
-            "CRITERIA:\n"
-            "1. 'panel': Schema contains repeating attribute sets for different time periods in one row.\n"
-            "2. 'cross-sectional': Data represents a single snapshot.\n\n"
-            "Return a strict JSON object: {'dataset_type': 'cross-sectional' | 'panel'}"
-        )
-
-    def _process_dataset_type_result(self, raw_json: str) -> str:
-        data = json.loads(raw_json)
-        inferred = data.get("dataset_type", "cross-sectional").lower()
-        self.logger.info(f"📊 Structural Assessment: Inferred dataset as '{inferred}'")
-        return inferred
-
     def _call_llm(self, prompt: str, timeout: float = 15.0) -> str:
         """Standardized HTTP caller for Ollama."""
         response = httpx.post(
@@ -153,13 +95,14 @@ class LLMEntityClassifier:
             return response.json().get("response", "{}")
         raise RuntimeError(f"Ollama API error: {response.text}")
 
-    def discover_macro_domain(self, attributes: List[str], descriptions: List[str]) -> List[str]:
+    def discover_macro_domain(self, attributes: List[str], descriptions: List[str], dataset_type: str = "cross-sectional") -> List[str]:
         """
         Scans the schema to establish global entity categories dynamically.
 
         Args:
             attributes (List[str]): Field names.
             descriptions (List[str]): Definitions.
+            dataset_type (str): Dataset structural type.
 
         Returns:
             List[str]: Discovered entity concept names.
@@ -171,7 +114,7 @@ class LLMEntityClassifier:
         ]
 
         # Assembly Phase
-        macro_prompt = self._assemble_macro_prompt(sample_fields)
+        macro_prompt = self._assemble_macro_prompt(sample_fields, dataset_type)
 
         # Execution and Processing Phase
         try:
@@ -182,23 +125,25 @@ class LLMEntityClassifier:
             
         return ["unassigned"]
 
-    def _assemble_macro_prompt(self, sample_fields: List[Dict[str, str]]) -> str:
+    def _assemble_macro_prompt(self, sample_fields: List[Dict[str, str]], dataset_type: str) -> str:
         """
         Constructs the macro domain discovery prompt.
 
         Args:
             sample_fields (List[dict]): Sample of the schema.
+            dataset_type (str): Dataset structural type.
 
         Returns:
             str: Formatted prompt.
         """
         template = self.prompts.get("macro_domain_template")
         if template:
-            return template.format(sample_fields=json.dumps(sample_fields))
+            return template.format(sample_fields=json.dumps(sample_fields), dataset_type=dataset_type)
         
         return (
             f"You are a master data architect. Scan this snippet of a data dictionary blueprint:\n"
             f"{json.dumps(sample_fields)}\n\n"
+            f"This dataset is a '{dataset_type}' dataset.\n"
             f"Identify the macroscopic business domain (e.g., Banking, Healthcare, Insurance).\n"
             f"Then, generate a list of 4 to 6 coarse-grained logical entity concepts.\n"
             f"Return a strict JSON object: {{'logical_entities': ['A', 'B']}}"
@@ -218,7 +163,8 @@ class LLMEntityClassifier:
         descriptions: pd.Series, 
         explicit_targets: List[str], 
         generated_hints: List[str] = None,
-        grounding_profile: Dict[str, Any] = None
+        grounding_profile: Dict[str, Any] = None,
+        dataset_type: str = "cross-sectional"
     ) -> Dict[str, Dict[str, Any]]:
         """
         Queries local model atomically per attribute to guarantee classification stability.
@@ -249,12 +195,13 @@ class LLMEntityClassifier:
             stats_str = json.dumps(stats) if stats else "No physical data profile available."
             
             # Assembly Phase
-            user_prompt = self._assemble_entity_prompt(attr_str, str(desc), stats_str, hints_str, targets_str)
+            user_prompt = self._assemble_entity_prompt(attr_str, str(desc), stats_str, hints_str, targets_str, dataset_type)
 
             # Execution Phase
             try:
                 response = self._call_llm(user_prompt, timeout=10.0)
-                assignments[attr_str] = json.loads(response)
+                parsed = json.loads(response)
+                assignments[attr_str] = self._normalize_entity_response(parsed, explicit_targets)
                 continue
             except Exception as e:
                 self.logger.error(f"⚠️ Network error or bad payload during atomic parse of '{attr_str}': {e}")
@@ -266,7 +213,49 @@ class LLMEntityClassifier:
                 
         return assignments
 
-    def _assemble_entity_prompt(self, attr_str, desc_str, stats_str, hints_str, targets_str) -> str:
+    def _normalize_entity_response(self, parsed: Dict[str, Any], explicit_targets: List[str]) -> Dict[str, Any]:
+        """
+        Normalize the LLM response into the expected entity assignment contract.
+
+        Args:
+            parsed (Dict[str, Any]): Raw parsed JSON from the LLM.
+            explicit_targets (List[str]): Semantic flag names.
+
+        Returns:
+            Dict[str, Any]: Normalized entity assignment payload.
+        """
+        normalized = {"entity_assignment": "unassigned"}
+
+        if isinstance(parsed, dict):
+            if "entity_assignment" in parsed:
+                normalized["entity_assignment"] = parsed["entity_assignment"]
+            elif "classification" in parsed:
+                normalized["entity_assignment"] = parsed["classification"]
+            elif parsed.get("flags") and "entity_assignment" in parsed["flags"]:
+                normalized["entity_assignment"] = parsed["flags"]["entity_assignment"]
+
+            if "static_dynamic" in parsed:
+                normalized["static_dynamic"] = str(parsed["static_dynamic"]).lower()
+            elif parsed.get("flags") and "static_dynamic" in parsed["flags"]:
+                normalized["static_dynamic"] = str(parsed["flags"]["static_dynamic"]).lower()
+
+            # Preserve explicit boolean targets if present
+            for target in explicit_targets:
+                key = f"is_{target}"
+                if key in parsed:
+                    normalized[key] = bool(parsed[key])
+                elif parsed.get("flags") and key in parsed["flags"]:
+                    normalized[key] = bool(parsed["flags"][key])
+                else:
+                    normalized[key] = False
+
+        else:
+            for target in explicit_targets:
+                normalized[f"is_{target}"] = False
+
+        return normalized
+
+    def _assemble_entity_prompt(self, attr_str, desc_str, stats_str, hints_str, targets_str, dataset_type: str) -> str:
         """
         Constructs the atomic entity classification prompt.
 
@@ -287,7 +276,8 @@ class LLMEntityClassifier:
                 desc_str=desc_str,
                 stats_str=stats_str,
                 hints_str=hints_str,
-                targets_str=targets_str
+                targets_str=targets_str,
+                dataset_type=dataset_type
             )
         
         return (
@@ -297,6 +287,8 @@ class LLMEntityClassifier:
             f"Physical Data Profile: {stats_str}\n\n"
             f"Instructions:\n"
             f"1. Select 'entity_assignment' from [{hints_str}].\n"
-            f"2. Evaluate flags: {targets_str}.\n\n"
-            f"Return a strict flat JSON object."
+            f"2. Evaluate flags: {targets_str}.\n"
+            f"3. The dataset type is {dataset_type}. For panel/longitudinal data, indicate whether this field is 'static' or 'dynamic' based on whether it changes over time for the same subject.\n\n"
+            f"Return a strict flat JSON object exactly like this example:\n"
+            f"{{\"entity_assignment\": \"YourChoice\", \"static_dynamic\": \"dynamic\", \"is_geographic\": false}}"
         )

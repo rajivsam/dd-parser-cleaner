@@ -1,12 +1,12 @@
 [project]
 name = "dd-parser-cleaner"
-version = "0.5.0"
+version = "1.1.0"
 description = "A private, local LLM-powered data dictionary parser and entity mapper with automated cleaning."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-    { name = "Rajiv", email = "rajiv@example.com" }
+    { name = "Rajiv", email = "rajiv.sambasivan@r2-ds.com" }
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -46,6 +46,7 @@ classify-entities = "dd_parser.cli:main"
 clean-dataset     = "dd_cleaner.cli:main"
 init-workspace    = "dd_common.workspace_cli:main"
 location-helper   = "dd_common.location_cli:main"
+dataset-bootstrap = "dd_common.dataset_bootstrap_cli:main"
 bootstrap-config  = "dd_common.bootstrap_cli:main"
 
 [build-system]
@@ -54,6 +55,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_parser", "src/dd_cleaner", "src/dd_common", "src/dd_parser_cleaner"]
+resources = ["src/dd_common/schemas/dataset_questions.json"]
 
 [tool.hatch.build.targets.wheel.sources]
 "src" = ""

@@ -121,7 +121,7 @@ class MissingValueHandler:
 
     def _dispatch_custom(self, df: pd.DataFrame, col: str, func_name: str) -> pd.Series:
         """
-        Calls a custom Python function defined in domain_logic.py.
+        Calls a custom Python function defined in an externally referenced custom logic module.
 
         Args:
             df (pd.DataFrame): Operational dataset.

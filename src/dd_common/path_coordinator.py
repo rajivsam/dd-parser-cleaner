@@ -114,6 +114,35 @@ class PathCoordinator:
         filename = self._get_required_val(self._parser_config, "output_filename", "parser")
         return self.parser_output_directory / filename
 
+    @property
+    def dataset_manifest_path(self) -> Path:
+        """
+        OUTPUT FILE: Dataset manifest contract.
+        Targets: {$working_dir}/{$documents_dir}/{$dd_parser_output_dir}/{$dataset_manifest_filename}
+        """
+        filename = self._parser_config.get("dataset_manifest_filename")
+        if filename is None:
+            dataset_id = self.config.get("dataset_id", "dataset")
+            filename = f"{dataset_id}_dataset_manifest.json"
+        return self.parser_output_directory / filename
+
+    @property
+    def attribute_manifest_path(self) -> Path:
+        """
+        OUTPUT FILE: Attribute manifest contract.
+        Targets: {$working_dir}/{$documents_dir}/{$dd_parser_output_dir}/{$attribute_manifest_filename}
+        """
+        filename = self._parser_config.get("attribute_manifest_filename")
+        if filename is None:
+            dataset_id = self.config.get("dataset_id", "dataset")
+            filename = f"{dataset_id}_attribute_manifest.json"
+        return self.parser_output_directory / filename
+
+    @property
+    def subject_id_attribute(self) -> Optional[str]:
+        """Subject ID attribute name used for event-log grouping and dynamic feature detection."""
+        return self.config.get("cleaner", {}).get("structural_assessment", {}).get("subject_id_attribute")
+
     # --- CLEANER MODULE ENDPOINTS ---
     @property
     def cleaner_narrative_directory(self) -> Path:
@@ -185,9 +214,12 @@ class PathCoordinator:
     def parser_provisional_report_path(self) -> Path:
         """
         Authoritative routing for the human-readable markdown assignment report.
-        Redirected to the Cleaner's handshake 'Inbox' per the protocol.
+        This report is separate from the parser-cleaner handshake protocol file.
         """
-        return self.handshake_path
+        filename = self._get_required_val(self._cleaner_config, "handshake_file", "cleaner")
+        report_filename = f"{Path(filename).stem}_report.md"
+        report_path = self.cleaner_narrative_directory / report_filename
+        return report_path
 
     @property
     def quarantine_path(self) -> Path:

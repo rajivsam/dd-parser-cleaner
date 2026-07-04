@@ -1,0 +1,13 @@
+{
+  "description": "Minimal dataset use-case questionnaire to capture intent for downstream cleaning and featurization.",
+  "questions": [
+    {
+      "id": "use_case",
+      "prompt": "Describe the primary use case or business objective for this dataset."
+    },
+    {
+      "id": "analysis_objective",
+      "prompt": "What is the top analysis objective you want to support?"
+    }
+  ]
+}

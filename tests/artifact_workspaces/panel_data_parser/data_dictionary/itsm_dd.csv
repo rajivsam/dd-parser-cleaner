@@ -1,0 +1,37 @@
+Field Name,Data Type,Description
+number,Numeric/String,Incident identifier (24918 different values)
+incident_state,Categorical,Eight levels controlling the incident management process transitions from opening until closing the case
+active,Boolean,Attribute that shows whether the record is active or closed/canceled
+reassignment_count,Numeric,Number of times the incident has the group or the support analysts changed
+reopen_count,Numeric,Number of times the incident resolution was rejected by the caller
+sys_mod_count,Numeric,Number of incident updates until that moment
+made_sla,Boolean,Attribute that shows whether the incident exceeded the target SLA
+caller_id,String/Identifier,Identifier of the user affected
+opened_by,String/Identifier,Identifier of the user who reported the incident
+opened_at,Datetime,Incident user opening date and time
+sys_created_by,String/Identifier,Identifier of the user who registered the incident
+sys_created_at,Datetime,Incident system creation date and time
+sys_updated_by,String/Identifier,Identifier of the user who updated the incident and generated the current log record
+sys_updated_at,Datetime,Incident system update date and time
+contact_type,Categorical,Attribute that shows by what means the incident was reported
+location,String/Identifier,Identifier of the location of the place affected
+category,Categorical,First-level description of the affected service
+subcategory,Categorical,Second-level description of the affected service (related to the first level description i.e. to category)
+u_symptom,Categorical/Text,Description of the user perception about service availability
+cmdb_ci,String/Identifier,(Confirmation item) identifier used to report the affected item (not mandatory)
+impact,Categorical,Description of the impact caused by the incident (values: 1-High; 2-Medium; 3-Low)
+urgency,Categorical,Description of the urgency informed by the user for the incident resolution (values: 1-High; 2-Medium; 3-Low)
+priority,Categorical,Calculated by the system based on 'impact' and 'urgency'
+assignment_group,String/Identifier,Identifier of the support group in charge of the incident
+assigned_to,String/Identifier,Identifier of the user in charge of the incident
+knowledge,Boolean,Attribute that shows whether a knowledge base document was used to resolve the incident
+u_priority_confirmation,Boolean,Attribute that shows whether the priority field has been double-checked
+notify,Categorical,Attribute that shows whether notifications were generated for the incident
+problem_id,String/Identifier,Identifier of the problem associated with the incident
+rfc,String/Identifier,(Request for change) identifier of the change request associated with the incident
+vendor,String/Identifier,Identifier of the vendor in charge of the incident
+caused_by,String/Identifier,Identifier of the RFC responsible by the incident
+close_code,Categorical/String,Identifier of the resolution of the incident
+resolved_by,String/Identifier,Identifier of the user who resolved the incident
+resolved_at,Datetime,Incident user resolution date and time (dependent variable)
+closed_at,Datetime,Incident user close date and time (dependent variable)

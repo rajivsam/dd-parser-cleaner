@@ -1,0 +1,10 @@
+Field Name,Description,physical_type,logical_type,attribute_name,provisional_entity_assignment,static_dynamic
+holiday,"Feature, Categorical, US National holidays plus regional holiday, Minnesota State Fair, , no",str,categorical,holiday,Regional Events,dynamic
+temp,"Feature, Continuous, Average temp in kelvin, Kelvin, no",float,numeric,temp,Environmental Conditions,static
+rain_1h,"Feature, Continuous, Amount in mm of rain that occurred in the hour, mm, no",float,numeric,rain_1h,Environmental Conditions,static
+snow_1h,"Feature, Continuous, Amount in mm of snow that occurred in the hour, mm, no",float,numeric,snow_1h,Environmental Conditions,static
+clouds_all,"Feature, Integer, Percentage of cloud cover, %, no",int,numeric,clouds_all,Environmental Conditions,static
+weather_main,"Feature, Categorical, Short textual description of the current weather, , no",str,categorical,weather_main,Environmental Conditions,static
+weather_description,"Feature, Categorical, Longer textual description of the current weather, , no",str,categorical,weather_description,Environmental Conditions,static
+date_time,"Feature, Date, Hour of the data collected in local CST time, , no",datetime,datetime,date_time,Time and Date,dynamic
+traffic_volume,"Target, Integer, Hourly I-94 ATR 301 reported westbound traffic volume, , no",int,numeric,traffic_volume,Traffic Volume,static

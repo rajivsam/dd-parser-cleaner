@@ -32,3 +32,14 @@ def test_prepare_workspace_creates_missing_directories(tmp_path: Path, capsys):
     for directory in required_dirs:
         assert (tmp_path / directory).is_dir()
         assert f"📁 Created missing directory: {directory}" in captured.out
+
+    assert (tmp_path / "documents" / "config" / "dataset_questions.json").is_file()
+    assert "Provisioned questionnaire schema" in captured.out
+
+
+def test_prepare_workspace_copies_packaged_questionnaire_schema(tmp_path: Path):
+    prepare_workspace(working_dir=str(tmp_path))
+
+    copied_schema = tmp_path / "documents" / "config" / "dataset_questions.json"
+    assert copied_schema.exists()
+    assert copied_schema.read_text(encoding="utf-8").strip().startswith('{')

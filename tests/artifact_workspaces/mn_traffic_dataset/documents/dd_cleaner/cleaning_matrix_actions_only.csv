@@ -1,0 +1,3 @@
+attribute_name,logical_type,entity_context,null_ratio,cardinality,recommended_action,reason
+holiday,categorical,Regional Events,0.9987345448510497,11,drop-attribute,Extreme sparsity (99.9%): Exceeds null threshold of 95.0%
+date_time,datetime,Time and Date,0.0,40575,custom:datetime_to_numeric,"This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."

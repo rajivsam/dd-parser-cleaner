@@ -72,3 +72,4 @@ All regression checking suites are located inside the isolated `./tests` ecosyst
 
 1. **`tests/test_parser.py`**: Validates mixed-case column index discovery (`BorrCity`, `cdc_zip`, `ThirdPartyLender_City`) and proves that non-geographic items (`GrossApproval`) are successfully mapped to null values without hallucinating geographic links.
 2. **`tests/test_cleaner.py`**: Passes messy strings, float zips, and missing data points through the transformation loops. Explicitly overrides default reader options using `dtype={"cdc_zip": str}` to assert that zero-padded character tokens are perfectly preserved on disk.
+3.

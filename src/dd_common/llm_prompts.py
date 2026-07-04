@@ -3,19 +3,10 @@ PROMPT_TEMPLATES = {
     "parser": {
         "prompts": {
             "entity_classifier": {
-                "dataset_type_template": (
-                    "Analyze this data dictionary snippet to determine the dataset's structural type.\n"
-                    "Data: {sample_fields}\n\n"
-                    "CRITERIA:\n"
-                    "1. 'panel': Schema contains repeating attribute sets for different time periods in one row.\n"
-                    "2. 'cross-sectional': Data represents a single snapshot. A single reference date column "
-                    "(like 'asOfDate' or 'ReportDate') indicates a snapshot, NOT a panel.\n\n"
-                    "Return a strict JSON object:\n"
-                    "{{\"dataset_type\": \"cross-sectional\" | \"panel\"}}"
-                ),
                 "macro_domain_template": (
                     "You are a master data architect. Scan this snippet of a data dictionary blueprint:\n"
                     "{sample_fields}\n\n"
+                    "This dataset is a '{dataset_type}' dataset.\n"
                     "Identify the macroscopic business domain (e.g., Banking, Healthcare, Insurance).\n"
                     "Then, generate a list of 4 to 6 coarse-grained logical entity concepts suited to house these attributes.\n\n"
                     "CRITICAL RULES:\n"
@@ -32,9 +23,10 @@ PROMPT_TEMPLATES = {
                     "Physical Data Profile (Grounding Context): {stats_str}\n\n"
                     "Instructions:\n"
                     "1. Select the best match for 'entity_assignment' from these discovered choices: [{hints_str}].\n"
-                    "2. Evaluate dedicated boolean flags for these explicit semantic targets: {targets_str}.\n\n"
+                    "2. Evaluate dedicated boolean flags for these explicit semantic targets: {targets_str}.\n"
+                    "3. The dataset type is {dataset_type}. For panel/longitudinal data, indicate whether the field is 'static' or 'dynamic' based on whether it changes over time for the same subject.\n\n"
                     "Return a strict flat JSON object exactly like this example:\n"
-                    "{{\"entity_assignment\": \"YourChoice\", \"is_geographic\": false}}"
+                    "{{\"entity_assignment\": \"YourChoice\", \"static_dynamic\": \"dynamic\", \"is_geographic\": false}}"
                 )
             },
             "document_processor": {

@@ -1,7 +1,6 @@
 """Utilities for initializing and managing interactive Jupyter Notebook sessions."""
 from typing import List
 import pandas as pd
-import sys
 import logging
 from pathlib import Path
 from typing import Tuple
@@ -16,13 +15,16 @@ def prepare_workspace(working_dir: str = ".") -> PathCoordinator:
     base_path = _prepare_workspace(working_dir)
     return PathCoordinator(working_dir=base_path)
 
-def init_notebook_session(working_dir: str) -> Tuple[PathCoordinator, pd.DataFrame]:
+def init_notebook_session(working_dir: str, config_path: str = "config.yaml") -> Tuple[PathCoordinator, pd.DataFrame]:
     """
-    Initializes a notebook session by setting up the PathCoordinator 
+    Initializes a notebook session by setting up the PathCoordinator
     and returning a DataFrame listing available artifacts.
 
     Args:
         working_dir (str): The root directory of the KMDS workspace.
+        config_path (str): Optional path to the authoritative config.yaml file.
+            If absolute, it is used directly. If relative, it is resolved from
+            the working directory.
 
     Returns:
         Tuple[PathCoordinator, pd.DataFrame]: A tuple containing the PathCoordinator
@@ -48,7 +50,8 @@ def init_notebook_session(working_dir: str) -> Tuple[PathCoordinator, pd.DataFra
 
     # 2. Setup Coordinator (will load config.yaml)
     try:
-        coord = PathCoordinator(working_dir=str(target_path))
+        config_path_norm = str(Path(config_path).resolve()) if Path(config_path).is_absolute() else config_path
+        coord = PathCoordinator(config_path=config_path_norm, working_dir=str(target_path))
     except FileNotFoundError as e:
         error_msg = (
             f"❌ Error: {e}\n"
@@ -57,11 +60,7 @@ def init_notebook_session(working_dir: str) -> Tuple[PathCoordinator, pd.DataFra
         console.print(f"[bold red]{error_msg}[/bold red]")
         raise ValueError(error_msg) # Re-raise as ValueError for config issue
     
-    # 2. Ensure scripts directory is in path for easy importing of domain_logic
-    scripts_path = str(coord.base_dir / "scripts")
-    if scripts_path not in sys.path:
-        sys.path.append(scripts_path)
-        logger.info(f"Added '{scripts_path}' to sys.path for domain_logic import.")
+    # 2. No legacy scripts directory is required; optional custom logic is loaded by explicit config paths.
 
     # 3. Construct Artifacts DataFrame and Validate Required Files
     artifacts_data = []
@@ -89,7 +88,7 @@ def init_notebook_session(working_dir: str) -> Tuple[PathCoordinator, pd.DataFra
             "Exists": exists
         })
         # Check for mandatory files for a successful session
-        if name in ["Raw Data", "Tagged Entities (DD)", "Cleaned Data", "Cleaning Recommendations Report", "Profiling Report", "Handshake File"] and not exists:
+        if name in ["Raw Data", "Tagged Entities (DD)"] and not exists:
             missing_files_for_session.append(f"- {name} at {path}")
 
     artifacts_df = pd.DataFrame(artifacts_data)

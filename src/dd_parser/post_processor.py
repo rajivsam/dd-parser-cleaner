@@ -186,7 +186,8 @@ class MetadataPostProcessor:
         grounding_profile: Dict[str, Any] = None,
         df_raw_sample: pd.DataFrame = None,
         dataset_type: str = "cross-sectional",
-        bridge_report: Dict[str, Any] = None
+        bridge_report: Dict[str, Any] = None,
+        use_case_answers: Dict[str, Any] = None
     ) -> pd.DataFrame:
         """
         Assembles data matrix and resolves configuration overrides.
@@ -198,7 +199,7 @@ class MetadataPostProcessor:
             llm_assignments (Dict[str, dict]): LLM classification payload.
             grounding_profile (dict, optional): Physical data stats.
             df_raw_sample (pd.DataFrame, optional): Sample raw data for type probing.
-            dataset_type (str, optional): Inferred structural nature.
+            dataset_type (str, optional): Configured structural nature.
             bridge_report (dict, optional): Integrity check results.
 
         Returns:
@@ -213,6 +214,7 @@ class MetadataPostProcessor:
         # 1. Initialize Columns
         provisional_df["attribute_name"] = attributes
         provisional_df["provisional_entity_assignment"] = "unassigned"
+        provisional_df["static_dynamic"] = "none" if dataset_type not in {"panel", "longitudinal"} else "static"
         
         # Preserve Early-Bound types if they exist (from synchronization)
         if "physical_type" not in provisional_df.columns:
@@ -228,6 +230,15 @@ class MetadataPostProcessor:
 
         llm_assignments = llm_assignments or {}
 
+        # Determine whether event-log dynamic/static inference is available from config
+        event_log_dynamic_map = {}
+        if dataset_type in {"event_log", "longitudinal"} and self.paths.subject_id_attribute and df_raw_sample is not None:
+            event_log_dynamic_map = self._infer_static_dynamic_from_sample(
+                df_raw_sample,
+                self.paths.subject_id_attribute,
+                attributes.tolist()
+            )
+
         # 2. PHASE 1: Apply LLM Assignments
         for idx in range(len(provisional_df)):
             attr_raw = str(attributes.iloc[idx])
@@ -236,6 +247,25 @@ class MetadataPostProcessor:
             # Apply LLM Category
             assigned_label = field_metadata.get("entity_assignment", "unassigned")
             provisional_df.at[idx, "provisional_entity_assignment"] = assigned_label
+
+            # Apply LLM Static/Dynamic Flag
+            if "static_dynamic" in field_metadata:
+                provisional_df.at[idx, "static_dynamic"] = str(field_metadata.get("static_dynamic", "static")).lower()
+            elif dataset_type == "panel":
+                provisional_df.at[idx, "static_dynamic"] = self._infer_static_dynamic(
+                    attr_raw,
+                    str(descriptions.iloc[idx]),
+                    provisional_df.loc[idx]
+                )
+            elif dataset_type in {"event_log", "longitudinal"}:
+                if event_log_dynamic_map:
+                    provisional_df.at[idx, "static_dynamic"] = event_log_dynamic_map.get(attr_raw, "static")
+                else:
+                    provisional_df.at[idx, "static_dynamic"] = self._infer_static_dynamic(
+                        attr_raw,
+                        str(descriptions.iloc[idx]),
+                        provisional_df.loc[idx]
+                    )
 
             # Apply LLM Boolean Flags
             for target in explicit_targets:
@@ -289,6 +319,7 @@ class MetadataPostProcessor:
 
         # � PERSISTENCE: Save the finalized matrix and generate report
         self._write_pipeline_artifacts(provisional_df)
+        self._write_manifest_artifacts(provisional_df, dataset_type, use_case_answers=use_case_answers)
         self._write_provisional_report(provisional_df, grounding_profile, dataset_type=dataset_type, bridge_report=bridge_report)
         
         return provisional_df
@@ -331,6 +362,63 @@ class MetadataPostProcessor:
                         df.at[idx, col_name] = True
                         break
         return df
+
+    def _infer_static_dynamic_from_sample(
+        self,
+        df_raw_sample: pd.DataFrame,
+        subject_id_attr: str,
+        attributes: list,
+        sample_frac: float = 0.5
+    ) -> Dict[str, str]:
+        """
+        Infers static/dynamic status for an event-log dataset using a raw sample grouped by subject.
+
+        Args:
+            df_raw_sample (pd.DataFrame): Raw dataset sample.
+            subject_id_attr (str): Subject ID header name.
+            attributes (list): List of attribute names from the data dictionary.
+            sample_frac (float): Fraction of rows to sample for inference.
+
+        Returns:
+            Dict[str, str]: Mapping from attribute name to 'static' or 'dynamic'.
+        """
+        results: Dict[str, str] = {}
+        if not subject_id_attr or subject_id_attr not in df_raw_sample.columns:
+            self.logger.warning(
+                f"⚠️ Subject id attribute '{subject_id_attr}' is missing from the raw dataset sample. "
+                "Skipping deterministic static/dynamic inference."
+            )
+            return results
+
+        if sample_frac <= 0 or sample_frac > 1:
+            sample_frac = 0.5
+
+        if len(df_raw_sample) == 0:
+            return results
+
+        if sample_frac < 1.0 and len(df_raw_sample) > 1:
+            df_sample = df_raw_sample.sample(frac=sample_frac, random_state=0)
+        else:
+            df_sample = df_raw_sample.copy()
+
+        group = df_sample.groupby(subject_id_attr)
+        for attr in attributes:
+            if attr == subject_id_attr:
+                results[attr] = "static"
+                continue
+            if attr not in df_sample.columns:
+                continue
+            try:
+                dynamic = group[attr].nunique(dropna=False).gt(1).any()
+            except Exception as exc:
+                self.logger.warning(
+                    f"⚠️ Error inferring static/dynamic for '{attr}' from sample: {exc}. "
+                    "Defaulting to static."
+                )
+                dynamic = False
+            results[attr] = "dynamic" if dynamic else "static"
+
+        return results
 
     def _validate_grounding_consistency(self, df: pd.DataFrame, profile: Dict[str, Any]) -> None:
         """
@@ -378,7 +466,233 @@ class MetadataPostProcessor:
             f.write(sha256_hash.hexdigest())
             
         self.logger.info(f"🔑 Metadata signature generated at: {sig_path}")
-    
+
+    def _write_manifest_artifacts(self, df: pd.DataFrame, dataset_type: str, use_case_answers: Dict[str, Any] = None) -> None:
+        """
+        Writes the dataset manifest, attribute manifest, and handshake file.
+
+        Args:
+            df (pd.DataFrame): Finalized metadata matrix.
+            dataset_type (str): Configured dataset type.
+            use_case_answers (Dict[str, Any], optional): Optional questionnaire answers to include in the dataset manifest.
+        """
+        dataset_manifest = self._build_dataset_manifest(df, dataset_type, use_case_answers=use_case_answers)
+        attribute_manifest = self._build_attribute_manifest(df)
+
+        dataset_manifest_path = self.paths.dataset_manifest_path
+        attribute_manifest_path = self.paths.attribute_manifest_path
+
+        with open(dataset_manifest_path, "w", encoding="utf-8") as f:
+            json.dump(dataset_manifest, f, indent=2)
+
+        with open(attribute_manifest_path, "w", encoding="utf-8") as f:
+            json.dump(attribute_manifest, f, indent=2)
+
+        self.logger.info(f"📦 Dataset manifest written to: {dataset_manifest_path}")
+        self.logger.info(f"📦 Attribute manifest written to: {attribute_manifest_path}")
+
+        self._write_handshake_file(dataset_manifest_path, attribute_manifest_path, dataset_manifest)
+
+    def _build_dataset_manifest(self, df: pd.DataFrame, dataset_type: str, use_case_answers: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Constructs the dataset-level manifest payload.
+
+        Args:
+            df (pd.DataFrame): Finalized metadata matrix.
+            dataset_type (str): Configured dataset type.
+            use_case_answers (Dict[str, Any], optional): Optional questionnaire answers to include in the manifest.
+        """
+        dataset_id = self.paths.config.get("dataset_id")
+        if not dataset_id:
+            raw_path = getattr(self.paths, "raw_dataset_path", None)
+            dataset_id = Path(raw_path).stem if raw_path and Path(raw_path).exists() else Path(self.paths.data_dictionary_path).stem
+
+        primary_key_spec = self._infer_primary_key_spec(df)
+        time_key_spec = self._infer_time_key_spec(df, dataset_type)
+
+        validation_errors = []
+        if not primary_key_spec:
+            validation_errors.append("primary_key_spec is empty")
+        if dataset_type in {"panel", "event_log"} and not time_key_spec:
+            validation_errors.append("time_key_spec is missing for longitudinal or event log dataset")
+
+        notes = "Generated by dd_parser metadata pipeline."
+        use_case_answers = use_case_answers or {}
+        questionnaire_required = bool(self.paths.config.get("handshake_require_questions") and not use_case_answers)
+        if questionnaire_required:
+            validation_errors.append("questionnaire responses required")
+
+        if questionnaire_required:
+            status = "blocked"
+        else:
+            status = "ready" if not validation_errors else "warnings"
+
+        return {
+            "dataset_id": dataset_id,
+            "dataset_type": dataset_type,
+            "primary_key_spec": primary_key_spec,
+            "time_key_spec": time_key_spec,
+            "entity_files": [],
+            "relation_files": [],
+            "notes": notes,
+            "use_case_answers": use_case_answers,
+            "validation_errors": validation_errors,
+            "status": status
+        }
+
+    def _build_attribute_manifest(self, df: pd.DataFrame) -> List[Dict[str, Any]]:
+        """Constructs per-attribute manifest entries."""
+        manifest = []
+        for _, row in df.iterrows():
+            attr_name = str(row.get("attribute_name", ""))
+            attr_role = self._infer_attribute_role(row)
+            modality = self._infer_attribute_modality(row)
+            suggested_checks = self._infer_suggested_checks(row, modality)
+
+            manifest.append({
+                "attribute_name": attr_name,
+                "role": attr_role,
+                "time_dependency": str(row.get("static_dynamic", "none")) if "static_dynamic" in row else "none",
+                "static_dynamic": str(row.get("static_dynamic", "none")) if "static_dynamic" in row else "none",
+                "granularity": None,
+                "modality": modality,
+                "suggested_checks": suggested_checks,
+                "generated_key_flag": False
+            })
+        return manifest
+
+    def _infer_static_dynamic(self, attr_name: str, description: str, row: pd.Series = None) -> str:
+        """
+        Infers whether a panel attribute is static or dynamic.
+
+        Args:
+            attr_name (str): Attribute name.
+            description (str): Attribute description.
+            row (pd.Series, optional): Current metadata row.
+
+        Returns:
+            str: 'static' or 'dynamic'
+        """
+        attr_lower = str(attr_name).lower()
+        desc_lower = str(description).lower()
+
+        dynamic_indicators = [
+            "state", "status", "open", "close", "resolved", "updated", "timestamp",
+            "date", "time", "duration", "due", "assigned_to", "priority", "urgency",
+            "impact", "reopen", "closed_at", "resolved_at", "opened_at", "updated_at"
+        ]
+        static_indicators = [
+            "id", "number", "code", "type", "category", "subcategory", "location",
+            "vendor", "caller_id", "contact_type", "problem_id", "rfc", "identifier"
+        ]
+
+        if any(token in attr_lower for token in dynamic_indicators) or any(token in desc_lower for token in dynamic_indicators):
+            return "dynamic"
+        if any(token in attr_lower for token in static_indicators) or any(token in desc_lower for token in static_indicators):
+            return "static"
+
+        if row is not None:
+            logical_type = str(row.get("logical_type", "")).lower()
+            physical_type = str(row.get("physical_type", "")).lower()
+            if "datetime" in logical_type or "datetime" in physical_type:
+                return "dynamic"
+
+        return "static"
+
+    def _infer_primary_key_spec(self, df: pd.DataFrame) -> List[str]:
+        """Uses a heuristic to discover primary key-like attributes."""
+        if "attribute_name" not in df.columns:
+            return []
+        candidate_ids = [
+            str(v) for v in df["attribute_name"].astype(str).tolist()
+            if str(v).strip().lower().endswith("id")
+        ]
+        return candidate_ids[:1]
+
+    def _infer_time_key_spec(self, df: pd.DataFrame, dataset_type: str) -> Any:
+        """Infers a time key for longitudinal or event datasets."""
+        if dataset_type not in {"panel", "event_log"}:
+            return None
+        if "attribute_name" not in df.columns:
+            return None
+        time_candidates = [
+            str(v) for v in df["attribute_name"].astype(str).tolist()
+            if any(k in str(v).lower() for k in ["date", "time", "timestamp", "ts"])
+        ]
+        return time_candidates[0] if time_candidates else None
+
+    def _infer_attribute_role(self, row: pd.Series) -> str:
+        """Infers a generic role for the attribute."""
+        name = str(row.get("attribute_name", "")).lower()
+        if name.endswith("id"):
+            return "subject_key"
+        if any(k in name for k in ["date", "time", "timestamp", "ts"]):
+            return "time_key"
+        return "feature"
+
+    def _infer_attribute_modality(self, row: pd.Series) -> str:
+        """Infers field modality from metadata row values."""
+        logical_type = str(row.get("logical_type", "")).lower()
+        physical_type = str(row.get("physical_type", "")).lower()
+        attr_name = str(row.get("attribute_name", "")).lower()
+
+        if "datetime" in logical_type or "datetime" in physical_type or any(k in attr_name for k in ["date", "time", "timestamp"]):
+            return "date"
+        if row.get("is_geographic"):
+            return "geo_address"
+        if "url" in attr_name:
+            return "text_url"
+        if any(k in attr_name for k in ["amount", "price", "cost", "total"]):
+            return "currency"
+        if logical_type in {"numeric", "int", "float"} or any(k in physical_type for k in ["int", "float", "decimal"]):
+            return "numeric"
+        if logical_type in {"categorical", "text", "str", "string"}:
+            return "categorical" if "cat" in logical_type else "text"
+        return "other"
+
+    def _infer_suggested_checks(self, row: pd.Series, modality: str) -> List[str]:
+        """Provides suggested checks based on the inferred modality."""
+        checks = []
+        if modality == "date":
+            checks.append("monotonicity")
+        if modality == "geo_address":
+            checks.append("geo_parse")
+        if modality == "text_url":
+            checks.append("url_validity")
+        if modality == "currency":
+            checks.append("range_consistency")
+        if row.get("is_geographic") and modality == "numeric":
+            checks.append("geo_parse")
+        return checks
+
+    def _write_handshake_file(
+        self,
+        dataset_manifest_path: Path,
+        attribute_manifest_path: Path,
+        dataset_manifest: Dict[str, Any]
+    ) -> None:
+        """Writes the parser-cleaner handshake file for downstream consumption."""
+        handshake_path = self.paths.handshake_path
+        handshake_path.parent.mkdir(parents=True, exist_ok=True)
+
+        handshake_payload = {
+            "status": dataset_manifest.get("status", "warnings"),
+            "dataset_id": dataset_manifest.get("dataset_id"),
+            "dataset_manifest_path": str(dataset_manifest_path.resolve()),
+            "attribute_manifest_path": str(attribute_manifest_path.resolve()),
+            "blocking_reasons": dataset_manifest.get("validation_errors", []),
+            "notes": dataset_manifest.get("notes", "")
+        }
+
+        with open(handshake_path, "w", encoding="utf-8") as f:
+            f.write("# Parser-Cleaner Handshake\n")
+            f.write("This file indicates parser readiness and connects downstream cleaner/featurizer flows.\n\n")
+            f.write("```json\n")
+            json.dump(handshake_payload, f, indent=2)
+            f.write("\n```")
+
+        self.logger.info(f"🤝 Parser handshake written to: {handshake_path}")
+
     def convert_to_DS_type(self, series: pd.Series) -> Tuple[str, str]:
         """
         Infers the native Python type and logical category for a series.
@@ -458,7 +772,7 @@ class MetadataPostProcessor:
         tag_cols = [f"is_{target}" for target in explicit_targets]
         
         # Use the Early-Bound "Sticky" cargo columns for the report
-        report_df = df[["attribute_name", "provisional_entity_assignment", "logical_type", "physical_type"] + tag_cols].copy()
+        report_df = df[["attribute_name", "provisional_entity_assignment", "static_dynamic", "logical_type", "physical_type"] + tag_cols].copy()
 
         # 🎨 PRESENTATION: Apply backticks for a consistent fixed-width font look
         md_display_df = report_df.copy()
@@ -471,7 +785,7 @@ class MetadataPostProcessor:
             md_display_df[col] = md_display_df[col].apply(lambda x: f"`{x}`")
 
         # Construct headers dynamically
-        md_headers = ["Attribute", "Assignment", "Logical Type", "Physical Type"] + [f"Flag: {t.title()}" for t in explicit_targets]
+        md_headers = ["Attribute", "Assignment", "Static/Dynamic", "Logical Type", "Physical Type"] + [f"Flag: {t.title()}" for t in explicit_targets]
         md_display_df.columns = md_headers
 
         summary_stats = df["provisional_entity_assignment"].value_counts()
@@ -481,9 +795,12 @@ class MetadataPostProcessor:
             f.write(f"**Generation Timestamp:** `{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}`\n")
             f.write(f"**Source Blueprint:** `{self.paths.data_dictionary_path.name}`\n\n")
             f.write(f"### 🏗️ Structural Assessment\n")
-            f.write(f"- **Inferred Dataset Type:** `{dataset_type}`\n")
-            f.write(f"> ⚠️ **Note:** This inference is an automated suggestion based on schema patterns and may be incorrect. ")
-            f.write(f"The `dataset_type` must be explicitly confirmed or defined in `config.yaml` before the Cleaner phase begins.\n\n")
+            f.write(f"- **Dataset Type:** `{dataset_type}`\n")
+            f.write(f"> ⚠️ **Note:** This dataset type is provided by configuration and should match your workspace settings. ")
+            f.write(
+                "Update `dataset_type` in `config.yaml` if the dataset "
+                "is actually a panel or longitudinal dataset.\n\n"
+            )
             f.write(f"### 📊 Classification Summary\n")
             for entity, count in summary_stats.items():
                 f.write(f"- **{entity}**: {count} fields\n")

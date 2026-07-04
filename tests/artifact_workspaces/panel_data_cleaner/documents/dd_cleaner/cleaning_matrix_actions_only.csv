@@ -1,0 +1,4 @@
+attribute_name,logical_type,entity_context,null_ratio,cardinality,recommended_action,reason
+opened_at,datetime,Incident Management,0.0,19849,custom:datetime_to_numeric,"This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."
+resolved_at,datetime,Incident Management,0.022164672010838885,18505,custom:datetime_to_numeric,"This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."
+closed_at,datetime,unassigned,0.0,2707,custom:datetime_to_numeric,"This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."

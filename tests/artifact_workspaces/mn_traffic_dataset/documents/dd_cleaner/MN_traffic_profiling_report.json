@@ -1,0 +1,132 @@
+{
+  "columns": {
+    "holiday": {
+      "null_count": 48143,
+      "null_ratio": 0.9987345448510497,
+      "cardinality": 11,
+      "logical_type": "categorical",
+      "is_mixed_type": false,
+      "samples": [
+        "Columbus Day",
+        "Veterans Day",
+        "Thanksgiving Day",
+        "Christmas Day",
+        "New Years Day"
+      ]
+    },
+    "temp": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 5843,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "288.28",
+        "289.36",
+        "289.58",
+        "290.13",
+        "291.14"
+      ]
+    },
+    "rain_1h": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 372,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0.0",
+        "0.25",
+        "0.57",
+        "0.38",
+        "0.3"
+      ]
+    },
+    "snow_1h": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 12,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0.0",
+        "0.51",
+        "0.32",
+        "0.06",
+        "0.05"
+      ]
+    },
+    "clouds_all": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 60,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "40",
+        "75",
+        "90",
+        "1",
+        "20"
+      ]
+    },
+    "weather_main": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 11,
+      "logical_type": "categorical",
+      "is_mixed_type": false,
+      "samples": [
+        "Clouds",
+        "Clear",
+        "Rain",
+        "Drizzle",
+        "Mist"
+      ]
+    },
+    "weather_description": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 38,
+      "logical_type": "categorical",
+      "is_mixed_type": false,
+      "samples": [
+        "scattered clouds",
+        "broken clouds",
+        "overcast clouds",
+        "sky is clear",
+        "few clouds"
+      ]
+    },
+    "date_time": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 40575,
+      "logical_type": "datetime",
+      "is_mixed_type": false,
+      "samples": [
+        "2012-10-02 09:00:00",
+        "2012-10-02 10:00:00",
+        "2012-10-02 11:00:00",
+        "2012-10-02 12:00:00",
+        "2012-10-02 13:00:00"
+      ]
+    },
+    "traffic_volume": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 6704,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "5545",
+        "4516",
+        "4767",
+        "5026",
+        "4918"
+      ]
+    }
+  },
+  "row_count": 48204,
+  "timestamp": "2026-07-04 11:54:12"
+}

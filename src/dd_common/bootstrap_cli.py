@@ -8,6 +8,20 @@ from rich.panel import Panel
 from dd_common.utilities import verify_workspace_status
 from dd_common.llm_prompts import PROMPT_TEMPLATES
 
+BOOTSTRAP_METADATA_FILENAME = "bootstrap_metadata.yaml"
+
+
+def load_bootstrap_metadata(target_path: Path) -> dict:
+    metadata_path = target_path / BOOTSTRAP_METADATA_FILENAME
+    if not metadata_path.exists():
+        return {}
+
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
 console = Console()
 
 def select_csv(directory: Path, type_label: str, target_path: Path) -> str:
@@ -51,9 +65,34 @@ def select_csv(directory: Path, type_label: str, target_path: Path) -> str:
 def main():
     parser = argparse.ArgumentParser(description="Bootstrap a KMDS config.yaml by discovering project assets.")
     parser.add_argument(
-        "working_dir", 
-        nargs="?", 
+        "working_dir",
+        nargs="?",
         help="The working directory to bootstrap. If omitted, you will be prompted."
+    )
+    parser.add_argument(
+        "--dataset-type",
+        choices=["cross-sectional", "panel", "longitudinal"],
+        help="Optional dataset structural type for the generated config. If omitted, the utility will prompt."
+    )
+    parser.add_argument(
+        "--enable-questionnaire",
+        action="store_true",
+        help="Enable dataset questionnaire support in the generated config."
+    )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Enable interactive questionnaire mode in the generated config."
+    )
+    parser.add_argument(
+        "--require-questions",
+        action="store_true",
+        help="Require questionnaire answers before proceeding when generating the config."
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Output file name for the generated config (default: provisional_config.yaml)."
     )
     args = parser.parse_args()
 
@@ -101,6 +140,60 @@ def main():
         attr_col = "Field Name"
         console.print(f"Using default: [cyan]{attr_col}[/cyan]")
 
+    dataset_id = Path(raw_file).stem if raw_file else Path(dd_file).stem
+
+    bootstrap_metadata = load_bootstrap_metadata(target_path)
+
+    dataset_type = args.dataset_type
+    if not dataset_type and bootstrap_metadata.get("dataset_type"):
+        dataset_type = bootstrap_metadata["dataset_type"]
+        console.print(f"[bold green]Using bootstrapped dataset_type:[/bold green] {dataset_type}")
+
+    if not dataset_type:
+        dataset_type = console.input(
+            "[bold white]Enter the dataset type [cross-sectional/panel/longitudinal] (default: cross-sectional): [/bold white]"
+        ).strip().lower()
+        if dataset_type not in {"cross-sectional", "panel", "longitudinal"}:
+            dataset_type = "cross-sectional"
+
+    subject_id_attribute = bootstrap_metadata.get("subject_id_attribute")
+    if not subject_id_attribute and dataset_type in {"panel", "event_log", "longitudinal"}:
+        if dataset_type == "panel":
+            event_log_answer = console.input(
+                "[bold white]Is this dataset an event log (multiple records per subject)? [y/N]: [/bold white]"
+            ).strip().lower()
+            if event_log_answer in {"y", "yes"}:
+                dataset_type = "event_log"
+            else:
+                console.print(
+                    "[bold green]Treating as a standard panel dataset with static attributes.[/bold green]"
+                )
+
+        if dataset_type == "event_log":
+            subject_id_attribute = console.input(
+                "[bold white]Enter the subject id attribute name: [/bold white]"
+            ).strip()
+            if not subject_id_attribute:
+                console.print(
+                    "[bold yellow]Warning: No subject id attribute provided. "
+                    "Event log static/dynamic inference will be incomplete.[/bold yellow]"
+                )
+
+    enable_dataset_questionnaire = args.enable_questionnaire
+    interactive_mode = args.interactive
+    handshake_require_questions = args.require_questions
+
+    if dataset_type in {"panel", "event_log", "longitudinal"}:
+        if not args.enable_questionnaire:
+            enable_dataset_questionnaire = True
+        if not args.interactive:
+            interactive_mode = True
+        if not args.require_questions:
+            handshake_require_questions = True
+
+    output_filename = args.output or "provisional_config.yaml"
+    output_file = target_path / output_filename
+
     # 5. Build Provisional Config
     config = {
         "working_dir": str(target_path),
@@ -110,29 +203,39 @@ def main():
         "documents_dir": "documents",
         "system_prompt": "You are a precise data engineering assistant. Respond strictly in JSON.",
         "temperature": 0.0,
+        "dataset_type": dataset_type,
+        "dataset_id": dataset_id,
+        "require_manifest_before_featurize": True,
+        "enable_dataset_questionnaire": enable_dataset_questionnaire,
+        "interactive_mode": interactive_mode,
+        "questionnaire_schema_path": "documents/config/dataset_questions.json",
+        "handshake_require_questions": handshake_require_questions,
         "parser": {
             "data_dictionary_file": dd_file,
             "data_dictionary_attribute_col_name": attr_col,
             "csv_target_column_index": 0,
             "dd_parser_output_dir": "dd_analysis_results",
-            "output_filename": f"{Path(raw_file).stem}_analysis_results.csv",
-            "entity_tagging": ["geographic"],
+            "output_filename": f"{dataset_id}_analysis_results.csv",
+            "dataset_manifest_filename": f"{dataset_id}_dataset_manifest.json",
+            "attribute_manifest_filename": f"{dataset_id}_attribute_manifest.json",
+            "entity_tagging": [],
             "prompts": PROMPT_TEMPLATES["parser"]["prompts"]
         },
         "cleaner": {
             "raw_dataset_file": raw_file,
-            "clean_output_filename": f"{Path(raw_file).stem}_clean.csv",
-            "metadata_table_filename": f"{Path(raw_file).stem}_metadata_table.csv",
-            "user_cleaned_output_filename": f"{Path(raw_file).stem}_user_cleaned.csv",
+            "clean_output_filename": f"{dataset_id}_clean.csv",
+            "metadata_table_filename": f"{dataset_id}_metadata_table.csv",
+            "user_cleaned_output_filename": f"{dataset_id}_user_cleaned.csv",
             "dd_cleaner_output_dir": "dd_cleaner",
-            "handshake_file": "parser_cleaner_handshake.md",
-            "profiling_report_filename": f"{Path(raw_file).stem}_profiling_report.md",
+            "handshake_file": f"{dataset_id}_parser_cleaner_handshake.md",
+            "profiling_report_filename": f"{dataset_id}_profiling_report.md",
             "quarantine_dir": "quarantine",
-            "quarantine_filename": f"{Path(raw_file).stem}_quarantine.csv",
+            "quarantine_filename": f"{dataset_id}_quarantine.csv",
             "pipeline": ["integrity", "profile", "assessment"],
             "structural_assessment": {
                 "auto_drop_constant": False,
-                "dataset_type": "cross-sectional (inferred)",
+                "dataset_type": dataset_type,
+                "subject_id_attribute": subject_id_attribute,
                 "null_threshold": 0.95
             },
             "missing_values": {
@@ -142,13 +245,12 @@ def main():
     }
 
     # 6. Save
-    output_file = target_path / "provisional_config.yaml"
     with open(output_file, "w") as f:
         f.write("# 🤖 PROVISIONAL KMDS CONFIGURATION\n")
         f.write("# Generated by bootstrap-config utility.\n\n")
         yaml.safe_dump(config, f, sort_keys=False, default_flow_style=False)
 
-    console.print(f"\n[bold green]✅ Success:[/bold green] [cyan]provisional_config.yaml[/cyan] has been created at {target_path}")
+    console.print(f"\n[bold green]✅ Success:[/bold green] [cyan]{output_file.name}[/cyan] has been created at {target_path}")
     console.print("🚀 You are now ready to run [white]classify-entities[/white].\n")
 
 if __name__ == "__main__":

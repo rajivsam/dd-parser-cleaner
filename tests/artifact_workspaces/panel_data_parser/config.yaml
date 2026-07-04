@@ -1,0 +1,101 @@
+working_dir: /home/rajiv/programming/dd_parser_cleaner/tests/artifact_workspaces/panel_data_parser
+batch_size: 5
+model_name: llama3.2
+documents_dir: documents
+system_prompt: You are a precise data engineering assistant. Respond strictly in JSON.
+temperature: 0.0
+llm_timeout: 60.0
+dataset_type: panel
+dataset_id: itsm_group_analysis
+require_manifest_before_featurize: true
+enable_dataset_questionnaire: true
+interactive_mode: true
+questionnaire_schema_path: documents/config/dataset_questions.json
+handshake_require_questions: false
+parser:
+  data_dictionary_file: itsm_dd.csv
+  data_dictionary_attribute_col_name: Field Name
+  csv_target_column_index: 0
+  dd_parser_output_dir: dd_analysis_results
+  output_filename: itsm_group_analysis_analysis_results.csv
+  dataset_manifest_filename: itsm_group_analysis_dataset_manifest.json
+  attribute_manifest_filename: itsm_group_analysis_attribute_manifest.json
+  entity_tagging: []
+  prompts:
+    entity_classifier:
+      macro_domain_template: 'You are a master data architect. Scan this snippet of
+        a data dictionary blueprint:
+
+        {sample_fields}
+
+
+        This dataset is a ''{dataset_type}'' dataset.
+
+        Identify the macroscopic business domain (e.g., Banking, Healthcare, Insurance).
+
+        Then, generate a list of 4 to 6 coarse-grained logical entity concepts suited
+        to house these attributes.
+
+
+        CRITICAL RULES:
+
+        1. DO NOT lump all attributes into a single catch-all category name.
+
+        2. Separate attributes by their intrinsic structural nature (e.g., distinguish
+        between Demographics, Risk Profiles, Financial metrics, and Spatial/Temporal
+        metadata).
+
+        3. Make sure the entity concepts are granular enough to support target variations.
+
+
+        Return a strict JSON object with a single key ''logical_entities'' containing
+        a list of strings.'
+      entity_discovery_template: 'Classify this single data schema field:
+
+        Field Name: {attr_str}
+
+        Description: {desc_str}
+
+        Physical Data Profile (Grounding Context): {stats_str}
+
+
+        Instructions:
+
+        1. Select the best match for ''entity_assignment'' from these discovered choices:
+        [{hints_str}].
+
+        2. Evaluate dedicated boolean flags for these explicit semantic targets: {targets_str}.
+
+        3. The dataset type is {dataset_type}. For panel/longitudinal data, prioritize
+        assignments that preserve repeated-measure/event structure.
+
+
+        Return a strict flat JSON object exactly like this example:
+
+        {{"entity_assignment": "YourChoice", "is_geographic": false}}'
+cleaner:
+  raw_dataset_file: itsm_group_analysis.csv
+  clean_output_filename: itsm_group_analysis_clean.csv
+  metadata_table_filename: itsm_group_analysis_metadata_table.csv
+  user_cleaned_output_filename: itsm_group_analysis_user_cleaned.csv
+  dd_cleaner_output_dir: dd_cleaner
+  handshake_file: itsm_parser_cleaner_handshake.md
+  profiling_report_filename: itsm_group_analysis_profiling_report.md
+  quarantine_dir: quarantine
+  quarantine_filename: itsm_group_analysis_quarantine.csv
+  pipeline:
+  - integrity
+  - profile
+  - assessment
+  structural_assessment:
+    auto_drop_constant: false
+    null_threshold: 0.95
+  missing_values:
+    prompts:
+      cleaning_assistant:
+        system: You are a data engineering assistant specializing in data quality.
+        recommendation_template: 'Analyze the following dataset profile and provide
+          cleaning recommendations in JSON:
+
+
+          {profile}'

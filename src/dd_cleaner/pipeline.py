@@ -50,9 +50,17 @@ class PipelineRunner:
         self.logger.info("🚀 Initializing Cleaner Pipeline Runner...")
 
         # 📊 STRUCTURAL ASSESSMENT: Output the inferred or confirmed dataset type
-        sa_cfg = self.cleaner_config.get("structural_assessment", {})
-        ds_type = sa_cfg.get("dataset_type", "unknown")
+        ds_type = self.paths.config.get("dataset_type")
+        if ds_type is None:
+            sa_cfg = self.cleaner_config.get("structural_assessment", {})
+            ds_type = sa_cfg.get("dataset_type", "unknown")
+
         self.logger.info(f"📊 Structural Context: [Dataset Type: {ds_type}]")
+        if str(ds_type).strip().lower() in {"panel", "longitudinal"}:
+            self.logger.info(
+                "🧠 This dataset type defers cleaning actions to the featurization pipeline "
+                "for panel/longitudinal data. Continuing with the remaining cleaning stages."
+            )
 
         # 1. Load Data
         raw_path = self.paths.raw_dataset_path
@@ -349,7 +357,7 @@ class PipelineRunner:
 
     def _load_custom_logic(self) -> Any:
         """
-        Dynamically loads the python module containing domain-specific logic from scripts/.
+        Dynamically loads a python module containing optional custom logic from an explicit configuration path.
 
         Returns:
             Optional[Module]: The loaded python module or None if not defined/found.

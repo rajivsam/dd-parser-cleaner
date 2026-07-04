@@ -3,7 +3,7 @@
 This report provides automated recommendations based on data profile physics and semantic metadata.
 
 ## 🛡️ User Responsibilities
-- **Domain Logic**: User must capture domain-specific row filters in `config.yaml` or `domain_logic.py`.
+- **Domain Logic**: User should capture domain-specific row filters in `config.yaml` or via an optional external custom logic module referenced explicitly in configuration.
 - **Domain Deletions**: User must identify columns requiring deletion based on business rules.
 - **Strategy Validation**: While we suggest mean/MISSING defaults, the user determines the final strategy.
 
@@ -15,41 +15,41 @@ This report provides automated recommendations based on data profile physics and
 
 ## Deletion is recommended for the following attributes
 
-| Attribute     | Type     | Entity   | What Needs Fixing                                         | Recommended Fix   |
-|:--------------|:---------|:---------|:----------------------------------------------------------|:------------------|
-| asofdate      | datetime | Borrower | Constant value / Zero variance                            | drop-attribute    |
-| program       | numeric  | Program  | Constant value / Zero variance                            | drop-attribute    |
-| chargeoffdate | datetime | Borrower | Extreme sparsity (99.2%): Exceeds null threshold of 95.0% | drop-attribute    |
+| Attribute     | Type     | Entity       | What Needs Fixing                                         | Recommended Fix   |
+|:--------------|:---------|:-------------|:----------------------------------------------------------|:------------------|
+| asofdate      | datetime | [unassigned] | Constant value / Zero variance                            | drop-attribute    |
+| program       | numeric  | unassigned   | Constant value / Zero variance                            | drop-attribute    |
+| chargeoffdate | datetime | unassigned   | Extreme sparsity (99.2%): Exceeds null threshold of 95.0% | drop-attribute    |
 
 ## Derived attribute definition or deletion is recommended
 
-| Attribute             | Type     | Entity   | What Needs Fixing                                                                                                                                    | Recommended Fix            |
-|:----------------------|:---------|:---------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------|
-| approvaldate          | datetime | Loan     | This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them. | custom:datetime_to_numeric |
-| firstdisbursementdate | datetime | Borrower | This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them. | custom:datetime_to_numeric |
-| paidinfulldate        | datetime | Borrower | This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them. | custom:datetime_to_numeric |
+| Attribute             | Type     | Entity     | What Needs Fixing                                                                                                                                    | Recommended Fix            |
+|:----------------------|:---------|:-----------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------|
+| approvaldate          | datetime | unassigned | This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them. | custom:datetime_to_numeric |
+| firstdisbursementdate | datetime | unassigned | This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them. | custom:datetime_to_numeric |
+| paidinfulldate        | datetime | unassigned | This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them. | custom:datetime_to_numeric |
 
 ## Missing value definition is recommended for the following attributes
 
 ### Numeric Attributes (Standard: Mean Imputation)
 
-| Attribute             | Type    | Entity   | What Needs Fixing                                            | Recommended Fix   |
-|:----------------------|:--------|:---------|:-------------------------------------------------------------|:------------------|
-| naicscode             | numeric | Location | Numeric with 0.4% nulls: Recommendation is mean imputation.  | mean-imputation   |
-| franchisecode         | numeric | Location | Numeric with 90.2% nulls: Recommendation is mean imputation. | mean-imputation   |
-| congressionaldistrict | numeric | Location | Numeric with 0.0% nulls: Recommendation is mean imputation.  | mean-imputation   |
+| Attribute             | Type    | Entity     | What Needs Fixing                                            | Recommended Fix   |
+|:----------------------|:--------|:-----------|:-------------------------------------------------------------|:------------------|
+| naicscode             | numeric | unassigned | Numeric with 0.4% nulls: Recommendation is mean imputation.  | mean-imputation   |
+| franchisecode         | numeric | unassigned | Numeric with 90.2% nulls: Recommendation is mean imputation. | mean-imputation   |
+| congressionaldistrict | numeric | geographic | Numeric with 0.0% nulls: Recommendation is mean imputation.  | mean-imputation   |
 
 ### Categorical Attributes (Standard: 'MISSING' Category)
 
-| Attribute         | Type        | Entity   | What Needs Fixing                                                                   | Recommended Fix   |
-|:------------------|:------------|:---------|:------------------------------------------------------------------------------------|:------------------|
-| subprogram        | categorical | Program  | Categorical/Text with 6.8% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
-| naicsdescription  | text        | Location | Categorical/Text with 0.4% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
-| franchisename     | categorical | Location | Categorical/Text with 90.2% nulls: Recommendation is creating a 'MISSING' category. | constant:MISSING  |
-| sbadistrictoffice | categorical | Location | Categorical/Text with 0.0% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
-| businesstype      | categorical | Borrower | Categorical/Text with 0.0% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
-| businessage       | categorical | Location | Categorical/Text with 0.5% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
-| loanstatus        | categorical | Borrower | Categorical/Text with 0.2% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| Attribute         | Type        | Entity      | What Needs Fixing                                                                   | Recommended Fix   |
+|:------------------|:------------|:------------|:------------------------------------------------------------------------------------|:------------------|
+| subprogram        | categorical | unassigned  | Categorical/Text with 6.8% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| naicsdescription  | text        | unassigned  | Categorical/Text with 0.4% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| franchisename     | categorical | unassigned  | Categorical/Text with 90.2% nulls: Recommendation is creating a 'MISSING' category. | constant:MISSING  |
+| sbadistrictoffice | categorical | unassigned  | Categorical/Text with 0.0% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| businesstype      | categorical | Partnership | Categorical/Text with 0.0% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| businessage       | categorical | unassigned  | Categorical/Text with 0.5% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| loanstatus        | categorical | unassigned  | Categorical/Text with 0.2% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
 
 
 ---
