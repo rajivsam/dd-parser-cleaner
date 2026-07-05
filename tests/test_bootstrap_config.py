@@ -158,6 +158,51 @@ def test_dataset_bootstrap_writes_metadata(tmp_path, monkeypatch):
     assert metadata["use_case_answers"]["analysis_objective"] == "Improve churn"
 
 
+def test_dataset_bootstrap_homogeneous_graph_uses_tabular_questionnaire(tmp_path, monkeypatch):
+    from dd_common import dataset_bootstrap_cli as bootstrap_ds
+
+    for folder in ["data", "data_dictionary", "documents", "notebooks", "models"]:
+        (tmp_path / folder).mkdir(parents=True, exist_ok=True)
+    (tmp_path / "data" / "graph.csv").write_text("source,target\n1,2\n", encoding="utf-8")
+    (tmp_path / "data_dictionary" / "graph_dd.csv").write_text(
+        "Field Name,Description\nsource,Source node\ntarget,Target node\n", encoding="utf-8"
+    )
+
+    class DummyBootstrapConsole:
+        def __init__(self):
+            self.answers = iter([
+                "graph",           # Graph or Tabular
+                "homogeneous",    # homogeneous or other
+                "unsure",         # Cross-sectional/panel/unsure
+                "node",           # Subject
+                "y",              # row represents single point in time
+                "y",              # all subjects same point in time
+                "y",              # capture use case answers
+                "Predict links",  # use case
+                "Understand topology"  # analysis objective
+            ])
+
+        def input(self, prompt: str = "") -> str:
+            return next(self.answers)
+
+        def print(self, *args, **kwargs):
+            pass
+
+    monkeypatch.setattr(bootstrap_ds, "console", DummyBootstrapConsole())
+    monkeypatch.setattr(sys, "argv", ["dataset-bootstrap", str(tmp_path)])
+
+    bootstrap_ds.main()
+
+    metadata_path = tmp_path / "bootstrap_metadata.yaml"
+    assert metadata_path.exists()
+    metadata = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
+    assert metadata["dataset_type"] == "graph_homogeneous"
+    assert metadata["graph_type"] == "homogeneous"
+    assert metadata["subject"] == "node"
+    assert metadata["use_case_answers"]["use_case"] == "Predict links"
+    assert metadata["use_case_answers"]["analysis_objective"] == "Understand topology"
+
+
 def test_bootstrap_config_uses_bootstrap_metadata(tmp_path, monkeypatch):
     for folder in ["data", "data_dictionary", "documents", "notebooks", "models"]:
         (tmp_path / folder).mkdir(parents=True, exist_ok=True)

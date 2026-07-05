@@ -32,6 +32,9 @@ dataset-bootstrap .
 
 This writes `bootstrap_metadata.yaml` and captures dataset metadata such as `dataset_type`, `subject`, `subject_id_attribute`, and optional use-case answers.
 
+- The utility supports **tabular datasets** and **homogeneous graphs learnable from tabular data**.
+- If a graph dataset is detected and it is not homogeneous/tabular-learnable, the bootstrapping process will stop and report that bipartite/heterogeneous graphs are out of scope for now.
+
 ### 4. Generate runtime config
 
 ```bash

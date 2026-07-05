@@ -10,12 +10,14 @@ Introduce a **bootstrapping phase**in `dd-parser-cleaner`to establish dataset ty
 
 ### Step 1: Top-Level Branch
 -Ask: *Graph or Tabular analysis?*
--If **Graph**→ return: "Graph datasets are not supported in this version." (future scope)
+-If **Graph**→ ask whether the dataset is a homogeneous graph learnable from tabular data or another graph type.
+  - If **homogeneous** → proceed with the tabular questionnaire flow and set `dataset_type` to `graph_homogeneous`.
+  - If **other** → stop with a clear message that other graph types are out of scope for now.
 -If **Tabular**→ proceed.
 
 ### Step 2: Tabular Branch
 -Ask: *Is the dataset cross-sectional or panel?*
--If user knows → set `dataset_type`accordingly.
+-If user knows → set `dataset_type` accordingly.
 -If user is unsure → proceed with guided questions.
 
 ### Step 3: Guided Questions
