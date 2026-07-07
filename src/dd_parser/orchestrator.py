@@ -236,15 +236,17 @@ class PipelineOrchestrator:
         
         # Extract normalized, synchronized attributes and description values
         attr_series, desc_series = self.post_processor.infer_schema_columns(df_dict)
+
+        seed_attr_series, seed_desc_series = self._select_wide_short_seed_attributes(attr_series, desc_series)
         
-        # 🧠 PHASE 1 RUNTIME ENGAGEMENT: Bootstrap domain identification directly from data file arrays
+        # 🧠 PHASE 1 RUNTIME ENGAGEMENT: Bootstrap domain identification directly from the seed schema fields
         discovered_hints = self.llm_classifier.discover_macro_domain(
-            attr_series.tolist(), desc_series.tolist(), dataset_type=dataset_type
+            seed_attr_series.tolist(), seed_desc_series.tolist(), dataset_type=dataset_type
         )
 
         # 🧠 PHASE 2 STREAMING EXECUTION: Pass dynamically extracted definitions down the pipe
         llm_assignments = self.llm_classifier.discover_entities(
-            attr_series, desc_series, explicit_targets, 
+            seed_attr_series, seed_desc_series, explicit_targets, 
             generated_hints=discovered_hints, grounding_profile=grounding_profile,
             dataset_type=dataset_type
         )
@@ -259,6 +261,34 @@ class PipelineOrchestrator:
             use_case_answers=questionnaire_answers
         )
         return parsed_matrix
+
+    def _select_wide_short_seed_attributes(self, attr_series: pd.Series, desc_series: pd.Series) -> tuple[ pd.Series, pd.Series ]:
+        """
+        Selects a minimal seed set of schema fields for wide-short homogeneous datasets.
+
+        The seed set contains the first schema field and the configured wide-short
+        representative column. This avoids querying every repeated attribute.
+        """
+        if not self.parser_config.get("wide_short_homogeneous"):
+            return attr_series, desc_series
+
+        rep_column = self.parser_config.get("wide_short_representative_column")
+        if not rep_column or rep_column not in attr_series.tolist():
+            return attr_series, desc_series
+
+        seed_attrs = [attr_series.iloc[0]]
+        seed_descs = [desc_series.iloc[0]]
+
+        if rep_column != seed_attrs[0]:
+            rep_index = attr_series[attr_series == rep_column].index
+            if len(rep_index) > 0:
+                idx = rep_index[0]
+                seed_attrs.append(attr_series.iloc[idx])
+                seed_descs.append(desc_series.iloc[idx])
+            else:
+                return attr_series, desc_series
+
+        return pd.Series(seed_attrs, dtype=attr_series.dtype), pd.Series(seed_descs, dtype=desc_series.dtype)
 
     def _execute_filtering(self, df: pd.DataFrame, drop_cols: List[str]) -> pd.DataFrame:
         """

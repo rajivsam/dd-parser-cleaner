@@ -28,37 +28,66 @@ PROMPT_TEMPLATES = {
                     "Return a strict flat JSON object exactly like this example:\n"
                     "{{\"entity_assignment\": \"YourChoice\", \"static_dynamic\": \"dynamic\", \"is_geographic\": false}}"
                 )
-            },
-            "document_processor": {
-                "system": (
-                    "You are a logic extraction engine. Your task is to read domain documentation (SOPs, narratives, "
-                    "or requirements) and extract thresholds, magic numbers, and validation rules into a strict JSON format."
+            }
+        },
+        "wide_short_prompts": {
+            "entity_classifier": {
+                "macro_domain_template": (
+                    "You are a master data architect. Scan this snippet of a data dictionary blueprint:\n"
+                    "{sample_fields}\n\n"
+                    "This dataset is a '{dataset_type}' dataset with wide-and-short homogeneous structure.\n"
+                    "One representative column is '{wide_short_representative_column}'.\n"
+                    "Identify the macroscopic business domain and generate a list of 4 to 6 coarse-grained logical entity concepts suited to house these attributes.\n\n"
+                    "CRITICAL RULES:\n"
+                    "1. DO NOT lump all attributes into a single catch-all category name.\n"
+                    "2. Separate attributes by their intrinsic structural nature.\n"
+                    "3. Give special attention to the repeated homogeneous group around '{wide_short_representative_column}'.\n"
+                    "Return a strict JSON object with a single key 'logical_entities' containing a list of strings."
                 ),
-                "discovery_template": (
-                    "{system_prompt}\n\n"
-                    "TASK: Extract domain-specific logic and rules from the provided context.\n"
-                    "You may receive a Narrative Document, a Data Dictionary summary, or both.\n\n"
-                    "Output ONLY a JSON object that follows this structure:\n"
-                    "{{\n"
-                    "    \"metadata\": {{ \"domain\": \"string\", \"version\": \"string\", \"authority_source\": \"string\" }},\n"
-                    "    \"constants\": {{ \"KEY\": value }},\n"
-                    "    \"validation_rules\": [\n"
-                    "        {{ \"rule_id\": \"string\", \"description\": \"string\", \"attribute\": \"string\",\n"
-                    "           \"operator\": \"gt|lt|ge|le|eq|ne|in|between\", \"value\": any, \"action\": \"flag_warning|quarantine\" }}\n"
-                    "    ]\n"
-                    "}}\n\n"
-                    "CONTEXT:\n"
-                    "--- NARRATIVE DOCUMENT ---\n{narrative_context}\n\n"
-                    "--- DATA DICTIONARY SUMMARY ---\n{dd_context}\n\n"
-                    "Information to extract:\n"
-                    "- Numerical thresholds, limits, or caps.\n"
-                    "- Business rules requiring specific ratios or data constraints.\n"
-                    "- Formatting constants. IMPORTANT: Use the following keys in the \"constants\" object:\n"
-                    "    1. \"FORMATTING_PADDING\": A map of column name tokens to their required digit width (e.g., {{\"zip\": 5, \"id\": 10}}).\n"
-                    "    2. \"FORMATTING_TITLE_CASE\": A list of column name tokens that should be title-cased (e.g., [\"name\", \"street\", \"city\"]).\n"
-                    "- Other business-specific magic numbers should be at the root of the \"constants\" object."
+                "entity_discovery_template": (
+                    "Classify this single data schema field:\n"
+                    "Field Name: {attr_str}\n"
+                    "Description: {desc_str}\n"
+                    "Physical Data Profile (Grounding Context): {stats_str}\n\n"
+                    "Instructions:\n"
+                    "1. Select the best match for 'entity_assignment' from these discovered choices: [{hints_str}].\n"
+                    "2. Evaluate dedicated boolean flags for these explicit semantic targets: {targets_str}.\n"
+                    "3. This dataset is wide-short homogeneous and centered around the representative column '{wide_short_representative_column}'.\n"
+                    "4. Use the representative column to distinguish repeated measures and avoid classifying the attribute as the primary time axis unless it is actually a time key.\n\n"
+                    "Return a strict flat JSON object exactly like this example:\n"
+                    "{{\"entity_assignment\": \"YourChoice\", \"static_dynamic\": \"dynamic\", \"is_geographic\": false}}"
                 )
             }
+        },
+        "document_processor": {
+            "system": (
+                "You are a logic extraction engine. Your task is to read domain documentation (SOPs, narratives, "
+                "or requirements) and extract thresholds, magic numbers, and validation rules into a strict JSON format."
+            ),
+            "discovery_template": (
+                "{system_prompt}\n\n"
+                "TASK: Extract domain-specific logic and rules from the provided context.\n"
+                "You may receive a Narrative Document, a Data Dictionary summary, or both.\n\n"
+                "Output ONLY a JSON object that follows this structure:\n"
+                "{{\n"
+                "    \"metadata\": {{ \"domain\": \"string\", \"version\": \"string\", \"authority_source\": \"string\" }},\n"
+                "    \"constants\": {{ \"KEY\": value }},\n"
+                "    \"validation_rules\": [\n"
+                "        {{ \"rule_id\": \"string\", \"description\": \"string\", \"attribute\": \"string\",\n"
+                "           \"operator\": \"gt|lt|ge|le|eq|ne|in|between\", \"value\": any, \"action\": \"flag_warning|quarantine\" }}\n"
+                "    ]\n"
+                "}}\n\n"
+                "CONTEXT:\n"
+                "--- NARRATIVE DOCUMENT ---\n{narrative_context}\n\n"
+                "--- DATA DICTIONARY SUMMARY ---\n{dd_context}\n\n"
+                "Information to extract:\n"
+                "- Numerical thresholds, limits, or caps.\n"
+                "- Business rules requiring specific ratios or data constraints.\n"
+                "- Formatting constants. IMPORTANT: Use the following keys in the \"constants\" object:\n"
+                "    1. \"FORMATTING_PADDING\": A map of column name tokens to their required digit width (e.g., {{\"zip\": 5, \"id\": 10}}).\n"
+                "    2. \"FORMATTING_TITLE_CASE\": A list of column name tokens that should be title-cased (e.g., [\"name\", \"street\", \"city\"]).\n"
+                "- Other business-specific magic numbers should be at the root of the \"constants\" object."
+            )
         }
     },
     "cleaner": {

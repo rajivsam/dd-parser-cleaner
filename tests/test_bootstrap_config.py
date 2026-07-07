@@ -81,9 +81,9 @@ def test_bootstrap_panel_dataset_enables_questionnaire_and_writes_config_yaml(tm
 
     payload = yaml.safe_load(generated_path.read_text(encoding="utf-8"))
     assert payload["dataset_type"] == "panel"
-    assert payload["enable_dataset_questionnaire"] is True
-    assert payload["interactive_mode"] is True
-    assert payload["handshake_require_questions"] is True
+    assert payload["enable_dataset_questionnaire"] is False
+    assert payload["interactive_mode"] is False
+    assert payload["handshake_require_questions"] is False
     assert payload["parser"]["data_dictionary_file"] == "panel_dd.csv"
     assert payload["cleaner"]["raw_dataset_file"] == "panel.csv"
 
@@ -127,6 +127,7 @@ def test_dataset_bootstrap_writes_metadata(tmp_path, monkeypatch):
     class DummyBootstrapConsole:
         def __init__(self):
             self.answers = iter([
+                "n",            # wide-short homogeneous dataset
                 "tabular",      # Graph or Tabular
                 "unsure",       # Cross-sectional/panel/unsure
                 "customer",     # Subject
@@ -171,6 +172,7 @@ def test_dataset_bootstrap_homogeneous_graph_uses_tabular_questionnaire(tmp_path
     class DummyBootstrapConsole:
         def __init__(self):
             self.answers = iter([
+                "n",            # wide-short homogeneous dataset
                 "graph",           # Graph or Tabular
                 "homogeneous",    # homogeneous or other
                 "unsure",         # Cross-sectional/panel/unsure
@@ -232,3 +234,35 @@ def test_bootstrap_config_uses_bootstrap_metadata(tmp_path, monkeypatch):
     payload = yaml.safe_load(generated_path.read_text(encoding="utf-8"))
     assert payload["dataset_type"] == "event_log"
     assert payload["cleaner"]["structural_assessment"]["subject_id_attribute"] == "id"
+
+
+def test_bootstrap_config_propagates_wide_short_metadata(tmp_path, monkeypatch):
+    for folder in ["data", "data_dictionary", "documents", "notebooks", "models"]:
+        (tmp_path / folder).mkdir(parents=True, exist_ok=True)
+    (tmp_path / "data" / "startup.csv").write_text("id,value\n1,10\n", encoding="utf-8")
+    (tmp_path / "data_dictionary" / "startup_dd.csv").write_text(
+        "Field Name,Description\nid,Identifier\nvalue,Value\n", encoding="utf-8"
+    )
+    (tmp_path / "documents" / "config").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "documents" / "config" / "dataset_questions.json").write_text(
+        '{"questions": []}', encoding="utf-8"
+    )
+    bootstrap_metadata = {
+        "dataset_type": "cross-sectional",
+        "subject": "customer",
+        "wide_short_homogeneous": True,
+        "wide_short_representative_column": "customer_id",
+        "use_case_answers": {}
+    }
+    (tmp_path / "bootstrap_metadata.yaml").write_text(yaml.safe_dump(bootstrap_metadata), encoding="utf-8")
+
+    monkeypatch.setattr(bootstrap_cli, "console", DummyConsole())
+    monkeypatch.setattr(sys, "argv", ["bootstrap-config", str(tmp_path)])
+
+    bootstrap_cli.main()
+
+    generated_path = tmp_path / "provisional_config.yaml"
+    assert generated_path.exists()
+    payload = yaml.safe_load(generated_path.read_text(encoding="utf-8"))
+    assert payload["parser"]["wide_short_homogeneous"] is True
+    assert payload["parser"]["wide_short_representative_column"] == "customer_id"

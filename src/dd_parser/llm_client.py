@@ -37,6 +37,7 @@ class LLMEntityClassifier:
         self.model_name = self.global_config.get("model_name", "llama3.2")
         self.system_prompt = self.global_config.get("system_prompt", "Respond strictly in JSON.")
         self.prompts = self.parser_config.get("prompts", {}).get("entity_classifier", {})
+        self.wide_short_representative_column = self.parser_config.get("wide_short_representative_column")
 
     def is_ready(self) -> bool:
         """
@@ -123,7 +124,7 @@ class LLMEntityClassifier:
         except Exception as e:
             self.logger.warning(f"⚠️ Macro domain onboarding lookup bypassed: {e}")
             
-        return ["unassigned"]
+        return []
 
     def _assemble_macro_prompt(self, sample_fields: List[Dict[str, str]], dataset_type: str) -> str:
         """
@@ -138,7 +139,13 @@ class LLMEntityClassifier:
         """
         template = self.prompts.get("macro_domain_template")
         if template:
-            return template.format(sample_fields=json.dumps(sample_fields), dataset_type=dataset_type)
+            format_kwargs = {
+                "sample_fields": json.dumps(sample_fields),
+                "dataset_type": dataset_type,
+            }
+            if self.wide_short_representative_column:
+                format_kwargs["wide_short_representative_column"] = self.wide_short_representative_column
+            return template.format(**format_kwargs)
         
         return (
             f"You are a master data architect. Scan this snippet of a data dictionary blueprint:\n"
@@ -155,7 +162,7 @@ class LLMEntityClassifier:
         if discovered:
             self.logger.info(f"🎯 Dynamic Domain Discovery Successful! Extracted Core Concepts: {discovered}")
             return [str(item) for item in discovered]
-        return ["unassigned"]
+        return []
 
     def discover_entities(
         self, 
@@ -180,8 +187,8 @@ class LLMEntityClassifier:
             Dict[str, Dict[str, Any]]: Mapping of attribute to entity assignment and tags.
         """
         assignments = {}
-        active_hints = generated_hints if generated_hints else []
-        hints_str = ", ".join(str(h) for h in active_hints) if active_hints else "Logical Categories"
+        active_hints = [str(h).strip() for h in (generated_hints or []) if str(h).strip() and str(h).strip().lower() != "unassigned"]
+        hints_str = ", ".join(active_hints) if active_hints else "Logical Categories"
         targets_str = ", ".join([f"'is_{t}' (boolean)" for t in explicit_targets])
         grounding_profile = grounding_profile or {}
 
@@ -271,14 +278,17 @@ class LLMEntityClassifier:
         """
         template = self.prompts.get("entity_discovery_template")
         if template:
-            return template.format(
-                attr_str=attr_str,
-                desc_str=desc_str,
-                stats_str=stats_str,
-                hints_str=hints_str,
-                targets_str=targets_str,
-                dataset_type=dataset_type
-            )
+            format_kwargs = {
+                "attr_str": attr_str,
+                "desc_str": desc_str,
+                "stats_str": stats_str,
+                "hints_str": hints_str,
+                "targets_str": targets_str,
+                "dataset_type": dataset_type,
+            }
+            if self.wide_short_representative_column:
+                format_kwargs["wide_short_representative_column"] = self.wide_short_representative_column
+            return template.format(**format_kwargs)
         
         return (
             f"Classify this single data schema field:\n"

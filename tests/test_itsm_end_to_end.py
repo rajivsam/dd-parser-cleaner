@@ -69,15 +69,16 @@ def test_itsm_end_to_end_workflow(tmp_path, monkeypatch):
     copyfile(sample_dictionary, workspace_dir / "data_dictionary" / "itsm_dd.csv")
     copyfile(Path(__file__).resolve().parent.parent / "schemas" / "dataset_questions.json", workspace_dir / "documents" / "config" / "dataset_questions.json")
 
-    monkeypatch.setattr(dataset_bootstrap_cli, "console", DummyBootstrapConsole([
-        "tabular",
-        "panel",
-        "incident",
-        "y",
-        "Support incident lifecycle analytics.",
-        "Enable service group performance reporting."
-    ]))
-    monkeypatch.setattr(sys, "argv", ["dataset-bootstrap", str(workspace_dir)])
+    monkeypatch.setattr(sys, "argv", [
+        "dataset-bootstrap",
+        str(workspace_dir),
+        "--graph-mode", "tabular",
+        "--dataset-type", "panel",
+        "--subject", "incident",
+        "--use-case", "Support incident lifecycle analytics.",
+        "--analysis-objective", "Enable service group performance reporting.",
+        "--no-wide-short-homogeneous"
+    ])
     dataset_bootstrap_cli.main()
 
     metadata_path = workspace_dir / "bootstrap_metadata.yaml"

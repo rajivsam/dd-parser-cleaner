@@ -14,6 +14,7 @@ This primer defines the **KMDS dataset taxonomy**and the characteristic features
 | **Crosssectional**     | Onerowpersubject                    | Notimedimension                     | Flattable                                     | Numeric;categorical;text;URLs                |
 | **Eventlog**           | Onerowperevent;subjectrepeated      | Allattributesindexedbytimestamp     | Flatwithsubjectkeyandtimekey                  | Transactionalfields;timestamps;eventmetadata |
 | **Panel**              | Onerowpersubjectpertimeperiod       | Mixofstaticandtimevaryingattributes | Flatwithsubjectkeyandtimekey                  | Staticdemographics;dynamicmetrics            |
+| **Wide_short_homogeneous** | Onerowpermanycolumns               | Notimedimension or timeoptional    | Wide matrix with many repeated measures       | Sensor readings;survey items;embeddings       |
 | **Graphhomogeneous**   | Nodeattributesplusedgetuples        | Timeoptional                        | Singleentitytype;edgesbetweensametype         | Nodefeatures;edgeattributes                  |
 | **Graphbipartite**     | Twonodetypesplusrelationtuples      | Timeoptional                        | Twodistinctentitytypes;relationsacrosstypes   | Separateattributesetsperentity               |
 | **Graphheterogeneous** | Multipleentitytypeswithtreetopology | Timeoptional                        | Multi-entitytree;nentitiesandn-1relationfiles | Entity-specificattributes;relationattributes |
@@ -38,6 +39,16 @@ This primer defines the **KMDS dataset taxonomy**and the characteristic features
 * **Graph type** : `<span>homogeneous</span>`, `<span>bipartite</span>`, `<span>heterogeneous</span>`.
 * **Input form** : explicit tuples vs inferred relationships.
 * **Constraints** : max entity types for heterogeneous; acyclic requirement for heterogeneous.
+
+### Wide-Short Homogeneous Datasets
+
+* **Structure** : one subject row with many homogeneous repeated-measure columns.
+* **Processing strategy** : capture the dataset as wide-short at bootstrap time, ask for a `representative_column`, and infer validation intelligence once for the representative group.
+* **Config coupling** : `dataset-bootstrap` writes `wide_short_homogeneous` and `wide_short_representative_column` into `bootstrap_metadata.yaml`; `bootstrap-config` copies those values into `parser` config and picks wide-short-specific prompts.
+* **Parser fast path** : `classify-entities` uses only the first dictionary attribute and the representative column for LLM classification, then treats remaining columns as repeated members of the same homogeneous group.
+* **Manifest signals** : `manifest.notes.structure = "wide_short_homogeneous"`, `manifest.flags.skip_columnwise_intelligence = true`, and a `representative_column` marker for the homogeneous group.
+* **Use cases** : sensor arrays, survey matrices, embedding blocks, feature bundles where per-column semantic inference is redundant.
+* **Validation focus** : bulk rules on grouped columns, consistent schema across repeated measures, and efficient summary diagnostics rather than individual column-level reports.
 
 ### Modality Tags
 
@@ -145,13 +156,23 @@ The canonical user interface now follows a deterministic bootstrapping flow:
    - Capture `dataset_type`, `subject`, `subject_id_attribute`, and optional use-case answers.
 4. `bootstrap-config --output config.yaml .`
    - Read `bootstrap_metadata.yaml` and generate a fully wired `config.yaml`.
-   - Preserve `dataset_type` and `subject_id_attribute` from bootstrapped metadata before prompting the user.
+   - Preserve `dataset_type`, `subject_id_attribute`, and wide-short metadata from bootstrapped metadata before prompting the user.
+   - If the dataset is wide-short homogeneous, configure parser prompt templates for that structure.
 5. `classify-entities --config config.yaml`
    - Produce parser artifacts, manifests, and the parser-cleaner handshake.
 6. `clean-dataset --config config.yaml --action full`
    - Validate manifests, generate diagnostics, and export the synchronized clean dataset.
 
 This workflow replaces earlier manual config generation with an explicit metadata bootstrapping phase.
+
+#### Wide-Short Homogeneous Dataset Bootstrapping
+
+* Detect whether the dataset is wide-and-short with many homogeneous columns during bootstrap or config generation.
+* If yes, prompt for a `representative_column` and record `manifest.notes.structure = "wide_short_homogeneous"`.
+* `bootstrap-config` now copies wide-short metadata into `config.yaml` and selects wide-short-specific LLM prompt templates for the parser.
+* Use the representative column metadata to infer data type, modality, and validation rules once, then apply them across the repeated column group.
+* `classify-entities` runs LLM classification only on the first schema field plus the representative column for wide-short datasets, keeping the rest of the group implied.
+* Preserve a compact manifest representation rather than expanding every repeated column into a separate intelligence item unless downstream tooling requires it.
 
 ### SBA End-to-End Regression Coverage
 
@@ -178,6 +199,8 @@ A single consolidated regression test, `tests/test_sba_end_to_end.py`, now valid
 * **panel_variable_map**object mapping `<span>static</span>`and `<span>dynamic</span>`attributes (for panel)
 * **graph_metadata**object (graph-specific details)
 * **notes**free text
+* **notes.structure**string (`wide_short_homogeneous` or other structure hints)
+* **flags**object (e.g. `skip_columnwise_intelligence`)
 * **use_case_answers**object (optional questionnaire responses)
 * **validation_errors**array of strings (populated by cleaner)
 
@@ -278,7 +301,8 @@ A single consolidated regression test, `tests/test_sba_end_to_end.py`, now valid
 ### Prompt Templates
 
 * Extend LLM prompts to request structured JSON manifests and to ask the minimal questionnaire when enabled.
-* Centralize prompts in `<span>dd_common/llm_prompts.py</span>`and enforce JSON-only responses.
+* Centralize prompts in `<span>dd_common/llm_prompts.py</span>` and enforce JSON-only responses.
+* When `parser.wide_short_homogeneous` is true, select dedicated wide-short prompt templates from config and pass `wide_short_representative_column` into LLM prompt formatting.
 
 ## Featurizer Handshake Contract
 
@@ -379,6 +403,35 @@ Include up to five short questions to improve dataset context and cleaning guida
 4. **Prompts** : update LLM prompt templates to request structured manifests and optional questionnaire.
 5. **Testing** : add unit and integration tests with representative datasets.
 6. **Documentation** : publish primer and manifest JSON schema for featurizer integration.
+
+## Wide-Short Homogeneous Dataset Support Plan
+
+### Implementation tasks
+
+* Extend the dataset taxonomy and bootstrap questionnaire to recognize `wide_short_homogeneous` datasets.
+* Add config/schema support for `manifest.notes.structure` and `flags.skip_columnwise_intelligence`.
+* Implement representative-column detection and grouping in the parser so intelligence is inferred once and propagated across repeated homogeneous columns.* Couple bootstrap metadata into `config.yaml` so `bootstrap-config` writes `parser.wide_short_homogeneous`, `parser.wide_short_representative_column`, and selects wide-short prompt templates.
+* Implement the wide-short parser fast path: classify only the first dictionary field and the representative column, then treat remaining columns as repeated members of the same homogeneous group.* Support a compact attribute manifest representation for grouped homogeneous columns, including `group_name`, `representative_column`, `data_type`, `validation_rules`, and `count_columns`.
+* Update the cleaner to validate grouped columns in bulk and report summary diagnostics for wide-short datasets instead of per-column verbosity.
+* Keep existing tall-and-skinny heterogeneous processing unchanged by gating the new flow on the wide-short structure signal.
+
+### Testing tasks
+
+* Add unit tests for bootstrap/config recognition of wide-short datasets and metadata recording.
+* Add parser tests verifying the representative-column inference and grouped manifest emission.
+* Add parser tests verifying the wide-short fast path uses only the first and representative columns for LLM classification.
+* Add cleaner tests validating bulk rule application and handshake status generation for wide-short inputs.
+* Create a wide-short fixture dataset with homogeneous repeated columns and a schema that matches typical sensor/survey use cases.
+* Add an end-to-end integration test that covers bootstrap -> config generation -> parser -> cleaner -> handshake for a wide-short dataset.
+* Add regression asserts ensuring traditional tall-and-skinny datasets continue to emit standard `dataset_type` and non-wide-short manifests.
+
+### Validation criteria
+
+* `manifest.notes.structure` is populated only for wide-short homogeneous datasets.
+* `flags.skip_columnwise_intelligence` is used to avoid redundant per-column inference.
+* The parser emits a compact grouped manifest for the representative homogeneous column and still includes enough detail for downstream featurization.
+* The cleaner produces `handshake.status == "ready"` for valid wide-short inputs and `blocked` for missing critical metadata.
+* Existing dataset flows remain unchanged when `wide_short_homogeneous` is not detected.
 
 ## Summary
 

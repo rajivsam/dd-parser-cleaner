@@ -183,14 +183,6 @@ def main():
     interactive_mode = args.interactive
     handshake_require_questions = args.require_questions
 
-    if dataset_type in {"panel", "event_log", "longitudinal"}:
-        if not args.enable_questionnaire:
-            enable_dataset_questionnaire = True
-        if not args.interactive:
-            interactive_mode = True
-        if not args.require_questions:
-            handshake_require_questions = True
-
     output_filename = args.output or "provisional_config.yaml"
     output_file = target_path / output_filename
 
@@ -219,7 +211,13 @@ def main():
             "dataset_manifest_filename": f"{dataset_id}_dataset_manifest.json",
             "attribute_manifest_filename": f"{dataset_id}_attribute_manifest.json",
             "entity_tagging": [],
-            "prompts": PROMPT_TEMPLATES["parser"]["prompts"]
+            "wide_short_homogeneous": bootstrap_metadata.get("wide_short_homogeneous", False),
+            "wide_short_representative_column": bootstrap_metadata.get("wide_short_representative_column"),
+            "prompts": (
+                PROMPT_TEMPLATES["parser"]["wide_short_prompts"]
+                if bootstrap_metadata.get("wide_short_homogeneous", False)
+                else PROMPT_TEMPLATES["parser"]["prompts"]
+            )
         },
         "cleaner": {
             "raw_dataset_file": raw_file,

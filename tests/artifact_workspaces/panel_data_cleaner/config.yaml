@@ -8,8 +8,8 @@ llm_timeout: 60.0
 dataset_type: panel
 dataset_id: itsm_group_analysis
 require_manifest_before_featurize: true
-enable_dataset_questionnaire: true
-interactive_mode: true
+enable_dataset_questionnaire: false
+interactive_mode: false
 questionnaire_schema_path: documents/config/dataset_questions.json
 handshake_require_questions: false
 parser:

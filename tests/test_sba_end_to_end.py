@@ -59,13 +59,15 @@ def test_sba_end_to_end_workflow(tmp_path, monkeypatch):
     copyfile(sample_dictionary, target_dd)
 
     # 3. Run dataset-bootstrap to capture metadata
-    monkeypatch.setattr(dataset_bootstrap_cli, "console", DummyBootstrapConsole([
-        "tabular",           # Graph or Tabular
-        "cross-sectional",   # Dataset type
-        "loan",              # Subject description
-        "n",                 # Skip optional use case answers
-    ]))
-    monkeypatch.setattr(sys, "argv", ["dataset-bootstrap", str(workspace_dir)])
+    monkeypatch.setattr(sys, "argv", [
+        "dataset-bootstrap",
+        str(workspace_dir),
+        "--graph-mode", "tabular",
+        "--dataset-type", "cross-sectional",
+        "--subject", "loan",
+        "--skip-use-case-answers",
+        "--no-wide-short-homogeneous"
+    ])
     dataset_bootstrap_cli.main()
 
     metadata_path = workspace_dir / "bootstrap_metadata.yaml"

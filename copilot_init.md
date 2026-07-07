@@ -32,6 +32,8 @@ Use it together with `AGENTS.md` and the files in `documents/` as the basis for 
 - `config.yaml` is the single authoritative source of path and model settings.
 - The project uses `bd`/Beads for durable issue tracking and workflow metadata.
 - Existing documentation is stored in `documents/` and is part of the session foundation.
+- Current session updates wide-short homogeneous dataset support for the parser, including bootstrap-config coupling, wide-short-specific prompt selection, and a fast path in `classify-entities`.
+- The wide-short flow now includes `graph_homogeneous` bootstrap metadata and a representative column signal that drives prompt and parser behavior rather than inferring it later.
 
 ## Recommended first actions
 

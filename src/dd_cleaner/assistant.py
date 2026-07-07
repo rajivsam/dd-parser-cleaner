@@ -332,70 +332,70 @@ class CleaningAssistant:
         Args:
             output_dir (Path): Destination directory for the generated files.
         """
-        if not self.recommendations:
-            return
-
         output_dir.mkdir(parents=True, exist_ok=True)
         df = pd.DataFrame(self.recommendations)
 
         # 1. Markdown Report
         md_path = output_dir / "cleaning_recommendations.md"
-        with open(md_path, "w") as f:
+        with open(md_path, "w", encoding="utf-8") as f:
             f.write("# 🤖 Cleaning Assistant Report\n\n")
             f.write("This report provides automated recommendations based on data profile physics and semantic metadata.\n\n")
-            
             f.write("## 🛡️ User Responsibilities\n")
             f.write("- **Domain Logic**: User should capture domain-specific row filters in `config.yaml` or via an optional external custom logic module referenced explicitly in configuration.\n")
             f.write("- **Domain Deletions**: User must identify columns requiring deletion based on business rules.\n")
             f.write("- **Strategy Validation**: While we suggest mean/MISSING defaults, the user determines the final strategy.\n\n")
-
             f.write("## 📊 Summary of Actions\n")
-            if not df.empty:
+
+            if df.empty:
+                f.write("- No automated cleaning recommendations were generated for this dataset.\n")
+                f.write("\nThis dataset appears to have no structural or imputation issues detected by the assistant. Review the profiling report for more details and decide whether domain-specific actions are needed.\n")
+            else:
                 summary = df["recommended_action"].value_counts().to_dict()
                 for action, count in summary.items():
                     f.write(f"- **{action}**: {count} columns\n")
-            else:
-                f.write("- No changes recommended. Data appears healthy.\n")
 
-            def write_section(title, filtered_df, level=2):
-                if filtered_df.empty:
-                    return
-                f.write(f"\n{'#' * level} {title}\n\n")
-                display_df = filtered_df.rename(columns={
-                    "attribute_name": "Attribute",
-                    "logical_type": "Type",
-                    "entity_context": "Entity",
-                    "reason": "What Needs Fixing",
-                    "recommended_action": "Recommended Fix"
-                })[["Attribute", "Type", "Entity", "What Needs Fixing", "Recommended Fix"]]
-                f.write(display_df.to_markdown(index=False))
-                f.write("\n")
+                def write_section(title, filtered_df, level=2):
+                    if filtered_df.empty:
+                        return
+                    f.write(f"\n{'#' * level} {title}\n\n")
+                    display_df = filtered_df.rename(columns={
+                        "attribute_name": "Attribute",
+                        "logical_type": "Type",
+                        "entity_context": "Entity",
+                        "reason": "What Needs Fixing",
+                        "recommended_action": "Recommended Fix"
+                    })[["Attribute", "Type", "Entity", "What Needs Fixing", "Recommended Fix"]]
+                    f.write(display_df.to_markdown(index=False))
+                    f.write("\n")
 
-            df_del = df[df["recommended_action"] == "drop-attribute"]
-            write_section("Deletion is recommended for the following attributes", df_del, level=2)
+                df_del = df[df["recommended_action"] == "drop-attribute"]
+                write_section("Deletion is recommended for the following attributes", df_del, level=2)
 
-            df_der = df[df["recommended_action"] == "custom:datetime_to_numeric"]
-            write_section("Derived attribute definition or deletion is recommended", df_der, level=2)
+                df_der = df[df["recommended_action"] == "custom:datetime_to_numeric"]
+                write_section("Derived attribute definition or deletion is recommended", df_der, level=2)
 
-            df_impute = df[
-                (df["null_ratio"] > 0) & 
-                (~df["recommended_action"].isin(["drop-attribute", "custom:datetime_to_numeric"]))
-            ]
-            
-            if not df_impute.empty:
-                f.write("\n## Missing value definition is recommended for the following attributes\n")
-                write_section("Numeric Attributes (Standard: Mean Imputation)", df_impute[df_impute["recommended_action"] == "mean-imputation"], level=3)
-                write_section("Categorical Attributes (Standard: 'MISSING' Category)", df_impute[df_impute["recommended_action"] == "constant:MISSING"], level=3)
-                write_section("Other Attributes with Missing Values (Strategy Required)", df_impute[df_impute["recommended_action"] == "user-review"], level=3)
+                df_impute = df[
+                    (df["null_ratio"] > 0) & 
+                    (~df["recommended_action"].isin(["drop-attribute", "custom:datetime_to_numeric"]))
+                ]
 
-            df_rev = df[(df["recommended_action"] == "user-review") & (df["null_ratio"] == 0)]
-            write_section("Manual review is required for the following attributes", df_rev, level=2)
-            
+                if not df_impute.empty:
+                    f.write("\n## Missing value definition is recommended for the following attributes\n")
+                    write_section("Numeric Attributes (Standard: Mean Imputation)", df_impute[df_impute["recommended_action"] == "mean-imputation"], level=3)
+                    write_section("Categorical Attributes (Standard: 'MISSING' Category)", df_impute[df_impute["recommended_action"] == "constant:MISSING"], level=3)
+                    write_section("Other Attributes with Missing Values (Strategy Required)", df_impute[df_impute["recommended_action"] == "user-review"], level=3)
+
+                df_rev = df[(df["recommended_action"] == "user-review") & (df["null_ratio"] == 0)]
+                write_section("Manual review is required for the following attributes", df_rev, level=2)
+
             f.write("\n\n---\n*Generated by CleaningAssistant engine.*")
-        
+
         # 2. CSV Matrix
         csv_path = output_dir / "cleaning_matrix_actions_only.csv"
-        df.to_csv(csv_path, index=False)
+        if df.empty:
+            pd.DataFrame(columns=["attribute_name", "logical_type", "entity_context", "null_ratio", "cardinality", "recommended_action", "reason"]).to_csv(csv_path, index=False)
+        else:
+            df.to_csv(csv_path, index=False)
 
         self.console.print(f"\n[bold green]✨ Assistant artifacts generated in:[/bold green] {output_dir}")
         self.console.print(f" - Report: [cyan]cleaning_recommendations.md[/cyan]")

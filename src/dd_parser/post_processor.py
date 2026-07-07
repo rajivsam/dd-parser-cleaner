@@ -214,7 +214,7 @@ class MetadataPostProcessor:
         # 1. Initialize Columns
         provisional_df["attribute_name"] = attributes
         provisional_df["provisional_entity_assignment"] = "unassigned"
-        provisional_df["static_dynamic"] = "none" if dataset_type not in {"panel", "longitudinal"} else "static"
+        provisional_df["static_dynamic"] = "none"
         
         # Preserve Early-Bound types if they exist (from synchronization)
         if "physical_type" not in provisional_df.columns:
@@ -248,24 +248,25 @@ class MetadataPostProcessor:
             assigned_label = field_metadata.get("entity_assignment", "unassigned")
             provisional_df.at[idx, "provisional_entity_assignment"] = assigned_label
 
-            # Apply LLM Static/Dynamic Flag
-            if "static_dynamic" in field_metadata:
-                provisional_df.at[idx, "static_dynamic"] = str(field_metadata.get("static_dynamic", "static")).lower()
-            elif dataset_type == "panel":
-                provisional_df.at[idx, "static_dynamic"] = self._infer_static_dynamic(
-                    attr_raw,
-                    str(descriptions.iloc[idx]),
-                    provisional_df.loc[idx]
-                )
-            elif dataset_type in {"event_log", "longitudinal"}:
-                if event_log_dynamic_map:
-                    provisional_df.at[idx, "static_dynamic"] = event_log_dynamic_map.get(attr_raw, "static")
-                else:
+            # Apply Static/Dynamic only for panel-like datasets.
+            if dataset_type in {"panel", "event_log", "longitudinal"}:
+                if "static_dynamic" in field_metadata:
+                    provisional_df.at[idx, "static_dynamic"] = str(field_metadata.get("static_dynamic", "static")).lower()
+                elif dataset_type == "panel":
                     provisional_df.at[idx, "static_dynamic"] = self._infer_static_dynamic(
                         attr_raw,
                         str(descriptions.iloc[idx]),
                         provisional_df.loc[idx]
                     )
+                else:
+                    if event_log_dynamic_map:
+                        provisional_df.at[idx, "static_dynamic"] = event_log_dynamic_map.get(attr_raw, "static")
+                    else:
+                        provisional_df.at[idx, "static_dynamic"] = self._infer_static_dynamic(
+                            attr_raw,
+                            str(descriptions.iloc[idx]),
+                            provisional_df.loc[idx]
+                        )
 
             # Apply LLM Boolean Flags
             for target in explicit_targets:
@@ -522,12 +523,26 @@ class MetadataPostProcessor:
         if questionnaire_required:
             validation_errors.append("questionnaire responses required")
 
+        if self.parser_config.get("wide_short_homogeneous"):
+            wide_short_info = self._build_wide_short_info_from_config(df)
+            if not wide_short_info:
+                self.logger.warning("Wide-short config present but failed to build group info; falling back to auto-detection.")
+                wide_short_info = self._infer_wide_short_homogeneous_info(df)
+        else:
+            wide_short_info = self._infer_wide_short_homogeneous_info(df)
+
+        if wide_short_info:
+            validation_errors = validation_errors or []
+            flags = {"skip_columnwise_intelligence": True}
+        else:
+            flags = {}
+
         if questionnaire_required:
             status = "blocked"
         else:
             status = "ready" if not validation_errors else "warnings"
 
-        return {
+        manifest = {
             "dataset_id": dataset_id,
             "dataset_type": dataset_type,
             "primary_key_spec": primary_key_spec,
@@ -535,10 +550,17 @@ class MetadataPostProcessor:
             "entity_files": [],
             "relation_files": [],
             "notes": notes,
+            "notes_structure": wide_short_info.get("structure") if wide_short_info else None,
+            "flags": flags,
             "use_case_answers": use_case_answers,
             "validation_errors": validation_errors,
             "status": status
         }
+
+        if wide_short_info:
+            manifest["wide_short_group"] = wide_short_info
+
+        return manifest
 
     def _build_attribute_manifest(self, df: pd.DataFrame) -> List[Dict[str, Any]]:
         """Constructs per-attribute manifest entries."""
@@ -607,7 +629,15 @@ class MetadataPostProcessor:
             str(v) for v in df["attribute_name"].astype(str).tolist()
             if str(v).strip().lower().endswith("id")
         ]
-        return candidate_ids[:1]
+        if candidate_ids:
+            return candidate_ids[:1]
+
+        # Wide-short datasets often use time or week identifiers as the primary axis.
+        fallback_keys = [
+            str(v) for v in df["attribute_name"].astype(str).tolist()
+            if str(v).strip().lower() in {"woy", "week", "week_of_year", "weekofyear", "date"}
+        ]
+        return fallback_keys[:1]
 
     def _infer_time_key_spec(self, df: pd.DataFrame, dataset_type: str) -> Any:
         """Infers a time key for longitudinal or event datasets."""
@@ -620,6 +650,130 @@ class MetadataPostProcessor:
             if any(k in str(v).lower() for k in ["date", "time", "timestamp", "ts"])
         ]
         return time_candidates[0] if time_candidates else None
+
+    def _infer_wide_short_homogeneous_info(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Detects wide-and-short homogeneous datasets and returns group metadata."""
+        if len(df) < 50:
+            return {}
+
+        attr_col = "attribute_name" if "attribute_name" in df.columns else None
+        if attr_col is None:
+            candidate_cols = [c for c in df.columns if str(c).strip().lower() in {"attribute", "field name", "field_name"}]
+            attr_col = candidate_cols[0] if candidate_cols else df.columns[0]
+
+        attrs = df[attr_col].astype(str).tolist()
+        time_keys = [a for a in attrs if str(a).strip().lower() in {"woy", "week", "week_of_year", "weekofyear", "date"}]
+        if len(time_keys) != 1:
+            return {}
+
+        desc_series = None
+        if "description" in df.columns:
+            desc_series = df["description"]
+        elif "Description" in df.columns:
+            desc_series = df["Description"]
+        else:
+            remaining = [c for c in df.columns if c != attr_col]
+            desc_series = df[remaining[0]] if remaining else None
+
+        if desc_series is None:
+            return {}
+
+        prefix = self._common_description_prefix(desc_series, min_count=0.75)
+        if not prefix:
+            return {}
+
+        non_time_attrs = [a for a in attrs if str(a).strip().lower() not in {"woy", "week", "week_of_year", "weekofyear", "date"}]
+        if not non_time_attrs:
+            return {}
+
+        representative_column = non_time_attrs[0]
+
+        rep_row = df[df[attr_col] == representative_column].iloc[0]
+        modality = self._infer_attribute_modality(rep_row)
+        validation_rules = self._wide_short_validation_rules(modality)
+
+        return {
+            "structure": "wide_short_homogeneous",
+            "group_name": re.sub(r"[^a-z0-9]+", "_", prefix.lower()).strip("_"),
+            "representative_column": representative_column,
+            "data_type": modality,
+            "validation_rules": validation_rules,
+            "count_columns": len(df) - 1,
+            "description_prefix": prefix,
+        }
+
+    def _common_description_prefix(self, desc_series: pd.Series, min_count: float = 0.75) -> str:
+        """Detects a repeated leading description prefix across a series of descriptions."""
+        normalized = []
+        for desc in desc_series.astype(str).dropna().tolist():
+            desc_clean = re.sub(r"[^a-z0-9 ]+", " ", desc.lower()).strip()
+            if not desc_clean:
+                continue
+            tokens = desc_clean.split()
+            if len(tokens) < 4:
+                continue
+            normalized.append(" ".join(tokens[:5]))
+
+        if not normalized:
+            return ""
+
+        best_prefix = max(set(normalized), key=normalized.count)
+        if normalized.count(best_prefix) / len(normalized) >= min_count:
+            return best_prefix
+        return ""
+
+    def _wide_short_validation_rules(self, modality: str) -> List[str]:
+        rules: List[str] = []
+        if modality in {"numeric", "currency"}:
+            rules.extend(["non_negative", "range_consistency"])
+        if modality == "date":
+            rules.append("monotonicity")
+        return rules
+
+    def _build_wide_short_info_from_config(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """Builds wide-short metadata from explicit parser configuration."""
+        rep_column = self.parser_config.get("wide_short_representative_column")
+        if not rep_column:
+            return {}
+
+        attr_col = "attribute_name" if "attribute_name" in df.columns else None
+        if attr_col is None:
+            candidate_cols = [c for c in df.columns if str(c).strip().lower() in {"attribute", "field name", "field_name"}]
+            attr_col = candidate_cols[0] if candidate_cols else df.columns[0]
+
+        attrs = df[attr_col].astype(str).tolist()
+        if rep_column not in attrs:
+            self.logger.warning(f"Wide-short representative column '{rep_column}' not found in dictionary attributes.")
+            return {}
+
+        if "description" in df.columns:
+            desc_series = df["description"]
+        elif "Description" in df.columns:
+            desc_series = df["Description"]
+        else:
+            remaining = [c for c in df.columns if c != attr_col]
+            desc_series = df[remaining[0]] if remaining else pd.Series([""] * len(df))
+
+        prefix = self._common_description_prefix(desc_series, min_count=0.5)
+        if not prefix:
+            rep_row = df[df[attr_col] == rep_column].iloc[0]
+            rep_desc = str(rep_row.get("description", "") or rep_row.get("Description", ""))
+            prefix = " ".join(str(rep_desc).lower().split()[:5]).strip() if rep_desc else rep_column
+
+        rep_row = df[df[attr_col] == rep_column].iloc[0]
+        modality = self._infer_attribute_modality(rep_row)
+        validation_rules = self._wide_short_validation_rules(modality)
+        group_name = re.sub(r"[^a-z0-9]+", "_", prefix.lower()).strip("_") or re.sub(r"[^a-z0-9]+", "_", str(rep_column).lower()).strip("_")
+
+        return {
+            "structure": "wide_short_homogeneous",
+            "group_name": group_name,
+            "representative_column": rep_column,
+            "data_type": modality,
+            "validation_rules": validation_rules,
+            "count_columns": len(df) - 1,
+            "description_prefix": prefix,
+        }
 
     def _infer_attribute_role(self, row: pd.Series) -> str:
         """Infers a generic role for the attribute."""
@@ -771,8 +925,10 @@ class MetadataPostProcessor:
         explicit_targets = [str(t).strip().lower() for t in raw_tags if t]
         tag_cols = [f"is_{target}" for target in explicit_targets]
         
-        # Use the Early-Bound "Sticky" cargo columns for the report
-        report_df = df[["attribute_name", "provisional_entity_assignment", "static_dynamic", "logical_type", "physical_type"] + tag_cols].copy()
+        if dataset_type in {"panel", "event_log", "longitudinal"}:
+            report_df = df[["attribute_name", "provisional_entity_assignment", "static_dynamic", "logical_type", "physical_type"] + tag_cols].copy()
+        else:
+            report_df = df[["attribute_name", "provisional_entity_assignment", "logical_type", "physical_type"] + tag_cols].copy()
 
         # 🎨 PRESENTATION: Apply backticks for a consistent fixed-width font look
         md_display_df = report_df.copy()
@@ -785,7 +941,10 @@ class MetadataPostProcessor:
             md_display_df[col] = md_display_df[col].apply(lambda x: f"`{x}`")
 
         # Construct headers dynamically
-        md_headers = ["Attribute", "Assignment", "Static/Dynamic", "Logical Type", "Physical Type"] + [f"Flag: {t.title()}" for t in explicit_targets]
+        if dataset_type in {"panel", "event_log", "longitudinal"}:
+            md_headers = ["Attribute", "Assignment", "Static/Dynamic", "Logical Type", "Physical Type"] + [f"Flag: {t.title()}" for t in explicit_targets]
+        else:
+            md_headers = ["Attribute", "Assignment", "Logical Type", "Physical Type"] + [f"Flag: {t.title()}" for t in explicit_targets]
         md_display_df.columns = md_headers
 
         summary_stats = df["provisional_entity_assignment"].value_counts()
