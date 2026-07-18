@@ -146,6 +146,15 @@ manifest:
 - Featurizer **must** read `manifests/handshake.json` before any transformation.
 - If `status == "blocked"`, the featurizer must refuse to proceed.
 - If `status == "warnings"`, the featurizer may proceed only after acknowledging and recording the warnings.
+- Handshake metadata now includes bootstrapped dataset context for downstream assistants.
+
+Required handshake metadata fields:
+
+- `dataset_type`: dataset taxonomy from bootstrap.
+- `subject`: dataset subject, or `Not applicable` when missing.
+- `subject_id_attribute`: subject key name, or `Not applicable` for cross-sectional datasets.
+- `wide_short_homogeneous`: boolean signal for wide-short grouping.
+- `wide_short_representative_column`: representative column name, or `Not applicable` when not applicable.
 
 ## Migration and compatibility
 

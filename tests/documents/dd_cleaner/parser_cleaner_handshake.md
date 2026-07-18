@@ -5,6 +5,11 @@ This file indicates parser readiness and connects downstream cleaner/featurizer 
 {
   "status": "blocked",
   "dataset_id": "sba_loans_raw",
+  "dataset_type": "event_log",
+  "subject": "customer",
+  "subject_id_attribute": "customer_id",
+  "wide_short_homogeneous": false,
+  "wide_short_representative_column": "Not applicable",
   "dataset_manifest_path": "/home/rajiv/programming/dd_parser_cleaner/tests/documents/dd_analysis_results/dataset_manifest.json",
   "attribute_manifest_path": "/home/rajiv/programming/dd_parser_cleaner/tests/documents/dd_analysis_results/attribute_manifest.json",
   "blocking_reasons": [

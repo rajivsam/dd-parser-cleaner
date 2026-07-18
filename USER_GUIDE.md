@@ -151,6 +151,11 @@ Example:
 A small JSON file indicating readiness for featurization.
 
 * `status`: `ready`, `blocked`, or `warnings`
+* `dataset_type`: bootstrapped dataset taxonomy
+* `subject`: dataset subject, or `Not applicable` if not captured
+* `subject_id_attribute`: subject key name, or `Not applicable` for cross-sectional datasets
+* `wide_short_homogeneous`: boolean signal for wide-short grouping
+* `wide_short_representative_column`: representative column name, or `Not applicable` when not applicable
 * `manifest_path`: path to the dataset manifest
 * `blocking_reasons`: array of strings
 
@@ -159,6 +164,11 @@ Example:
 ```json
 {
   "status": "ready",
+  "dataset_type": "event_log",
+  "subject": "customer",
+  "subject_id_attribute": "customer_id",
+  "wide_short_homogeneous": false,
+  "wide_short_representative_column": "Not applicable",
   "manifest_path": "manifests/orders_2026.json",
   "blocking_reasons": []
 }

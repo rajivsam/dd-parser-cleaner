@@ -203,7 +203,24 @@ def save_metadata_table(coord: PathCoordinator, df: pd.DataFrame):
     if invalid_attrs:
         raise ValueError(f"❌ Schema Drift Detected! Attributes in metadata not in raw data: {invalid_attrs}")
 
-    # 2. Persist to data/dd_cleaner (The analytical destination)
+    # 2. Enrich with dataset-level metadata from the active config.
+    metadata_values = {
+        "dataset_type": coord.config.get("dataset_type"),
+        "subject": coord.config.get("subject"),
+        "subject_id_attribute": coord.config.get("cleaner", {}).get("structural_assessment", {}).get("subject_id_attribute"),
+        "wide_short_homogeneous": coord.config.get("parser", {}).get("wide_short_homogeneous", False),
+        "wide_short_representative_column": coord.config.get("parser", {}).get("wide_short_representative_column"),
+        "graph_type": coord.config.get("graph_type"),
+        "notes": coord.config.get("notes"),
+    }
+    use_case_answers = coord.config.get("use_case_answers") or {}
+    metadata_values["use_case_answer_use_case"] = use_case_answers.get("use_case")
+    metadata_values["use_case_answer_analysis_objective"] = use_case_answers.get("analysis_objective")
+    for col, val in metadata_values.items():
+        if col not in df.columns:
+            df[col] = val
+
+    # 3. Persist to data/dd_cleaner (The analytical destination)
     path = coord.metadata_table_path
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(path, index=False)

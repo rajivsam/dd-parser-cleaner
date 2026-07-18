@@ -1,5 +1,5 @@
 # 📊 Data Quality Profile & Null Analysis
-**Report Generated**: `2026-07-07 11:43:34`
+**Report Generated**: `2026-07-18 14:45:02`
 
 **Total Attributes Profiled**: 31
 
