@@ -1,5 +1,6 @@
 """Utilities for initializing and managing interactive Jupyter Notebook sessions."""
 from typing import List
+import json
 import pandas as pd
 import logging
 from pathlib import Path
@@ -48,9 +49,20 @@ def init_notebook_session(working_dir: str, config_path: str = "config.yaml") ->
         console.print(f"[bold red]{error_msg}[/bold red]")
         raise FileNotFoundError(error_msg)
 
-    # 2. Setup Coordinator (will load config.yaml)
+    # 2. Setup Coordinator (will load the requested config path)
+    config_file = Path(config_path)
+    if config_file.is_absolute():
+        config_path_norm = str(config_file)
+    else:
+        candidate_path = target_path / config_file
+        if candidate_path.exists():
+            config_path_norm = str(candidate_path.resolve())
+        elif config_file.exists():
+            config_path_norm = str(config_file.resolve())
+        else:
+            config_path_norm = str(candidate_path)
+
     try:
-        config_path_norm = str(Path(config_path).resolve()) if Path(config_path).is_absolute() else config_path
         coord = PathCoordinator(config_path=config_path_norm, working_dir=str(target_path))
     except FileNotFoundError as e:
         error_msg = (
@@ -166,15 +178,16 @@ def get_attributes_by_entity(coord: PathCoordinator, entity_name: str) -> List[s
 def get_metadata_table(coord: PathCoordinator) -> pd.DataFrame:
     """
     Retrieves the authoritative metadata table (Expert Overrides).
-    
+
     Validation:
-    1. Returns existing Metadata Table if it exists.
+    1. Returns existing Metadata Table if it exists, enriched with the current bootstrap config.
     2. If not, checks if the Cleaner has run (verifies Synchronized Dictionary).
     3. Bootstraps from the Cleaner's synchronized AI baseline.
     """
     auth_path = coord.metadata_table_path
     if auth_path.exists():
-        return pd.read_csv(auth_path)
+        df = pd.read_csv(auth_path)
+        return _enrich_with_bootstrap_metadata(df, coord)
 
     # Check if cleaner conclusion artifacts exist
     sync_path = coord.synchronized_dictionary_path
@@ -185,7 +198,63 @@ def get_metadata_table(coord: PathCoordinator) -> pd.DataFrame:
         )
 
     logger.info(f"Bootstrapping metadata authority from cleaner baseline: {sync_path.name}")
-    return pd.read_csv(sync_path)
+    df = pd.read_csv(sync_path)
+    return _enrich_with_bootstrap_metadata(df, coord)
+
+
+def get_dataset_metadata(coord: PathCoordinator) -> dict:
+    """Returns dataset-level metadata from the active config or saved dataset metadata artifact."""
+    if coord.dataset_metadata_path.exists():
+        with open(coord.dataset_metadata_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    return _extract_dataset_metadata(coord)
+
+
+def _extract_dataset_metadata(coord: PathCoordinator) -> dict:
+    return {
+        "dataset_type": coord.config.get("dataset_type"),
+        "subject": coord.config.get("subject"),
+        "subject_id_attribute": coord.config.get("cleaner", {}).get("structural_assessment", {}).get("subject_id_attribute"),
+        "wide_short_homogeneous": coord.config.get("parser", {}).get("wide_short_homogeneous", False),
+        "wide_short_representative_column": coord.config.get("parser", {}).get("wide_short_representative_column"),
+        "graph_type": coord.config.get("graph_type"),
+        "notes": coord.config.get("notes"),
+        "use_case_answers": coord.config.get("use_case_answers") or {},
+    }
+
+
+def _flatten_dataset_metadata(metadata: dict) -> dict:
+    flattened = {
+        "dataset_type": metadata.get("dataset_type"),
+        "subject": metadata.get("subject"),
+        "subject_id_attribute": metadata.get("subject_id_attribute"),
+        "wide_short_homogeneous": metadata.get("wide_short_homogeneous", False),
+        "wide_short_representative_column": metadata.get("wide_short_representative_column"),
+        "graph_type": metadata.get("graph_type"),
+        "notes": metadata.get("notes"),
+    }
+    return flattened
+
+
+def _enrich_with_bootstrap_metadata(df: pd.DataFrame, coord: PathCoordinator) -> pd.DataFrame:
+    """Enriches metadata tables with dataset bootstrap metadata from the active config."""
+    metadata_values = _flatten_dataset_metadata(_extract_dataset_metadata(coord))
+    for col, val in metadata_values.items():
+        if col not in df.columns:
+            df[col] = val
+        else:
+            df[col] = df[col].fillna(val)
+    return df
+
+
+def save_dataset_metadata(coord: PathCoordinator, metadata: dict) -> None:
+    """Persist dataset-level metadata as a separate artifact."""
+    path = coord.dataset_metadata_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(metadata, f, indent=2)
+    print(f"✅ Dataset metadata saved to: {path}")
 
 def save_metadata_table(coord: PathCoordinator, df: pd.DataFrame):
     """

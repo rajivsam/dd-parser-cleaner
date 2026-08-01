@@ -57,6 +57,5 @@ It is designed to ingest tabular datasets and output deterministic manifests, di
 
 - `README.md` for product overview and quick start.
 - `USER_GUIDE.md` for workflow and CLI usage.
-- `documents/config_setup.md` for configuration details.
 - `documents/path_coordinator_design.md` for routing and path management.
 - `tests/` for regression and integration coverage.

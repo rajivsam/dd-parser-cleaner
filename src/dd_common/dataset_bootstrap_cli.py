@@ -10,7 +10,14 @@ from dd_common.utilities import verify_workspace_status
 console = Console()
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Bootstrap dataset metadata before generating config.")
+    parser = argparse.ArgumentParser(
+        description="Bootstrap dataset metadata before generating config.",
+        epilog=(
+            "After running dataset-bootstrap, run 'bootstrap-config --output config.yaml .' "
+            "to publish bootstrap metadata into config.yaml so it is available to the parser, "
+            "cleaner, and notebook metadata flows."
+        )
+    )
     parser.add_argument(
         "working_dir",
         nargs="?",
@@ -251,6 +258,10 @@ def main():
         yaml.safe_dump(metadata, f, sort_keys=False)
 
     console.print(f"\n[bold green]✅ Success:[/bold green] Bootstrapped metadata written to [cyan]{output_path}[/cyan]")
+    console.print(
+        "[bold blue]Next step:[/bold blue] Run [white]bootstrap-config --output config.yaml .[/white] "
+        "to publish the bootstrap metadata into the active runtime config and make it available to the parser, cleaner, and notebook metadata flows."
+    )
     if args.json:
         console.print_json(data=metadata)
 

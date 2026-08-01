@@ -18,7 +18,10 @@ class PathCoordinator:
             self.base_dir = Path(working_dir).resolve()
         else:
             self.base_dir = Path(__file__).resolve().parent.parent.parent
-            
+            config_path_obj = Path(config_path)
+            if config_path_obj.is_absolute():
+                self.base_dir = config_path_obj.resolve().parent
+
         self.logger = logging.getLogger(__name__)
         self._config_name = config_path
         self._loaded_config = None
@@ -37,7 +40,9 @@ class PathCoordinator:
     def config(self) -> dict:
         """Lazily loads and tracks context configurations across active boundaries."""
         if self._loaded_config is None:
-            target_cfg = self.base_dir / self._config_name
+            target_cfg = Path(self._config_name)
+            if not target_cfg.is_absolute():
+                target_cfg = self.base_dir / target_cfg
             if not target_cfg.exists():
                 msg = f"❌ Critical Configuration Error: Config file not found at {target_cfg}"
                 self.logger.error(msg)
@@ -200,6 +205,14 @@ class PathCoordinator:
         """
         filename = self._get_required_val(self._cleaner_config, "metadata_table_filename", "cleaner")
         return self.cleaner_output_directory / filename
+
+    @property
+    def dataset_metadata_path(self) -> Path:
+        """
+        Authoritative dataset-level metadata artifact.
+        Targets: {$cleaner_output_directory}/dataset_metadata.json
+        """
+        return self.cleaner_output_directory / "dataset_metadata.json"
 
     @property
     def profiling_report_path(self) -> Path:

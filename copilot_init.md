@@ -1,7 +1,7 @@
 # Copilot Session Bootstrap
 
 This file is the session bootstrap guide for the `dd_parser_cleaner` workspace.
-Use it together with `AGENTS.md` and the files in `documents/` as the basis for the current session.
+Use it together with the packaged agent instructions file `src/dd_common/AGENTS.md` and the files in `documents/` as the basis for the current session.
 
 ## Purpose
 
@@ -11,8 +11,8 @@ Use it together with `AGENTS.md` and the files in `documents/` as the basis for 
 
 ## Key files
 
-- `AGENTS.md`
-  - Root agent instructions and project task tracking conventions.
+- `src/dd_common/AGENTS.md`
+  - Packaged agent instructions and workflow guidance for dd-parser-cleaner.
 - `copilot_init.md`
   - This session bootstrap document.
 - `CLAUDE.md`
@@ -37,7 +37,7 @@ Use it together with `AGENTS.md` and the files in `documents/` as the basis for 
 
 ## Recommended first actions
 
-1. Read `AGENTS.md` for agent behavior and task tracking rules.
+1. Read `src/dd_common/AGENTS.md` for agent behavior and task tracking rules.
 2. Read `documents/README.md` if present, otherwise inspect the `documents/` directory.
 3. Use `bd prime` to refresh Beads context before working on tracked issues.
 4. Keep modifications to documentation and agent instructions self-contained and consistent with existing project conventions.

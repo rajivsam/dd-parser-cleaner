@@ -14,16 +14,14 @@ dd_parser_cleaner/
 │   └── dd_common/               # Shared infrastructure & utilities
 ├── tests/                        # Test suite (real data, no mocking)
 ├── documents/                    # Documentation hub
-│   ├── copilot_stash.md         # 🚀 Session bootstrap for feature dev
+│   ├── copilot_stash.md         # Session bootstrap and developer context
 │   ├── stash.md                 # Authoritative v0.4.6 state
-│   ├── transfer_to_migration.md # Agent-Programmer's Handbook
-│   ├── cleaner_design.md        # Diagnostic pipeline philosophy
+│   ├── transfer_to_migration.md # Agent-programmer handbook
+│   ├── dataset_bootstrapping_guide.md # Dataset bootstrapping guide
 │   ├── path_coordinator_design.md # Path routing architecture
-│   ├── config_setup.md          # Configuration reference
 │   ├── location_utility.md      # Onboarding guide
 │   ├── testing_dd_parser.md     # Test infrastructure
-│   ├── archived/                # Future roadmap & incomplete docs
-│   └── upcoming_features/       # v0.5+ features (prioritized)
+│   └── archived/                # Obsolete and historical docs
 ├── config.yaml                   # Single source of truth for workspace config
 ├── pyproject.toml               # Python project metadata & CLI entry points
 └── README.md                     # Project overview
@@ -70,8 +68,8 @@ dd_parser_cleaner/
 
 **Relevant Documentation**:
 - Start here: [documents/copilot_stash.md](documents/copilot_stash.md) (module overview + patterns)
-- Pipeline design: [documents/cleaner_design.md](documents/cleaner_design.md) (diagnostic flow)
-- Configuration: [documents/config_setup.md](documents/config_setup.md) (cleaner config section)
+- Pipeline design: [documents/transfer_to_migration.md](documents/transfer_to_migration.md) (workflow and constraints)
+- Configuration: `config.yaml` and `README.md` (runtime configuration)
 - Testing: [documents/testing_dd_parser.md](documents/testing_dd_parser.md) (test infrastructure)
 
 **Common Tasks**:
@@ -97,7 +95,7 @@ dd_parser_cleaner/
 **Relevant Documentation**:
 - Start here: [documents/copilot_stash.md](documents/copilot_stash.md) (infrastructure overview)
 - Path routing: [documents/path_coordinator_design.md](documents/path_coordinator_design.md) (routing contract)
-- Config reference: [documents/config_setup.md](documents/config_setup.md) (YAML structure)
+- Config reference: `config.yaml` and `README.md` (runtime configuration)
 - Onboarding: [documents/location_utility.md](documents/location_utility.md) (setup workflow)
 
 **Common Tasks**:
@@ -113,21 +111,18 @@ dd_parser_cleaner/
 ### **documents/** — Current Documentation (Active & Reference)
 
 **Read First**:
-- [**copilot_stash.md**](documents/copilot_stash.md) — 🚀 **Session bootstrap**. Start here for feature development. Contains architecture overview, patterns, constraints, feature areas.
-- [**stash.md**](documents/stash.md) — Authoritative v0.4.6 state. Constraints, design decisions, workflow, current baseline.
+- [**copilot_stash.md**](documents/copilot_stash.md) — Session bootstrap and developer context.
+- [**stash.md**](documents/stash.md) — Authoritative workflow and project state.
 
 **Deep Dives** (Pick by topic):
-- [transfer_to_migration.md](documents/transfer_to_migration.md) — Agent-Programmer's Handbook. User workflows, Golden Rule, 12-step operational recipe, migration patterns.
-- [cleaner_design.md](documents/cleaner_design.md) — Diagnostic pipeline philosophy. Implementation boundary, quarantine workflow, execution flow, safety gates.
-- [path_coordinator_design.md](documents/path_coordinator_design.md) — Path routing architecture. Why it exists, constraints, design patterns, zero-dependency routing.
-- [config_setup.md](documents/config_setup.md) — Configuration blueprint. 3 major sections (global, parser, cleaner), detailed functional breakdown.
-- [location_utility.md](documents/location_utility.md) — Onboarding tool. File placement guide, structural guidance, CLI usage.
-- [testing_dd_parser.md](documents/testing_dd_parser.md) — Test infrastructure. KMDS workspace simulation, test isolation, how to run tests.
+- [transfer_to_migration.md](documents/transfer_to_migration.md) — Agent-programmer handbook and operational workflow.
+- [dataset_bootstrapping_guide.md](documents/dataset_bootstrapping_guide.md) — Dataset type questionnaire and bootstrapping guidance.
+- [path_coordinator_design.md](documents/path_coordinator_design.md) — Path routing architecture and coordinator contract.
+- [location_utility.md](documents/location_utility.md) — Workspace file placement guidance.
+- [testing_dd_parser.md](documents/testing_dd_parser.md) — Test infrastructure and suite overview.
 
-**Policy Reference**:
-- [policy_manifest_schema.json](documents/policy_manifest_schema.json) — Schema definitions (empty in current setup; reference for future).
-
-### **documents/archived/** — Obsolete & Incomplete Documentation
+### **documents/archived/** — Obsolete and historical documentation
+- `documents/archived/` contains moved design notes, deprecated references, and future-planning artifacts.
 
 Contains:
 - `parser_methodology.md` (stub, 1 line)
@@ -137,16 +132,6 @@ Contains:
 - `README.md` (archive explanation)
 
 **Use case**: Understanding future roadmap, historical context, or completed-but-archived work.
-
-### **documents/upcoming_features/** — v0.5+ Feature Roadmap
-
-Contains proposed features for future releases with design approaches, architecture impact, and implementation timelines.
-
-**Features**:
-- Datasheet Alignment & Transparency (5 sub-features)
-- Featurization Tool (two design philosophies)
-
-**Use case**: Planning next-version development, understanding feature prioritization, design patterns for future work.
 
 ---
 
@@ -172,7 +157,7 @@ Contains proposed features for future releases with design approaches, architect
 
 ### **I'm implementing a cleaner feature (profiling or recommendations)**
 1. Read [documents/copilot_stash.md](documents/copilot_stash.md) — dd_cleaner section
-2. Review [documents/cleaner_design.md](documents/cleaner_design.md) — pipeline philosophy
+2. Review [documents/transfer_to_migration.md](documents/transfer_to_migration.md) — workflow context
 3. Check current code: `src/dd_cleaner/orchestrator.py` (pipeline stages)
 4. Modify as needed, follow orchestrator patterns (Stage execution, error handling, reporting)
 5. Test via `uv run pytest tests/test_cleaner.py`
@@ -190,7 +175,7 @@ Contains proposed features for future releases with design approaches, architect
 ---
 
 ### **I'm modifying configuration**
-1. Read [documents/config_setup.md](documents/config_setup.md) — configuration structure
+1. Read [documents/transfer_to_migration.md](documents/transfer_to_migration.md) — workflow context
 2. Review [documents/path_coordinator_design.md](documents/path_coordinator_design.md) — routing pattern
 3. Edit `config.yaml` directly (single source of truth)
 4. Access via `self.config.get("key")` or `self.paths.<property_name>`

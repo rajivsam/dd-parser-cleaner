@@ -51,13 +51,24 @@ def get_package_info() -> Dict[str, Any]:
         "cli_commands": get_cli_command_names(),
         "provided_packages": ["dd_parser", "dd_cleaner", "dd_common"],
         "documentation_note": (
-            "This package does not ship embedded documents in the installed distribution. "
-            "Use the repository top-level USER_GUIDE.md and documents/ folder for onboarding and implementation guidance."
+            "This package includes the agent guidance file AGENTS.md as an installed package resource. "
+            "Clients should use the package metadata below or importlib.resources to access it."
         ),
     }
 
     base.update(
         {
+            "agent_instructions_resource": {
+                "package": "dd_common",
+                "resource_name": "AGENTS.md",
+                "description": "Agent workflow guidance and human prompt instructions packaged with dd-parser-cleaner.",
+                "access_examples": {
+                    "python": (
+                        "from importlib.resources import files\n"
+                        "print(files('dd_common').joinpath('AGENTS.md').read_text())"
+                    ),
+                },
+            },
             "manifest_schema_paths": {
                 "dataset_manifest": "schemas/dataset_manifest.json",
                 "attribute_manifest": "schemas/attribute_manifest.json",

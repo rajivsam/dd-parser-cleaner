@@ -92,18 +92,20 @@ tests/
 documents/
 ├── stash.md                        # Authoritative v0.4.6 state (read first)
 ├── transfer_to_migration.md        # Agent-Programmer's Handbook
-├── cleaner_design.md               # Diagnostic pipeline philosophy
+├── dataset_bootstrapping_guide.md  # Dataset type questionnaire and bootstrapping guide
 ├── path_coordinator_design.md      # Path routing architecture
-├── config_setup.md                 # Config reference
 ├── location_utility.md             # Onboarding guide
 ├── testing_dd_parser.md            # Test infrastructure
 ├── copilot_stash.md               # THIS FILE (session bootstrap)
-├── policy_manifest_schema.json
-└── archived/                       # Future roadmap & incomplete docs
+└── archived/                       # Obsolete and historical docs
+    ├── consolidated_design_doc_dd-parser-cleaner.md
     ├── datasheet_alignment.md      # 5 planned features (not implemented)
     ├── features_from_Provost_Fawcett.md  # Featurization Tool (future)
     ├── features_from_Pyles_text.md       # Featurization Tool (future)
-    └── README.md
+    ├── google_okf/
+    ├── policy_manifest_schema.json
+    ├── upcoming_features/
+    └── wide_and_short_mod.md
 ```
 
 ---

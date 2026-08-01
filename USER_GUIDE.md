@@ -42,6 +42,7 @@ This writes `bootstrap_metadata.yaml` and captures dataset metadata such as `dat
 * The utility supports tabular datasets and homogeneous graphs learnable from tabular data.
 * For wide-short homogeneous datasets, it asks whether the dataset is wide-short and prompts for the representative column.
 * If a graph is detected and it is not homogeneous/tabular-learnable, the bootstrapping flow stops and reports that bipartite/heterogeneous graphs are out of scope.
+* After `dataset-bootstrap`, run `bootstrap-config --output config.yaml .` to generate the active runtime config that carries the bootstrap answers into parser/cleaner execution and notebook metadata flows.
 
 ### 4. Generate runtime config
 

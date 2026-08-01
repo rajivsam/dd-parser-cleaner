@@ -65,7 +65,8 @@ def test_sba_end_to_end_workflow(tmp_path, monkeypatch):
         "--graph-mode", "tabular",
         "--dataset-type", "cross-sectional",
         "--subject", "loan",
-        "--skip-use-case-answers",
+        "--use-case", "To predict the default probablity for an active loan",
+        "--analysis-objective", "To take remediation measures to maintain loan-portfolio performance",
         "--no-wide-short-homogeneous"
     ])
     dataset_bootstrap_cli.main()
@@ -76,6 +77,8 @@ def test_sba_end_to_end_workflow(tmp_path, monkeypatch):
     metadata = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
     assert metadata["dataset_type"] == "cross-sectional"
     assert metadata["subject"] == "loan"
+    assert metadata["use_case_answers"]["use_case"] == "To predict the default probablity for an active loan"
+    assert metadata["use_case_answers"]["analysis_objective"] == "To take remediation measures to maintain loan-portfolio performance"
 
     # 4. Run bootstrap-config to generate the workspace config.yaml
     monkeypatch.setattr(bootstrap_cli, "console", DummyBootstrapConfigConsole())

@@ -33,6 +33,7 @@ This writes `bootstrap_metadata.yaml` and captures dataset type, subject metadat
 
 - Supports **tabular datasets** and **homogeneous graphs learnable from tabular data**.
 - Other graph types (bipartite/heterogeneous graphs) are not supported in this version and are explicitly marked out of scope during bootstrapping.
+- Run `bootstrap-config --output config.yaml .` next so the bootstrap answers are propagated into `config.yaml` for parser, cleaner, and notebook metadata flows.
 
 4. **Generate runtime config**
 
@@ -66,6 +67,12 @@ This validates the manifests, produces diagnostics, and exports the synchronized
 - `data/dd_cleaner/<dataset_id>_clean.csv`
 
 7. **Featurizer** must read the generated handshake file and proceed only if `status == "ready"`.
+
+## Notebook examples
+
+The repository includes example notebooks under `tests/notebooks/`, including a notebook that demonstrates notebook API usage for metadata bootstrap and dataset metadata exposure:
+
+- `tests/notebooks/metadata_bootstrap_example.ipynb`
 
 ## Key capabilities
 

@@ -15,32 +15,42 @@ To ensure complete test isolation, the test suite programmatically simulates a K
 
 ## 🚀 How to Run the Tests
 
-The workspace utilizes the optimized `uv` Python package manager environment toolchain to lock dependencies and run execution sweeps.
+The workspace uses `pytest` for validation with all test files under `tests/`.
 
 ## 1. Run the Complete Test Suite
 
-To fire off all structural pipeline suites together, execute the following command from your project root workspace directory:
+From the project root, execute:
 
 ```bash
 uv run pytest
 ```
 
-## 2. Run Individual Component Test Tracks
+## 2. Run Individual Test Files
 
-If you are modifying a single module and want to run focused, isolated validation loops:
+If you are modifying a specific workflow or module, run the relevant test file directly:
 
-* Validate the Parser Track: Checks case preservation, dynamic LLM entity categorization, prefix-stripping, and signature sidecar generation:
-  ```bash
-  uv run pytest -s tests/test_parser.py
-  ```
-* Validate the Cleaner Track: Checks end-to-end operational table data scrubbing, vectorized title-casing, zero-padding, and column case lookup restorations:
-  ```bash
-  uv run pytest tests/test_cleaner.py
-  ```
+* `tests/test_bootstrap_config.py` — config generation and bootstrap metadata behavior.
+* `tests/test_sba_end_to_end.py` — SBA end-to-end parser and cleaner workflow.
+* `tests/test_mn_traffic_end_to_end.py` — MN traffic end-to-end workflow.
+* `tests/test_itsm_end_to_end.py` — ITSM panel workflow with questionnaire behavior.
+* `tests/test_wide_short_end_to_end.py` — wide-short homogeneous dataset workflow.
+* `tests/test_metadata_authority.py` — metadata authority lifecycle and cleaner baseline enforcement.
+* `tests/test_normalization.py` — normalization utilities and value canonicalization.
+* `tests/test_package_info.py` — package metadata and CLI discovery.
+* `tests/test_post_processor.py` — parser post-processing and manifest emission behavior.
+* `tests/test_user_save_utility.py` — post-cleaning user save utilities.
+* `tests/test_workspace_init.py` — workspace initialization and directory provisioning.
 
 ---
 
 ## 🛠️ Diagnostic Tools
+
+### Notebook Examples
+The project includes example notebooks in `tests/notebooks/` that show how to use the notebook utilities and metadata APIs.
+
+- `tests/notebooks/imperative_migration_example.ipynb`
+- `tests/notebooks/verify_notebook_utils.ipynb`
+- `tests/notebooks/metadata_bootstrap_example.ipynb`
 
 ### Integrity Bridge Check
 To debug mismatches between your Data Dictionary and Raw Data headers without running a full pipeline pass, use the standalone diagnostic tool. This tool is dataset-agnostic and resolves paths dynamically via the `PathCoordinator`.

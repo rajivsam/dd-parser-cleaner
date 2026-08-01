@@ -1,39 +1,37 @@
 # Documents Directory Overview
 
-This directory contains the core design and implementation documentation for the `dd_parser_cleaner` workspace.
-Use this index as the primary entry point for understanding the project architecture and feature contracts.
+This directory contains the active design and implementation documentation for the `dd-parser-cleaner` workspace.
+Use this index as the primary entry point for understanding the project architecture, workflows, and test coverage.
 
-## Files
+## Active files
 
-- `cleaner_design.md`
-  - Design philosophy and execution flow for the `dd_cleaner` module.
-- `config_setup.md`
-  - Reference blueprint for `config.yaml` and workspace parameterization.
 - `copilot_stash.md`
-  - Copilot session context and project architecture summary.
-- `location_utility.md`
-  - Onboarding guide for workspace file placement and the location helper utility.
-- `path_coordinator_design.md`
-  - Architecture and routing contract for the `PathCoordinator` abstraction.
-- `policy_manifest_schema.json`
-  - JSON schema for policy manifest artifacts.
+  - Session bootstrap and developer architecture summary.
 - `stash.md`
-  - Authoritative project state notes and maintenance guidance.
-- `testing_dd_parser.md`
-  - Test infrastructure and validation strategy for the parser module.
+  - Authoritative project state, workflow, and constraints.
 - `transfer_to_migration.md`
-  - Guidance for migration workflows and handoff between parser and cleaner.
-- `google_okf/`
-  - Google / OKF publication guidance and staging notes.
-- `upcoming_features/`
-  - Roadmap and feature planning documents.
+  - Agent-programmer handbook and operational workflow.
+- `dataset_bootstrapping_guide.md`
+  - Dataset type questionnaire and bootstrapping workflow.
+- `location_utility.md`
+  - Workspace onboarding and file placement guidance.
+- `path_coordinator_design.md`
+  - Path routing architecture and coordinator contract.
+- `testing_dd_parser.md`
+  - Test infrastructure and workspace validation guide.
+
+## Archived files
+
+- `archived/`
+  - Obsolete, historical, and future-planning documents moved out of the active docs tree.
 
 ## Usage
 
-- Refer to this index before changing or extending the workspace architecture.
-- Update this file whenever documentation is added, renamed, or reorganized.
+- Read `copilot_stash.md` first for session context and architecture constraints.
+- Follow `transfer_to_migration.md` for the current workflow and Golden Rule guidance.
+- Use `testing_dd_parser.md` to understand how the `tests/` workspace is structured.
 
 ## Notes
 
 - The `documents/` folder is intended to store durable, agent-readable design artifacts.
-- This index helps keep the documentation suite discoverable for both humans and AI agents.
+- The active docs list excludes archived material moved to `documents/archived/`.

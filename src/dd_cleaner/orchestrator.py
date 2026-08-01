@@ -99,6 +99,19 @@ class CleanerOrchestrator:
             df_dict_sync.to_csv(sync_path, index=False)
             self.logger.info(f"✅ Synchronized dictionary baseline saved to: {sync_path.name}")
 
+            # Persist dataset-level metadata separately for notebook and downstream consumption
+            from dd_cleaner.notebook_utils import save_dataset_metadata
+            save_dataset_metadata(self.paths, {
+                "dataset_type": self.config.get("dataset_type"),
+                "subject": self.config.get("subject"),
+                "subject_id_attribute": self.config.get("cleaner", {}).get("structural_assessment", {}).get("subject_id_attribute"),
+                "wide_short_homogeneous": self.config.get("parser", {}).get("wide_short_homogeneous", False),
+                "wide_short_representative_column": self.config.get("parser", {}).get("wide_short_representative_column"),
+                "graph_type": self.config.get("graph_type"),
+                "notes": self.config.get("notes"),
+                "use_case_answers": self.config.get("use_case_answers") or {},
+            })
+
             metadata_lookup = df_dict.set_index(attr_col)["logical_type"].to_dict()
 
         # --- 2. Null Profiling ---

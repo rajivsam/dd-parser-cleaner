@@ -22,6 +22,25 @@ def test_get_cli_command_names_returns_list():
     assert "bootstrap-config" in names
 
 
+def test_get_package_info_contains_agent_instructions_resource():
+    info = get_package_info()
+    assert "agent_instructions_resource" in info
+    assert info["agent_instructions_resource"]["package"] == "dd_common"
+    assert info["agent_instructions_resource"]["resource_name"] == "AGENTS.md"
+
+
+def test_agent_instructions_resource_is_readable():
+    import sys
+    from importlib.resources import files
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(root / "src"))
+
+    resource = files("dd_common").joinpath("AGENTS.md")
+    assert resource.read_text().startswith("# dd-parser-cleaner Agent Instructions")
+
+
 def test_get_package_info_contains_discovery_metadata():
     info = get_package_info()
 

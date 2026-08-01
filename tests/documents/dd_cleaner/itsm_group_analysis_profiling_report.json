@@ -1,26 +1,6 @@
 {
   "columns": {
-    "AsOfDate": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "datetime",
-      "is_mixed_type": false,
-      "samples": [
-        "2020-01-01"
-      ]
-    },
-    "Program": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "LocationID": {
+    "number": {
       "null_count": 0,
       "null_ratio": 0.0,
       "cardinality": 1,
@@ -30,337 +10,7 @@
         "1"
       ]
     },
-    "BorrName": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BorrStreet": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BorrCity": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BorrState": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BorrZip": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BankName": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BankFDICNumber": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BankNCUANumber": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BankStreet": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BankCity": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BankState": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BankZip": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "GrossApproval": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "SBAGuaranteedApproval": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "ApprovalDate": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "datetime",
-      "is_mixed_type": false,
-      "samples": [
-        "2020-01-01"
-      ]
-    },
-    "ApprovalFY": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "FirstDisbursementDate": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "ProcessingMethod": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "Subprogram": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "InitialInterestRate": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "FixedorVariableInterestInd": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "TermInMonths": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "NaicsCode": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "NaicsDescription": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "FranchiseCode": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "FranchiseName": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "ProjectCounty": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "ProjectState": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "SBADistrictOffice": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "CongressionalDistrict": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BusinessType": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "BusinessAge": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "LoanStatus": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "PaidInFullDate": {
+    "incident_state": {
       "null_count": 0,
       "null_ratio": 0.0,
       "cardinality": 1,
@@ -370,7 +20,7 @@
         "1"
       ]
     },
-    "ChargeOffDate": {
+    "active": {
       "null_count": 0,
       "null_ratio": 0.0,
       "cardinality": 1,
@@ -380,7 +30,7 @@
         "0"
       ]
     },
-    "GrossChargeOffAmount": {
+    "reassignment_count": {
       "null_count": 0,
       "null_ratio": 0.0,
       "cardinality": 1,
@@ -390,7 +40,7 @@
         "0"
       ]
     },
-    "RevolverStatus": {
+    "reopen_count": {
       "null_count": 0,
       "null_ratio": 0.0,
       "cardinality": 1,
@@ -400,7 +50,7 @@
         "0"
       ]
     },
-    "JobsSupported": {
+    "sys_mod_count": {
       "null_count": 0,
       "null_ratio": 0.0,
       "cardinality": 1,
@@ -410,7 +60,7 @@
         "0"
       ]
     },
-    "CollateralInd": {
+    "made_sla": {
       "null_count": 0,
       "null_ratio": 0.0,
       "cardinality": 1,
@@ -420,7 +70,287 @@
         "0"
       ]
     },
-    "SoldSecMrktInd": {
+    "caller_id": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "1"
+      ]
+    },
+    "opened_by": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "opened_at": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "datetime",
+      "is_mixed_type": false,
+      "samples": [
+        "2020-01-01"
+      ]
+    },
+    "sys_created_by": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "sys_created_at": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "datetime",
+      "is_mixed_type": false,
+      "samples": [
+        "2020-01-01"
+      ]
+    },
+    "sys_updated_by": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "sys_updated_at": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "datetime",
+      "is_mixed_type": false,
+      "samples": [
+        "2020-01-01"
+      ]
+    },
+    "contact_type": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "location": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "category": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "subcategory": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "u_symptom": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "cmdb_ci": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "impact": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "urgency": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "priority": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "assignment_group": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "assigned_to": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "knowledge": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "u_priority_confirmation": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "notify": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "problem_id": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "1"
+      ]
+    },
+    "rfc": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "vendor": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "caused_by": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "close_code": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "resolved_by": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "resolved_at": {
+      "null_count": 0,
+      "null_ratio": 0.0,
+      "cardinality": 1,
+      "logical_type": "numeric",
+      "is_mixed_type": false,
+      "samples": [
+        "0"
+      ]
+    },
+    "closed_at": {
       "null_count": 0,
       "null_ratio": 0.0,
       "cardinality": 1,
@@ -432,5 +362,5 @@
     }
   },
   "row_count": 1,
-  "timestamp": "2026-08-01 15:01:50"
+  "timestamp": "2026-08-01 14:28:23"
 }

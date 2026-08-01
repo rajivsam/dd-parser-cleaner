@@ -7,11 +7,14 @@ This file indicates parser readiness and connects downstream cleaner/featurizer 
   "dataset_id": "sba_loans_raw",
   "dataset_type": "cross-sectional",
   "graph_type": "Not applicable",
-  "subject": "Not applicable",
+  "subject": "loan",
   "subject_id_attribute": "Not applicable",
   "wide_short_homogeneous": false,
   "wide_short_representative_column": "Not applicable",
-  "use_case_answers": {},
+  "use_case_answers": {
+    "use_case": "predict loan default probablity for active loans",
+    "analysis_objective": "to maintain loan portfolio performance for the SBA"
+  },
   "dataset_manifest_path": "/home/rajiv/programming/dd-parser-cleaner/tests/documents/dd_analysis_results/sba_loans_raw_dataset_manifest.json",
   "attribute_manifest_path": "/home/rajiv/programming/dd-parser-cleaner/tests/documents/dd_analysis_results/sba_loans_raw_attribute_manifest.json",
   "blocking_reasons": [],

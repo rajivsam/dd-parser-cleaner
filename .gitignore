@@ -37,6 +37,8 @@ tests/workspace_test/
 *.signature
 provisional_config.yaml
 
+documents/archived/
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db
