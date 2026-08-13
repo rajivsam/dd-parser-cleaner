@@ -19,6 +19,8 @@ Use this index as the primary entry point for understanding the project architec
   - Path routing architecture and coordinator contract.
 - `testing_dd_parser.md`
   - Test infrastructure and workspace validation guide.
+- `tabular_data_type_decision_tree.md`
+  - Simple decision-tree summary for resolving tabular dataset type and wide-short classification.
 
 ## Archived files
 
