@@ -248,3 +248,40 @@ def test_wide_short_config_drives_manifest_construction(tmp_path):
     assert manifest["wide_short_group"]["representative_column"] == "woy"
     assert manifest["flags"]["skip_columnwise_intelligence"] is True
     assert manifest["wide_short_group"]["count_columns"] == len(df_synced) - 1
+
+
+def test_wide_short_heuristic_requires_a_shared_repeated_prefix(tmp_path):
+    config_path = tmp_path / "config.yaml"
+    config = {
+        "working_dir": str(tmp_path),
+        "documents_dir": "documents",
+        "dataset_type": "cross-sectional",
+        "parser": {
+            "data_dictionary_file": "sample_dd.csv",
+            "data_dictionary_attribute_col_name": "attribute",
+            "entity_tagging": [],
+        },
+        "cleaner": {
+            "raw_dataset_file": "sample.csv",
+            "clean_output_filename": "sample_clean.csv",
+            "metadata_table_filename": "sample_metadata_table.csv",
+            "user_cleaned_output_filename": "sample_user_cleaned.csv",
+            "dd_cleaner_output_dir": "dd_cleaner",
+            "handshake_file": "sample_parser_cleaner_handshake.md",
+            "profiling_report_filename": "sample_profiling_report.md",
+            "quarantine_dir": "quarantine",
+            "quarantine_filename": "sample_quarantine.csv",
+        },
+    }
+    config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+
+    df = pd.DataFrame({
+        "attribute_name": ["woy"] + [f"metric_{idx}" for idx in range(1, 61)],
+        "description": ["Week of year"] + [f"{suffix} value" for suffix in ["Sales", "Inventory", "Margin", "Returns"] * 15],
+    })
+
+    coordinator = PathCoordinator(config_path=str(config_path))
+    processor = MetadataPostProcessor(coordinator, coordinator.config["parser"])
+    result = processor._infer_wide_short_homogeneous_info(df)
+
+    assert result == {}

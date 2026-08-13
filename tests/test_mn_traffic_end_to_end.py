@@ -48,6 +48,12 @@ def test_mn_traffic_end_to_end_workflow(tmp_path, monkeypatch):
     copyfile(sample_data, workspace_dir / "data" / "MN_traffic.csv")
     copyfile(sample_dictionary, workspace_dir / "data_dictionary" / "MN_traffic_dd.csv")
 
+    monkeypatch.setattr(dataset_bootstrap_cli, "console", DummyBootstrapConsole([
+        "1",          # single row = one subject
+        "1",          # tabular analysis goal
+        "3",          # panel dataset type
+        "segment_id"  # subject id attribute
+    ]))
     monkeypatch.setattr(sys, "argv", [
         "dataset-bootstrap",
         str(workspace_dir),

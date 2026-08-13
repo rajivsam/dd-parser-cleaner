@@ -69,6 +69,12 @@ def test_itsm_end_to_end_workflow(tmp_path, monkeypatch):
     copyfile(sample_dictionary, workspace_dir / "data_dictionary" / "itsm_dd.csv")
     copyfile(Path(__file__).resolve().parent.parent / "schemas" / "dataset_questions.json", workspace_dir / "documents" / "config" / "dataset_questions.json")
 
+    monkeypatch.setattr(dataset_bootstrap_cli, "console", DummyBootstrapConsole([
+        "1",          # single row = one subject
+        "1",          # tabular analysis goal
+        "3",          # panel dataset type
+        "incident_id" # subject id attribute
+    ]))
     monkeypatch.setattr(sys, "argv", [
         "dataset-bootstrap",
         str(workspace_dir),
@@ -129,3 +135,37 @@ def test_itsm_end_to_end_workflow(tmp_path, monkeypatch):
     assert coordinator.clean_dataset_output_path.exists(), "Cleaner did not generate clean dataset output for ITSM"
     assert coordinator.synchronized_dictionary_path.exists(), "Cleaner did not generate synchronized dictionary for ITSM"
     assert (coordinator.cleaner_narrative_directory / "cleaning_recommendations.md").exists(), "Cleaner did not generate recommendations report for ITSM"
+
+
+def test_event_log_datetime_recommendations_use_duration_logic(tmp_path):
+    profile_path = tmp_path / "profile.json"
+    dd_path = tmp_path / "itsm_dd.csv"
+
+    profile_path.write_text(json.dumps({
+        "columns": {
+            "opened_at": {"null_ratio": 0.0, "cardinality": 10, "is_mixed_type": False},
+            "resolved_at": {"null_ratio": 0.0, "cardinality": 10, "is_mixed_type": False},
+            "sys_created_at": {"null_ratio": 0.0, "cardinality": 5, "is_mixed_type": False},
+            "sys_updated_at": {"null_ratio": 0.0, "cardinality": 6, "is_mixed_type": False},
+        }
+    }), encoding="utf-8")
+
+    dd_path.write_text(
+        "attribute_name,logical_type,provisional_entity_assignment\n"
+        "opened_at,datetime,Incident Management\n"
+        "resolved_at,datetime,Incident Management\n"
+        "sys_created_at,datetime,Incident Management\n"
+        "sys_updated_at,datetime,System Update\n",
+        encoding="utf-8"
+    )
+
+    assistant = __import__("dd_cleaner.assistant", fromlist=["CleaningAssistant"]).CleaningAssistant(
+        {"dataset_type": "event_log"}, profile_path, dd_path
+    )
+    result = assistant.generate_recommendations()
+    actions = {item["attribute_name"]: item["recommended_action"] for item in result["recommendations"]}
+
+    assert actions["opened_at"] == "custom:event_duration_numeric"
+    assert actions["resolved_at"] == "custom:event_duration_numeric"
+    assert actions["sys_created_at"] == "drop-attribute"
+    assert actions["sys_updated_at"] == "drop-attribute"

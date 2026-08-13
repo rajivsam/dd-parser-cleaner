@@ -54,6 +54,11 @@ def test_wide_short_dataset_end_to_end(tmp_path, monkeypatch):
     copyfile(source_raw, target_raw)
     copyfile(source_dd, target_dd)
 
+    monkeypatch.setattr(dataset_bootstrap_cli, "console", DummyBootstrapConsole([
+        "1",  # single row = one subject
+        "2",  # network analysis goal
+        "y"   # confirm true network graph
+    ]))
     monkeypatch.setattr(sys, "argv", [
         "dataset-bootstrap",
         str(workspace_dir),

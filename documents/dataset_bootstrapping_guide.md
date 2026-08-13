@@ -1,84 +1,134 @@
 ```
-# Dataset Type Bootstrapping Specification
+# Dataset Bootstrapping Specification
 
 ## Purpose
-Introduce a **bootstrapping phase**in `dd-parser-cleaner`to establish dataset type metadata before cleaning. This ensures the parser and cleaner apply the correct integrity rules and generate accurate manifests.
+Introduce a dedicated bootstrapping phase in `dd-parser-cleaner` to capture dataset metadata before config generation. This ensures the parser, cleaner, and notebook metadata flows receive the correct dataset taxonomy and subject-level signals.
 
 ---
 
 ## Bootstrapping Flow
 
+### Step 0: Workspace verification
+- The utility checks that the target directory is an initialized workspace.
+- It expects `data/` and `data_dictionary/` folders and requires exactly one selected CSV file from each.
+- If multiple CSV candidates exist, the user is prompted to choose the correct file.
+
 ### Step 1: Top-Level Branch
--Ask: *Graph or Tabular analysis?*
--If **Graph**→ ask whether the dataset is a homogeneous graph learnable from tabular data or another graph type.
-  - If **homogeneous** → proceed with the tabular questionnaire flow and set `dataset_type` to `graph_homogeneous`.
-  - If **other** → stop with a clear message that other graph types are out of scope for now.
--If **Tabular**→ proceed.
+- Ask: *Graph or Tabular dataset?*
+- If **Graph** → ask whether the dataset is a homogeneous graph learnable from tabular data or another graph type.
+  - If **homogeneous** → proceed with the tabular questionnaire flow and record `dataset_type: graph_homogeneous` with `graph_type: homogeneous`.
+  - If **other** → stop with a clear message that non-homogeneous graph types are out of scope for this version.
+- If **Tabular** → proceed with tabular metadata capture.
 
 ### Step 2: Tabular Branch
--Ask: *Is the dataset cross-sectional or panel?*
--If user knows → set `dataset_type` accordingly.
--If user is unsure → proceed with guided questions.
+- Ask: *Is the dataset cross-sectional, panel, or are you unsure?*
+- If the user knows, set `dataset_type` to `cross-sectional` or `panel`.
+- If the user is unsure, the CLI asks guided questions to infer the type.
 
 ### Step 3: Guided Questions
-1.**Subject identification**  
-   -"What is the subject of the dataset? (e.g., customer, device, employee)"  
-   -Store in `manifest.notes.subject`.
+1. **Subject identification**
+   - "What is the subject of the dataset? (e.g., customer, device, employee)"
+   - Store in `subject`.
 
-2.**Time dimension check**  
-   -"Does each row represent the subject at a single point in time?"  
-   -If **No**→ dataset is **event log**.  
-   -If **Yes**→ continue.
+2. **Time dimension check**
+   - "Does each row represent the subject at a single point in time?"
+   - If **No** → dataset is `event_log`.
+   - If **Yes** → continue.
 
-3.**Synchronization check**  
-   -"Are all subjects evaluated at the same point in time?"  
-   -If **Yes**→ dataset is **cross-sectional**.  
-   -If **No**→ dataset is **panel (long form)**.
+3. **Synchronization check**
+   - "Are all subjects evaluated at the same point in time?"
+   - If **Yes** → dataset is `cross-sectional`.
+   - If **No** → dataset is `panel`.
+
+### Step 4: Optional use-case metadata
+- The CLI may capture `use_case` and `analysis_objective` unless `--skip-use-case-answers` is used.
+- These answers are stored under `use_case_answers`.
+
+### Step 5: Wide-short homogeneous dataset support
+- The CLI asks whether the dataset is wide-and-short homogeneous unless `--wide-short-homogeneous` or `--no-wide-short-homogeneous` is provided.
+- If yes, it prompts for `wide_short_representative_column`.
+- It attempts to preview raw headers and validates the entered representative column against the file headers when possible.
+- The bootstrapped metadata records both `wide_short_homogeneous` and `wide_short_representative_column`.
+
+### Step 6: Output
+- The bootstrapping step writes `bootstrap_metadata.yaml` in the target workspace.
+- It also supports `--json` to emit captured metadata as JSON to stdout.
 
 ---
 
-## Manifest Integration
--Add `dataset_type`field to dataset manifest based on bootstrapping answers.
--Add `notes.subject`and `notes.use_case_answers`for transparency.
--Cleaner uses `dataset_type`to select appropriate validators:
-  -**Cross-sectional**→ static consistency checks.
-  -**Event log**→ monotonicity, lag consistency, gap detection.
-  -**Panel**→ static vs dynamic attribute validation.
+## Supported CLI options
+- `--wide-short-homogeneous` / `--no-wide-short-homogeneous`
+- `--wide-short-representative-column`
+- `--graph-mode graph|tabular`
+- `--graph-homogeneous`
+- `--dataset-type cross-sectional|panel|event_log|longitudinal`
+- `--subject`
+- `--subject-id-attribute`
+- `--use-case`
+- `--analysis-objective`
+- `--skip-use-case-answers`
+- `--json`
 
 ---
 
-## Example Bootstrapping Dialogue
+## Bootstrapped metadata fields
+The generated `bootstrap_metadata.yaml` includes:
+
+- `dataset_type` (`cross-sectional`, `panel`, `event_log`, `graph_homogeneous`)
+- `subject`
+- `subject_id_attribute`
+- `wide_short_homogeneous` (boolean)
+- `wide_short_representative_column`
+- `use_case_answers` (object)
+- `notes: Generated by dataset bootstrapping.`
+- `graph_type: homogeneous` (when `dataset_type` is `graph_homogeneous`)
+
+---
+
+## Integration with config generation
+- After `dataset-bootstrap`, run `bootstrap-config --output config.yaml .`.
+- `bootstrap-config` consumes `bootstrap_metadata.yaml`, discovers the selected `data/` and `data_dictionary/` files, and writes `config.yaml`.
+- For wide-short homogeneous datasets, `bootstrap-config` preserves the wide-short metadata and enables wide-short-specific parser prompts.
+
+---
+
+## Manifest and cleaner impact
+- Bootstrapping metadata is used indirectly to shape parser and cleaner behavior via `config.yaml`.
+- `dataset_type` drives the parser/cleaner selection of dataset handling logic.
+- `wide_short_homogeneous` and `wide_short_representative_column` enable the wide-short fast path in entity classification.
+- Use-case metadata is captured for transparency and reporting, but not required for basic bootstrapping.
+
+---
+
+## Example dialogue
 ```
-
-**System: Do you want to analyze a Graph or Tabular dataset?
+System: Do you want to analyze a Graph or Tabular dataset?
 User: Tabular
-System: Is the dataset cross-sectional or panel?
+System: Is the dataset cross-sectional, panel, or are you unsure?
 User: Not sure
 System: What is the subject of the dataset?
 User: Customer
 System: Does each row represent the subject at a single point in time?
 User: No
-System: → Dataset type set to event_log**
-
-**Code**
-
+System: → Dataset type set to event_log
 ```
 
 ---
 
-## Acceptance Criteria
-- Bootstrapping phase runs before any cleaning.
-- Dataset manifest includes `dataset_type` and `notes.subject`.
-- Handshake file reflects readiness only if bootstrapping metadata is complete.
-- Cleaner applies validators based on dataset type.
+## Acceptance criteria
+- `dataset-bootstrap` verifies the workspace and required CSV inputs.
+- `bootstrap_metadata.yaml` is written with dataset taxonomy and subject metadata.
+- `bootstrap-config` can consume `bootstrap_metadata.yaml` and generate `config.yaml`.
+- Wide-short homogeneous metadata is preserved through config generation.
+- Non-homogeneous graphs are rejected as out of scope by the current bootstrapping flow.
 
 ---
 
-## Value Added
-- Provides **self-documenting metadata** for every dataset.
-- Reduces ambiguity for agents and humans.
-- Ensures cleaning rules are contextually correct.
-- Significantly increases the trust and usability of KMDS across multiple dataset types.
+## Value added
+- Captures explicit dataset taxonomy before parser/cleaner execution.
+- Reduces ambiguity around dataset type and subject semantics.
+- Enables wide-short and homogeneous graph flows to be handled consistently.
+- Ensures downstream runtime config has the metadata needed for correct manifest generation.
 ```
 
 **This Markdown version is clean, structured, and ready to replace fragmented notes. Would you like me to also add a ****table of contents** at the top for easier navigation, like we did for the consolidated featurization design doc?

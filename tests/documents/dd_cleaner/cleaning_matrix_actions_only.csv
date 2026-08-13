@@ -1,44 +1,17 @@
 attribute_name,logical_type,entity_context,null_ratio,cardinality,recommended_action,reason
-AsOfDate,datetime,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-Program,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-LocationID,numeric,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-BorrName,numeric,Person,0.0,1,drop-attribute,Constant value / Zero variance
-BorrStreet,numeric,geographic,0.0,1,drop-attribute,Constant value / Zero variance
-BorrCity,numeric,Geographic,0.0,1,drop-attribute,Constant value / Zero variance
-BorrState,numeric,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-BorrZip,numeric,geographic,0.0,1,drop-attribute,Constant value / Zero variance
-BankName,numeric,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-BankFDICNumber,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-BankNCUANumber,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-BankStreet,numeric,geographic,0.0,1,drop-attribute,Constant value / Zero variance
-BankCity,numeric,Geographic,0.0,1,drop-attribute,Constant value / Zero variance
-BankState,numeric,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-BankZip,numeric,Geographic,0.0,1,drop-attribute,Constant value / Zero variance
-GrossApproval,numeric,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-SBAGuaranteedApproval,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-ApprovalDate,datetime,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-ApprovalFY,numeric,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-FirstDisbursementDate,numeric,date,0.0,1,drop-attribute,Constant value / Zero variance
-ProcessingMethod,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-Subprogram,numeric,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-InitialInterestRate,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-FixedorVariableInterestInd,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-TermInMonths,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-NaicsCode,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-NaicsDescription,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-FranchiseCode,numeric,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-FranchiseName,numeric,Conceptual Entity,0.0,1,drop-attribute,Constant value / Zero variance
-ProjectCounty,numeric,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-ProjectState,numeric,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-SBADistrictOffice,numeric,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-CongressionalDistrict,numeric,Geographic,0.0,1,drop-attribute,Constant value / Zero variance
-BusinessType,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-BusinessAge,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-LoanStatus,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-PaidInFullDate,numeric,Logical Category,0.0,1,drop-attribute,Constant value / Zero variance
-ChargeOffDate,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-GrossChargeOffAmount,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-RevolverStatus,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-JobsSupported,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-CollateralInd,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
-SoldSecMrktInd,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
+asofdate,datetime,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
+program,numeric,Logical Categories,0.0,1,drop-attribute,Constant value / Zero variance
+approvaldate,datetime,Logical Categories,0.0,4468,custom:datetime_to_numeric,"This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."
+firstdisbursementdate,datetime,Person,0.1969057544372341,197,custom:datetime_to_numeric,"This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."
+subprogram,categorical,Logical Categories,0.0675920752933087,3,constant:MISSING,Categorical/Text with 6.8% nulls: Recommendation is creating a 'MISSING' category.
+naicscode,numeric,Logical Categories,0.003721689801882333,1126,mean-imputation,Numeric with 0.4% nulls: Recommendation is mean imputation.
+naicsdescription,text,Logical Categories,0.0037732605612617646,1747,constant:MISSING,Categorical/Text with 0.4% nulls: Recommendation is creating a 'MISSING' category.
+franchisecode,numeric,Logical Categories,0.9019897717993898,2117,mean-imputation,Numeric with 90.2% nulls: Recommendation is mean imputation.
+franchisename,categorical,Organization,0.9021015084447118,2093,constant:MISSING,Categorical/Text with 90.2% nulls: Recommendation is creating a 'MISSING' category.
+sbadistrictoffice,categorical,Conceptual Entity,8.595126563238644e-06,74,constant:MISSING,Categorical/Text with 0.0% nulls: Recommendation is creating a 'MISSING' category.
+congressionaldistrict,numeric,geographic,6.016588594267051e-05,54,mean-imputation,Numeric with 0.0% nulls: Recommendation is mean imputation.
+businesstype,categorical,Logical Categories,0.0003180196828398298,3,constant:MISSING,Categorical/Text with 0.0% nulls: Recommendation is creating a 'MISSING' category.
+businessage,categorical,Logical Categories,0.004589797584769436,10,constant:MISSING,Categorical/Text with 0.5% nulls: Recommendation is creating a 'MISSING' category.
+loanstatus,categorical,Logical Categories,0.0021573767673728995,21,constant:MISSING,Categorical/Text with 0.2% nulls: Recommendation is creating a 'MISSING' category.
+paidinfulldate,datetime,Logical Category,0.6921827323907345,183,custom:datetime_to_numeric,"This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."
+chargeoffdate,datetime,Logical Categories,0.9918862005243028,634,drop-attribute,Extreme sparsity (99.2%): Exceeds null threshold of 95.0%

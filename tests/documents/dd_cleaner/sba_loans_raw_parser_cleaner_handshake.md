@@ -12,8 +12,8 @@ This file indicates parser readiness and connects downstream cleaner/featurizer 
   "wide_short_homogeneous": false,
   "wide_short_representative_column": "Not applicable",
   "use_case_answers": {
-    "use_case": "predict loan default probablity for active loans",
-    "analysis_objective": "to maintain loan portfolio performance for the SBA"
+    "use_case": "Determine if the loan is going to default",
+    "analysis_objective": "Identify the at risk loans in the portfolio"
   },
   "dataset_manifest_path": "/home/rajiv/programming/dd-parser-cleaner/tests/documents/dd_analysis_results/sba_loans_raw_dataset_manifest.json",
   "attribute_manifest_path": "/home/rajiv/programming/dd-parser-cleaner/tests/documents/dd_analysis_results/sba_loans_raw_attribute_manifest.json",

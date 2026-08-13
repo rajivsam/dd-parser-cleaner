@@ -33,6 +33,44 @@ class CleaningAssistant:
         self.model_name = self.config.get("model_name", "llama3.2")
         self.llm_timeout = float(self.config.get("llm_timeout", 180.0))
 
+    def _event_log_datetime_action(self, col: str, logical_type: str) -> Dict[str, str]:
+        """Customize datetime handling for event-log datasets.
+
+        Event-log timestamps should only be retained when they participate in the
+        event duration signal. System audit timestamps and metadata timestamps are
+        operational records and should be removed once the actual duration feature
+        is derived.
+        """
+        if logical_type != "datetime":
+            return {"recommended_action": "none", "reason": "Data appears healthy"}
+
+        col_lower = col.lower()
+        duration_keywords = [
+            "opened", "resolved", "closed", "start", "end", "duration",
+            "arrival", "departure", "completed", "event", "occurred"
+        ]
+        audit_keywords = [
+            "sys_created", "sys_updated", "created_at", "updated_at",
+            "modified", "logged", "recorded", "audit", "_by"
+        ]
+
+        if any(keyword in col_lower for keyword in duration_keywords):
+            return {
+                "recommended_action": "custom:event_duration_numeric",
+                "reason": "Event-log datetime appears to participate in the event duration signal; derive a numeric duration feature and then remove the raw timestamp."
+            }
+
+        if any(keyword in col_lower for keyword in audit_keywords):
+            return {
+                "recommended_action": "drop-attribute",
+                "reason": "Event-log timestamp is operational or audit metadata, not part of the event-of-interest duration signal."
+            }
+
+        return {
+            "recommended_action": "drop-attribute",
+            "reason": "Event-log datetime is not tied to the event-of-interest and should be removed from the cleaned matrix."
+        }
+
     def generate_recommendations(self) -> Dict[str, Any]:
         """
         Core heuristic engine to map columns to actions.
@@ -67,6 +105,11 @@ class CleaningAssistant:
         dd_lookup = df_dd_clean.set_index(attr_col).to_dict(orient="index")
 
         null_threshold = self.config.get('cleaner', {}).get('structural_assessment', {}).get('null_threshold', 0.95)
+        dataset_type = str(
+            self.config.get("dataset_type")
+            or self.config.get("cleaner", {}).get("structural_assessment", {}).get("dataset_type")
+            or ""
+        ).lower()
         
         for col, stats in column_stats.items():
             if not isinstance(stats, dict): continue # Skip non-column metadata entries
@@ -99,10 +142,15 @@ class CleaningAssistant:
                 action = "user-review"
                 reason = "Mixed data types detected in column"
 
-            # 3. Datetime to Numeric Mapping (Cross-Sectional Rule)
+            # 3. Datetime handling depends on dataset semantics.
             elif logical_type == "datetime":
-                action = "custom:datetime_to_numeric"
-                reason = "This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."
+                if dataset_type == "event_log":
+                    event_rule = self._event_log_datetime_action(col, logical_type)
+                    action = event_rule["recommended_action"]
+                    reason = event_rule["reason"]
+                else:
+                    action = "custom:datetime_to_numeric"
+                    reason = "This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them."
 
             # 4. Standardized Imputation
             if action == "none":
@@ -371,12 +419,15 @@ class CleaningAssistant:
                 df_del = df[df["recommended_action"] == "drop-attribute"]
                 write_section("Deletion is recommended for the following attributes", df_del, level=2)
 
+                df_duration = df[df["recommended_action"] == "custom:event_duration_numeric"]
+                write_section("Event-duration attribute derivation is recommended", df_duration, level=2)
+
                 df_der = df[df["recommended_action"] == "custom:datetime_to_numeric"]
                 write_section("Derived attribute definition or deletion is recommended", df_der, level=2)
 
                 df_impute = df[
                     (df["null_ratio"] > 0) & 
-                    (~df["recommended_action"].isin(["drop-attribute", "custom:datetime_to_numeric"]))
+                    (~df["recommended_action"].isin(["drop-attribute", "custom:datetime_to_numeric", "custom:event_duration_numeric"]))
                 ]
 
                 if not df_impute.empty:

@@ -59,6 +59,11 @@ def test_sba_end_to_end_workflow(tmp_path, monkeypatch):
     copyfile(sample_dictionary, target_dd)
 
     # 3. Run dataset-bootstrap to capture metadata
+    monkeypatch.setattr(dataset_bootstrap_cli, "console", DummyBootstrapConsole([
+        "1",  # single row = one subject
+        "1",  # tabular analysis goal
+        "1"   # cross-sectional dataset type
+    ]))
     monkeypatch.setattr(sys, "argv", [
         "dataset-bootstrap",
         str(workspace_dir),

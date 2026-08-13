@@ -9,6 +9,14 @@ Use it together with the packaged agent instructions file `src/dd_common/AGENTS.
 - Identify the main agent instruction file, the root documentation folder, and the current note files.
 - Establish the starting context for feature work, debugging, or documentation updates.
 
+## Hard rule: never fix tests by editing datasets
+
+- Never edit raw fixture CSVs or generated dataset files to make a test pass.
+- Never rewrite a dataset to hide a failing validation condition.
+- If a dataset file looks synthetic, placeholder, or has been clobbered, stop and restore a trusted copy before changing code or test expectations.
+- A passing test on mutated fixture data is not valid evidence of correctness.
+- When the dataset or fixtures are suspect, restore the last trusted dataset version, validate schema and row counts, and then rerun tests.
+
 ## Key files
 
 - `src/dd_common/AGENTS.md`
@@ -41,3 +49,4 @@ Use it together with the packaged agent instructions file `src/dd_common/AGENTS.
 2. Read `documents/README.md` if present, otherwise inspect the `documents/` directory.
 3. Use `bd prime` to refresh Beads context before working on tracked issues.
 4. Keep modifications to documentation and agent instructions self-contained and consistent with existing project conventions.
+5. If fixture data looks suspicious or synthetic, restore the trusted dataset before running validation.

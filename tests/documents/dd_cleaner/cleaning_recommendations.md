@@ -8,55 +8,48 @@ This report provides automated recommendations based on data profile physics and
 - **Strategy Validation**: While we suggest mean/MISSING defaults, the user determines the final strategy.
 
 ## 📊 Summary of Actions
-- **drop-attribute**: 43 columns
+- **constant:MISSING**: 7 columns
+- **drop-attribute**: 3 columns
+- **custom:datetime_to_numeric**: 3 columns
+- **mean-imputation**: 3 columns
 
 ## Deletion is recommended for the following attributes
 
-| Attribute                  | Type     | Entity             | What Needs Fixing              | Recommended Fix   |
-|:---------------------------|:---------|:-------------------|:-------------------------------|:------------------|
-| AsOfDate                   | datetime | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| Program                    | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| LocationID                 | numeric  | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| BorrName                   | numeric  | Person             | Constant value / Zero variance | drop-attribute    |
-| BorrStreet                 | numeric  | geographic         | Constant value / Zero variance | drop-attribute    |
-| BorrCity                   | numeric  | Geographic         | Constant value / Zero variance | drop-attribute    |
-| BorrState                  | numeric  | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| BorrZip                    | numeric  | geographic         | Constant value / Zero variance | drop-attribute    |
-| BankName                   | numeric  | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| BankFDICNumber             | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| BankNCUANumber             | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| BankStreet                 | numeric  | geographic         | Constant value / Zero variance | drop-attribute    |
-| BankCity                   | numeric  | Geographic         | Constant value / Zero variance | drop-attribute    |
-| BankState                  | numeric  | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| BankZip                    | numeric  | Geographic         | Constant value / Zero variance | drop-attribute    |
-| GrossApproval              | numeric  | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| SBAGuaranteedApproval      | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| ApprovalDate               | datetime | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| ApprovalFY                 | numeric  | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| FirstDisbursementDate      | numeric  | date               | Constant value / Zero variance | drop-attribute    |
-| ProcessingMethod           | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| Subprogram                 | numeric  | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| InitialInterestRate        | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| FixedorVariableInterestInd | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| TermInMonths               | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| NaicsCode                  | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| NaicsDescription           | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| FranchiseCode              | numeric  | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| FranchiseName              | numeric  | Conceptual Entity  | Constant value / Zero variance | drop-attribute    |
-| ProjectCounty              | numeric  | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| ProjectState               | numeric  | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| SBADistrictOffice          | numeric  | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| CongressionalDistrict      | numeric  | Geographic         | Constant value / Zero variance | drop-attribute    |
-| BusinessType               | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| BusinessAge                | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| LoanStatus                 | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| PaidInFullDate             | numeric  | Logical Category   | Constant value / Zero variance | drop-attribute    |
-| ChargeOffDate              | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| GrossChargeOffAmount       | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| RevolverStatus             | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| JobsSupported              | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| CollateralInd              | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
-| SoldSecMrktInd             | numeric  | Logical Categories | Constant value / Zero variance | drop-attribute    |
+| Attribute     | Type     | Entity             | What Needs Fixing                                         | Recommended Fix   |
+|:--------------|:---------|:-------------------|:----------------------------------------------------------|:------------------|
+| asofdate      | datetime | Logical Categories | Constant value / Zero variance                            | drop-attribute    |
+| program       | numeric  | Logical Categories | Constant value / Zero variance                            | drop-attribute    |
+| chargeoffdate | datetime | Logical Categories | Extreme sparsity (99.2%): Exceeds null threshold of 95.0% | drop-attribute    |
+
+## Derived attribute definition or deletion is recommended
+
+| Attribute             | Type     | Entity             | What Needs Fixing                                                                                                                                    | Recommended Fix            |
+|:----------------------|:---------|:-------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------|:---------------------------|
+| approvaldate          | datetime | Logical Categories | This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them. | custom:datetime_to_numeric |
+| firstdisbursementdate | datetime | Person             | This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them. | custom:datetime_to_numeric |
+| paidinfulldate        | datetime | Logical Category   | This is a cross sectional dataset; if you want to use the datetime attributes, you need to derive numeric attributes from them and then delete them. | custom:datetime_to_numeric |
+
+## Missing value definition is recommended for the following attributes
+
+### Numeric Attributes (Standard: Mean Imputation)
+
+| Attribute             | Type    | Entity             | What Needs Fixing                                            | Recommended Fix   |
+|:----------------------|:--------|:-------------------|:-------------------------------------------------------------|:------------------|
+| naicscode             | numeric | Logical Categories | Numeric with 0.4% nulls: Recommendation is mean imputation.  | mean-imputation   |
+| franchisecode         | numeric | Logical Categories | Numeric with 90.2% nulls: Recommendation is mean imputation. | mean-imputation   |
+| congressionaldistrict | numeric | geographic         | Numeric with 0.0% nulls: Recommendation is mean imputation.  | mean-imputation   |
+
+### Categorical Attributes (Standard: 'MISSING' Category)
+
+| Attribute         | Type        | Entity             | What Needs Fixing                                                                   | Recommended Fix   |
+|:------------------|:------------|:-------------------|:------------------------------------------------------------------------------------|:------------------|
+| subprogram        | categorical | Logical Categories | Categorical/Text with 6.8% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| naicsdescription  | text        | Logical Categories | Categorical/Text with 0.4% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| franchisename     | categorical | Organization       | Categorical/Text with 90.2% nulls: Recommendation is creating a 'MISSING' category. | constant:MISSING  |
+| sbadistrictoffice | categorical | Conceptual Entity  | Categorical/Text with 0.0% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| businesstype      | categorical | Logical Categories | Categorical/Text with 0.0% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| businessage       | categorical | Logical Categories | Categorical/Text with 0.5% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
+| loanstatus        | categorical | Logical Categories | Categorical/Text with 0.2% nulls: Recommendation is creating a 'MISSING' category.  | constant:MISSING  |
 
 
 ---

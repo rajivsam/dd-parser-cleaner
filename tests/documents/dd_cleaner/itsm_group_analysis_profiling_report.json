@@ -3,364 +3,88 @@
     "number": {
       "null_count": 0,
       "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
+      "cardinality": 24918,
+      "logical_type": "categorical",
       "is_mixed_type": false,
       "samples": [
-        "1"
+        "INC0000045",
+        "INC0000047",
+        "INC0000057",
+        "INC0000060",
+        "INC0000062"
       ]
     },
     "incident_state": {
       "null_count": 0,
       "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
+      "cardinality": 9,
+      "logical_type": "categorical",
       "is_mixed_type": false,
       "samples": [
-        "1"
-      ]
-    },
-    "active": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "reassignment_count": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "reopen_count": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "sys_mod_count": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "made_sla": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "caller_id": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "1"
-      ]
-    },
-    "opened_by": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
+        "New",
+        "Resolved",
+        "Closed",
+        "Active",
+        "Awaiting User Info"
       ]
     },
     "opened_at": {
       "null_count": 0,
       "null_ratio": 0.0,
-      "cardinality": 1,
+      "cardinality": 19849,
       "logical_type": "datetime",
       "is_mixed_type": false,
       "samples": [
-        "2020-01-01"
-      ]
-    },
-    "sys_created_by": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "sys_created_at": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "datetime",
-      "is_mixed_type": false,
-      "samples": [
-        "2020-01-01"
-      ]
-    },
-    "sys_updated_by": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "sys_updated_at": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "datetime",
-      "is_mixed_type": false,
-      "samples": [
-        "2020-01-01"
-      ]
-    },
-    "contact_type": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "location": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "category": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "subcategory": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "u_symptom": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "cmdb_ci": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "impact": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "urgency": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "priority": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
+        "2016-02-29 01:16:00",
+        "2016-02-29 04:40:00",
+        "2016-02-29 06:10:00",
+        "2016-02-29 06:38:00",
+        "2016-02-29 06:58:00"
       ]
     },
     "assignment_group": {
       "null_count": 0,
       "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
+      "cardinality": 79,
+      "logical_type": "categorical",
       "is_mixed_type": false,
       "samples": [
-        "0"
-      ]
-    },
-    "assigned_to": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "knowledge": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "u_priority_confirmation": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "notify": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "problem_id": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "1"
-      ]
-    },
-    "rfc": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "vendor": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "caused_by": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "close_code": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
-      ]
-    },
-    "resolved_by": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
-      "is_mixed_type": false,
-      "samples": [
-        "0"
+        "Group 56",
+        "Group 70",
+        "Group 24",
+        "Group 25",
+        "Group 23"
       ]
     },
     "resolved_at": {
-      "null_count": 0,
-      "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
+      "null_count": 3141,
+      "null_ratio": 0.022164672010838885,
+      "cardinality": 18505,
+      "logical_type": "datetime",
       "is_mixed_type": false,
       "samples": [
-        "0"
+        "2016-02-29 11:29:00",
+        "2016-03-01 09:52:00",
+        "2016-03-01 02:55:00",
+        "2016-03-02 12:06:00",
+        "2016-02-29 15:51:00"
       ]
     },
     "closed_at": {
       "null_count": 0,
       "null_ratio": 0.0,
-      "cardinality": 1,
-      "logical_type": "numeric",
+      "cardinality": 2707,
+      "logical_type": "datetime",
       "is_mixed_type": false,
       "samples": [
-        "0"
+        "2016-03-05 12:00:00",
+        "2016-03-06 10:00:00",
+        "2016-03-06 03:00:00",
+        "2016-03-07 13:00:00",
+        "2016-03-05 16:00:00"
       ]
     }
   },
-  "row_count": 1,
-  "timestamp": "2026-08-01 14:28:23"
+  "row_count": 141712,
+  "timestamp": "2026-08-12 15:35:23"
 }

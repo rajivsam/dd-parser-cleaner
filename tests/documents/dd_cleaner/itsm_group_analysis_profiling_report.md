@@ -1,47 +1,17 @@
 # 📊 Data Quality Profile & Null Analysis
-**Report Generated**: `2026-08-01 14:28:23`
+**Report Generated**: `2026-08-12 15:35:23`
 
-**Total Attributes Profiled**: 36
+**Total Attributes Profiled**: 6
 
 ## Attribute Completeness Matrix
-| Attribute               | Logical Type   |   Null Count | Null %   |   Unique | Samples    |
-|:------------------------|:---------------|-------------:|:---------|---------:|:-----------|
-| number                  | numeric        |            0 | 0.00%    |        1 | 1          |
-| incident_state          | numeric        |            0 | 0.00%    |        1 | 1          |
-| active                  | numeric        |            0 | 0.00%    |        1 | 0          |
-| reassignment_count      | numeric        |            0 | 0.00%    |        1 | 0          |
-| reopen_count            | numeric        |            0 | 0.00%    |        1 | 0          |
-| sys_mod_count           | numeric        |            0 | 0.00%    |        1 | 0          |
-| made_sla                | numeric        |            0 | 0.00%    |        1 | 0          |
-| caller_id               | numeric        |            0 | 0.00%    |        1 | 1          |
-| opened_by               | numeric        |            0 | 0.00%    |        1 | 0          |
-| opened_at               | datetime       |            0 | 0.00%    |        1 | 2020-01-01 |
-| sys_created_by          | numeric        |            0 | 0.00%    |        1 | 0          |
-| sys_created_at          | datetime       |            0 | 0.00%    |        1 | 2020-01-01 |
-| sys_updated_by          | numeric        |            0 | 0.00%    |        1 | 0          |
-| sys_updated_at          | datetime       |            0 | 0.00%    |        1 | 2020-01-01 |
-| contact_type            | numeric        |            0 | 0.00%    |        1 | 0          |
-| location                | numeric        |            0 | 0.00%    |        1 | 0          |
-| category                | numeric        |            0 | 0.00%    |        1 | 0          |
-| subcategory             | numeric        |            0 | 0.00%    |        1 | 0          |
-| u_symptom               | numeric        |            0 | 0.00%    |        1 | 0          |
-| cmdb_ci                 | numeric        |            0 | 0.00%    |        1 | 0          |
-| impact                  | numeric        |            0 | 0.00%    |        1 | 0          |
-| urgency                 | numeric        |            0 | 0.00%    |        1 | 0          |
-| priority                | numeric        |            0 | 0.00%    |        1 | 0          |
-| assignment_group        | numeric        |            0 | 0.00%    |        1 | 0          |
-| assigned_to             | numeric        |            0 | 0.00%    |        1 | 0          |
-| knowledge               | numeric        |            0 | 0.00%    |        1 | 0          |
-| u_priority_confirmation | numeric        |            0 | 0.00%    |        1 | 0          |
-| notify                  | numeric        |            0 | 0.00%    |        1 | 0          |
-| problem_id              | numeric        |            0 | 0.00%    |        1 | 1          |
-| rfc                     | numeric        |            0 | 0.00%    |        1 | 0          |
-| vendor                  | numeric        |            0 | 0.00%    |        1 | 0          |
-| caused_by               | numeric        |            0 | 0.00%    |        1 | 0          |
-| close_code              | numeric        |            0 | 0.00%    |        1 | 0          |
-| resolved_by             | numeric        |            0 | 0.00%    |        1 | 0          |
-| resolved_at             | numeric        |            0 | 0.00%    |        1 | 0          |
-| closed_at               | numeric        |            0 | 0.00%    |        1 | 0          |
+| Attribute        | Logical Type   |   Null Count | Null %   |   Unique | Samples                                                                                                 |
+|:-----------------|:---------------|-------------:|:---------|---------:|:--------------------------------------------------------------------------------------------------------|
+| number           | categorical    |            0 | 0.00%    |    24918 | INC0000045, INC0000047, INC0000057, INC0000060, INC0000062                                              |
+| incident_state   | categorical    |            0 | 0.00%    |        9 | New, Resolved, Closed, Active, Awaiting User Info                                                       |
+| opened_at        | datetime       |            0 | 0.00%    |    19849 | 2016-02-29 01:16:00, 2016-02-29 04:40:00, 2016-02-29 06:10:00, 2016-02-29 06:38:00, 2016-02-29 06:58:00 |
+| assignment_group | categorical    |            0 | 0.00%    |       79 | Group 56, Group 70, Group 24, Group 25, Group 23                                                        |
+| resolved_at      | datetime       |         3141 | 2.22%    |    18505 | 2016-02-29 11:29:00, 2016-03-01 09:52:00, 2016-03-01 02:55:00, 2016-03-02 12:06:00, 2016-02-29 15:51:00 |
+| closed_at        | datetime       |            0 | 0.00%    |     2707 | 2016-03-05 12:00:00, 2016-03-06 10:00:00, 2016-03-06 03:00:00, 2016-03-07 13:00:00, 2016-03-05 16:00:00 |
 
 ---
 
